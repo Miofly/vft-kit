@@ -13,6 +13,15 @@ claude plugin install vft-kit@vft-kit
 
 装完想用桌面通知 / 用量告警，各跑一次 `notify-setup` / `usage-alert-setup` 开通（仅 macOS，跑完重启会话）。
 
+## 详细文档
+
+每个 skill / hook 的完整用法、踩坑与配置，见博客的逐篇文档（下面「有什么」是速览，想看细节点进去）：
+
+- [vft-kit 总览](https://wflynn.cn/pages/2607131001) —— 定位、安装、全量速查表、FAQ
+- **CC 运维**：[cc-baseline](https://wflynn.cn/pages/2607131002) · [cc-backup-restore](https://wflynn.cn/pages/2607131003) · [plugin-refresh](https://wflynn.cn/pages/2607131004)
+- **通用工具**：[fe-auto-test](https://wflynn.cn/pages/2607131005) · [co-infographic-generator](https://wflynn.cn/pages/2607131006) · [git-auto-push](https://wflynn.cn/pages/2607131007) · [vue-sfc-split](https://wflynn.cn/pages/2607131008)
+- **Hook**：[用量告警](https://wflynn.cn/pages/2607131009) · [桌面通知](https://wflynn.cn/pages/2607131010)
+
 ## 有什么
 
 ### Claude Code 运维
