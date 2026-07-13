@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<!-- 模板：KPI 成果看板。适合一组数字指标。改法：复制 .card 块；改 .num 数字与单位；改 .grid 列数。 -->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<style>
+  :root{ --accent:#0ea5a4; --accent2:#06b6d4; --ink:#0f2433; --sub:#5b7180; --line:#dde8ed; }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;}
+  #shot{
+    width:900px;padding:34px 30px 32px;background-color:#f7fafb;
+    background-image:
+      radial-gradient(1000px 320px at 50% -140px,rgba(14,165,164,.10),transparent 70%),
+      linear-gradient(rgba(15,36,51,.035) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(15,36,51,.035) 1px,transparent 1px);
+    background-size:auto,28px 28px,28px 28px;
+  }
+  .title{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:28px;}
+  .title .bar{width:5px;height:24px;border-radius:4px;background:linear-gradient(180deg,var(--accent),var(--accent2));}
+  .title h1{font-size:21px;font-weight:700;color:var(--ink);letter-spacing:.5px;}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;}  /* 3 列 */
+  .card{position:relative;background:#fff;border:1px solid var(--line);border-radius:16px;
+    padding:22px 22px 20px;overflow:hidden;box-shadow:0 6px 18px rgba(15,36,51,.06);}
+  .card .top{height:3px;position:absolute;left:0;top:0;right:0;background:linear-gradient(90deg,var(--accent),var(--accent2));}
+  .head{display:flex;align-items:center;gap:8px;margin-bottom:14px;}
+  .ico{width:22px;height:22px;color:var(--accent);} .ico svg{width:22px;height:22px;display:block;}
+  .label{font-size:14px;font-weight:700;color:var(--ink);}
+  .num{font-size:38px;font-weight:800;line-height:1;letter-spacing:-1px;
+    background:linear-gradient(120deg,#0b6e6d,var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .num .u{font-size:20px;font-weight:700;}
+  .sub{margin-top:9px;font-size:12.5px;color:var(--sub);line-height:1.6;}
+  .sub b{color:var(--ink);font-weight:600;}
+</style>
+</head>
+<body>
+  <div id="shot">
+    <div class="title"><span class="bar"></span><h1>核心成果</h1></div>
+    <div class="grid">
+
+      <!-- 复制这个 .card 块即可新增一个指标 -->
+      <div class="card"><span class="top"></span>
+        <div class="head"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></span><span class="label">指标名称</span></div>
+        <div class="num">90<span class="u">%+</span></div>
+        <div class="sub">一句话说明，<b>关键词</b>加粗。</div>
+      </div>
+
+      <div class="card"><span class="top"></span>
+        <div class="head"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></span><span class="label">指标名称</span></div>
+        <div class="num">3-4<span class="u"> 倍</span></div>
+        <div class="sub">说明文字。</div>
+      </div>
+
+      <div class="card"><span class="top"></span>
+        <div class="head"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a5 5 0 0 1 5 5c0 2-1 3-1 5h-8c0-2-1-3-1-5a5 5 0 0 1 5-5z"/><path d="M9 17h6"/><path d="M10 21h4"/></svg></span><span class="label">指标名称</span></div>
+        <div class="num">5<span class="u">+</span></div>
+        <div class="sub">说明文字。</div>
+      </div>
+
+    </div>
+  </div>
+</body>
+</html>

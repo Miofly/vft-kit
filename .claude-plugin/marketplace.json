@@ -1,0 +1,22 @@
+{
+  "name": "vft-kit",
+  "owner": {
+    "name": "wfly"
+  },
+  "metadata": {
+    "description": "Claude Code 运维与通用工具集"
+  },
+  "plugins": [
+    {
+      "name": "vft-kit",
+      "source": "./plugins/vft-kit",
+      "description": "Claude Code 自身的运维工具箱（体检 / 备份恢复 / 登录态迁移 / 插件刷新 / 用量告警 / 桌面通知），外加一组通用开发工具",
+      "version": "0.1.0",
+      "author": {
+        "name": "wfly"
+      },
+      "category": "productivity",
+      "tags": ["claude-code", "devops", "backup", "usage-monitor", "notification", "playwright"]
+    }
+  ]
+}

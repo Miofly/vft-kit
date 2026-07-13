@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<!-- 模板：A vs B 对比。每行 old→new 胶囊 + 右侧提升幅度条。
+     .fill 的 width 按可比指标（如提升倍数）等比设置，最大值设 100%。 -->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<style>
+  :root{ --accent:#0ea5a4; --accent2:#06b6d4; --ink:#0f2433; --sub:#5b7180; --line:#dde8ed; --old:#94a7b3; }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;}
+  #shot{
+    width:960px;padding:34px 30px 30px;background-color:#f7fafb;
+    background-image:
+      radial-gradient(1100px 320px at 50% -150px,rgba(14,165,164,.10),transparent 70%),
+      linear-gradient(rgba(15,36,51,.035) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(15,36,51,.035) 1px,transparent 1px);
+    background-size:auto,28px 28px,28px 28px;
+  }
+  .title{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:8px;}
+  .title .bar{width:5px;height:24px;border-radius:4px;background:linear-gradient(180deg,var(--accent),var(--accent2));}
+  .title h1{font-size:21px;font-weight:700;color:var(--ink);letter-spacing:.5px;}
+  .legend{display:flex;justify-content:center;gap:22px;margin-bottom:22px;font-size:12px;color:var(--sub);}
+  .legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px;}
+  .legend .o{background:var(--old);} .legend .n{background:linear-gradient(135deg,var(--accent),var(--accent2));}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 6px 18px rgba(15,36,51,.06);overflow:hidden;}
+  .row{display:flex;align-items:center;padding:15px 22px;border-top:1px solid #eef3f5;} .row:first-child{border-top:none;}
+  .stage{display:flex;align-items:center;gap:9px;width:150px;flex:0 0 150px;}
+  .stage .ico{width:20px;height:20px;color:var(--accent);} .stage .ico svg{width:20px;height:20px;display:block;}
+  .stage .t{font-size:14px;font-weight:700;color:var(--ink);}
+  .cmp{display:flex;align-items:center;gap:12px;flex:1;}
+  .pill{font-size:12.5px;font-weight:600;padding:6px 12px;border-radius:8px;white-space:nowrap;}
+  .pill.old{background:#eef2f5;color:#5e7280;border:1px solid #dde6ea;}
+  .pill.new{color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 3px 8px rgba(6,182,212,.28);}
+  .arrow{color:var(--accent);font-size:15px;font-weight:700;}
+  .gain{display:flex;align-items:center;gap:12px;width:240px;flex:0 0 240px;justify-content:flex-end;}
+  .track{width:120px;height:9px;border-radius:6px;background:#eef2f5;overflow:hidden;}
+  .fill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--accent2),var(--accent));}
+  .mult{font-size:17px;font-weight:800;width:62px;text-align:right;
+    background:linear-gradient(120deg,#0b6e6d,var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent;}
+</style>
+</head>
+<body>
+  <div id="shot">
+    <div class="title"><span class="bar"></span><h1>对比标题</h1></div>
+    <div class="legend"><span><i class="o"></i>传统方式</span><span><i class="n"></i>AI 辅助方式</span><span style="color:var(--accent);font-weight:700;">提升幅度</span></div>
+    <div class="panel">
+
+      <!-- 复制这个 .row 块即可新增一行 -->
+      <div class="row">
+        <div class="stage"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span><span class="t">环节一</span></div>
+        <div class="cmp"><span class="pill old">2-3 天</span><span class="arrow">&rarr;</span><span class="pill new">4-6 小时</span></div>
+        <div class="gain"><span class="track"><span class="fill" style="width:60%"></span></span><span class="mult">4-6&times;</span></div>
+      </div>
+
+      <div class="row">
+        <div class="stage"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 8l10 5 10-5-10-5z"/><path d="m2 16 10 5 10-5M2 12l10 5 10-5"/></svg></span><span class="t">环节二</span></div>
+        <div class="cmp"><span class="pill old">1-2 周</span><span class="arrow">&rarr;</span><span class="pill new">1-2 天</span></div>
+        <div class="gain"><span class="track"><span class="fill" style="width:100%"></span></span><span class="mult">6-10&times;</span></div>
+      </div>
+
+    </div>
+  </div>
+</body>
+</html>

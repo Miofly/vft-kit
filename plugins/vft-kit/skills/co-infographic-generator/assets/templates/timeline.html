@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<!-- 模板：纵向时间线大纲。适合流程 + 每步要点/子项。改法：复制 .step 块；.chips 里放标签芯片。 -->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<style>
+  :root{ --accent:#0ea5a4; --accent2:#06b6d4; --ink:#0f2433; --sub:#5b7180; --line:#dde8ed; }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;}
+  #shot{
+    width:840px;padding:34px 34px 30px;background-color:#f7fafb;
+    background-image:
+      radial-gradient(1000px 320px at 50% -150px,rgba(14,165,164,.10),transparent 70%),
+      linear-gradient(rgba(15,36,51,.035) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(15,36,51,.035) 1px,transparent 1px);
+    background-size:auto,28px 28px,28px 28px;
+  }
+  .title{display:flex;align-items:center;gap:11px;margin-bottom:6px;}
+  .title .bar{width:5px;height:24px;border-radius:4px;background:linear-gradient(180deg,var(--accent),var(--accent2));}
+  .title h1{font-size:21px;font-weight:700;color:var(--ink);letter-spacing:.5px;}
+  .lead{font-size:13px;color:var(--sub);margin:0 0 24px 16px;line-height:1.6;} .lead b{color:var(--ink);font-weight:600;}
+  .tl{position:relative;padding-left:46px;}
+  .tl::before{content:"";position:absolute;left:17px;top:8px;bottom:14px;width:3px;border-radius:3px;background:linear-gradient(180deg,var(--accent),var(--accent2));}
+  .step{position:relative;margin-bottom:18px;} .step:last-child{margin-bottom:0;}
+  .dot{position:absolute;left:-46px;top:0;width:36px;height:36px;border-radius:50%;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:13px;font-weight:800;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 4px 10px rgba(6,182,212,.35);border:3px solid #fff;}
+  .box{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:0 5px 16px rgba(15,36,51,.06);}
+  .box h2{font-size:15.5px;font-weight:700;color:var(--ink);margin-bottom:8px;}
+  .box p{font-size:12.5px;color:var(--sub);line-height:1.65;} .box p b{color:var(--ink);font-weight:600;}
+  .chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px;}
+  .chip{font-size:11.5px;color:#0b6e6d;background:rgba(14,165,164,.10);border:1px solid rgba(14,165,164,.22);padding:3px 10px;border-radius:20px;font-weight:600;}
+  .goal{margin-top:22px;background:linear-gradient(135deg,rgba(14,165,164,.10),rgba(6,182,212,.08));
+    border:1px solid rgba(14,165,164,.22);border-radius:12px;padding:13px 18px;font-size:13px;color:var(--ink);display:flex;align-items:center;gap:10px;}
+  .goal .g{width:8px;height:8px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 0 0 4px rgba(14,165,164,.15);}
+  .goal b{color:#0b6e6d;}
+</style>
+</head>
+<body>
+  <div id="shot">
+    <div class="title"><span class="bar"></span><h1>大纲标题</h1></div>
+    <p class="lead">一句话导语，<b>核心动作</b>放在这里。</p>
+    <div class="tl">
+
+      <!-- 复制这个 .step 块即可新增一步 -->
+      <div class="step">
+        <div class="dot">01</div>
+        <div class="box">
+          <h2>步骤标题一</h2>
+          <p>步骤说明，<b>关键词</b>加粗。</p>
+          <div class="chips"><span class="chip">子项A</span><span class="chip">子项B</span><span class="chip">子项C</span></div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="dot">02</div>
+        <div class="box">
+          <h2>步骤标题二</h2>
+          <p>步骤说明。</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="dot">03</div>
+        <div class="box">
+          <h2>步骤标题三</h2>
+          <p>步骤说明。</p>
+        </div>
+      </div>
+
+    </div>
+    <div class="goal"><span class="g"></span><span>核心价值：<b>一句话</b>点题收尾。</span></div>
+  </div>
+</body>
+</html>

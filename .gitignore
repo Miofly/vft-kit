@@ -1,0 +1,28 @@
+# 依赖
+node_modules/
+.pnp.*
+.yarn/
+
+# 构建产物 / 缓存
+dist/
+build/
+*.tsbuildinfo
+.cache/
+
+# 运行时 / 本地产物
+*.log
+.DS_Store
+*.bak
+*.tmp
+.playwright-mcp/
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+
+# 环境 / 密钥（永不入库）
+.env
+.env.*
+*.pem
+*.key

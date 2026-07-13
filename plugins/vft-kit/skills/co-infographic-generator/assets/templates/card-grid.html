@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<!-- 模板：NxN 卡片网格。适合并列的几条要点/前置条件/特性。
+     改法：改 .grid 的列数（grid-template-columns）；复制 .card 块增删条目；改 #shot width 适配。 -->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<style>
+  :root{ --accent:#0ea5a4; --accent2:#06b6d4; --ink:#0f2433; --sub:#5b7180; --line:#dde8ed; }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;}
+  #shot{
+    width:780px;padding:34px 28px 30px;background-color:#f7fafb;
+    background-image:
+      radial-gradient(900px 300px at 50% -120px,rgba(14,165,164,.10),transparent 70%),
+      linear-gradient(rgba(15,36,51,.035) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(15,36,51,.035) 1px,transparent 1px);
+    background-size:auto,26px 26px,26px 26px;
+  }
+  .title{display:flex;align-items:center;justify-content:center;margin-bottom:30px;}
+  .title .badge{font-size:19px;font-weight:700;color:var(--ink);padding:9px 22px;border-radius:30px;
+    background:#fff;border:1px solid var(--line);box-shadow:0 4px 14px rgba(15,36,51,.06);
+    display:flex;align-items:center;gap:10px;letter-spacing:.5px;}
+  .title .dot{width:9px;height:9px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 0 0 4px rgba(14,165,164,.15);}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:20px 22px;}  /* 2 列；要 1x4 改成 repeat(4,1fr) */
+  .card{position:relative;background:#fff;border:1px solid var(--line);border-radius:14px;
+    padding:26px 20px 20px;box-shadow:0 6px 18px rgba(15,36,51,.06);}
+  .card::before{content:"";position:absolute;left:0;top:18px;bottom:18px;width:4px;border-radius:4px;background:linear-gradient(180deg,var(--accent),var(--accent2));}
+  .num{position:absolute;top:-15px;left:22px;width:34px;height:34px;border-radius:50%;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:14px;font-weight:700;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 4px 10px rgba(6,182,212,.35);border:2px solid #fff;}
+  .head{display:flex;align-items:center;gap:10px;margin-bottom:9px;padding-left:6px;}
+  .ico{width:26px;height:26px;color:var(--accent);} .ico svg{width:26px;height:26px;display:block;}
+  .h{font-size:16px;font-weight:700;color:var(--ink);}
+  .d{font-size:12.5px;line-height:1.7;color:var(--sub);padding-left:6px;}
+  .d b{color:var(--ink);font-weight:600;}
+</style>
+</head>
+<body>
+  <div id="shot">
+    <div class="title"><span class="badge"><span class="dot"></span>标题文字</span></div>
+    <div class="grid">
+
+      <!-- 复制这个 .card 块即可新增一张卡片 -->
+      <div class="card">
+        <div class="num">01</div>
+        <div class="head">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 12l9 5 9-5"/><path d="M3 17l9 5 9-5"/></svg></span>
+          <span class="h">要点标题一</span>
+        </div>
+        <div class="d">说明文字，关键词用 <b>加粗</b> 突出层次。</div>
+      </div>
+
+      <div class="card">
+        <div class="num">02</div>
+        <div class="head">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6"/><path d="M9 17h6"/></svg></span>
+          <span class="h">要点标题二</span>
+        </div>
+        <div class="d">说明文字。</div>
+      </div>
+
+      <div class="card">
+        <div class="num">03</div>
+        <div class="head">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/></svg></span>
+          <span class="h">要点标题三</span>
+        </div>
+        <div class="d">说明文字。</div>
+      </div>
+
+      <div class="card">
+        <div class="num">04</div>
+        <div class="head">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>
+          <span class="h">要点标题四</span>
+        </div>
+        <div class="d">说明文字。</div>
+      </div>
+
+    </div>
+  </div>
+</body>
+</html>
