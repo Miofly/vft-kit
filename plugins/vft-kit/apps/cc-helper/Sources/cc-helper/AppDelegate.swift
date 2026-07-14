@@ -318,12 +318,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Settin
 
     func installNotifyHook() {
         do {
-            // 1) 写 shim:读 CC 事件 stdin,落到 ~/.cc-helper/events/ 队列(唯一文件名)
+            // 1) 写 shim:读 CC 事件 stdin,原子落到 ~/.cc-helper/events/ 队列
+            //    必须先写临时文件再 mv 改名——否则 kqueue 在文件「创建瞬间」就触发,
+            //    App 会读到还没写完的空文件、解析失败而丢弃事件(竞态)。mv 是原子的,
+            //    watcher 只会看到写完整的 .json。
             let shim = """
             #!/bin/bash
             d="$HOME/.cc-helper/events"
             mkdir -p "$d"
-            cat > "$d/evt-$(date +%s)-$$-$RANDOM.json"
+            tmp="$d/.tmp-$$-$RANDOM"
+            cat > "$tmp"
+            mv -f "$tmp" "$d/evt-$(date +%s)-$$-$RANDOM.json"
             """
             try FileManager.default.createDirectory(at: notifyShimURL.deletingLastPathComponent(), withIntermediateDirectories: true)
             try Data(shim.utf8).write(to: notifyShimURL)
