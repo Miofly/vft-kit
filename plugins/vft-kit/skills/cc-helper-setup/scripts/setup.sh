@@ -1,14 +1,13 @@
 #!/bin/bash
-# cc-helper-setup —— 构建内嵌的 cc-helper 源码为 .app 并安装到 ~/Applications。
-# 仅 macOS,需 Swift 工具链。
+# cc-helper-setup —— 安装预编译的 cc-helper.app(无需源码/工具链)。
+# vft-kit 里存的是编译好的成品 zip;安装 = 解压 → 去隔离 → 装到 ~/Applications → 启动。
 set -euo pipefail
 
-# 定位:优先用 CLAUDE_PLUGIN_ROOT,回退按脚本相对路径
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-}"
 if [ -z "$PLUGIN_ROOT" ]; then
   PLUGIN_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 fi
-APP_SRC="$PLUGIN_ROOT/apps/cc-helper"
+ZIP="$PLUGIN_ROOT/apps/cc-helper/cc-helper.app.zip"
 DEST_DIR="$HOME/Applications"
 DEST_APP="$DEST_DIR/cc-helper.app"
 
@@ -16,26 +15,31 @@ echo "▸ 环境检查"
 if [ "$(uname)" != "Darwin" ]; then
   echo "✗ cc-helper 仅支持 macOS"; exit 1
 fi
-if ! command -v swift >/dev/null 2>&1; then
-  echo "✗ 未找到 swift。请先装 Xcode 命令行工具:  xcode-select --install"; exit 1
+if [ "$(uname -m)" != "arm64" ]; then
+  echo "⚠ 预编译成品是 Apple Silicon(arm64)。你是 $(uname -m),可能无法运行。"
+  echo "  需要 Intel 版请找源码(私有 vft-ai/apps/cc-helper)自行 swift build。"
 fi
-if [ ! -f "$APP_SRC/Package.swift" ]; then
-  echo "✗ 未找到源码 $APP_SRC/Package.swift"; exit 1
+if [ ! -f "$ZIP" ]; then
+  echo "✗ 未找到成品 $ZIP"; exit 1
 fi
 
-echo "▸ 编译 + 打包 .app(首次较慢)"
-bash "$APP_SRC/scripts/build-app.sh" 0.1.0
+echo "▸ 解压成品"
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+ditto -x -k "$ZIP" "$TMP"
+BUILT="$TMP/cc-helper.app"
+[ -d "$BUILT" ] || { echo "✗ 解压后未见 cc-helper.app"; exit 1; }
 
-BUILT="$APP_SRC/dist/cc-helper.app"
-[ -d "$BUILT" ] || { echo "✗ 打包失败,未生成 $BUILT"; exit 1; }
+echo "▸ 去除隔离属性(ad-hoc 签名的成品,Gatekeeper 会拦)"
+xattr -dr com.apple.quarantine "$BUILT" 2>/dev/null || true
 
 echo "▸ 安装到 $DEST_APP"
 mkdir -p "$DEST_DIR"
-# 若已在运行,先退出旧实例
 pkill -f "cc-helper.app/Contents/MacOS/cc-helper" 2>/dev/null || true
 sleep 1
 rm -rf "$DEST_APP"
 cp -R "$BUILT" "$DEST_APP"
+xattr -dr com.apple.quarantine "$DEST_APP" 2>/dev/null || true
 
 echo "▸ 启动"
 open "$DEST_APP"
