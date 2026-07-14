@@ -33,6 +33,7 @@ claude plugin install vft-kit@vft-kit
 | `plugin-refresh` | 刷新插件 cache——改了本地插件源却不生效时用它 |
 | `notify-setup` | 开通桌面通知：装 terminal-notifier、写 hook 到 settings.json、编译双屏横幅、生成配置模板 |
 | `usage-alert-setup` | 开通用量告警：配置 claude-hud 快照、生成阈值配置模板 |
+| `cc-helper-setup` | 构建并安装 **cc-helper.app**：常驻菜单栏的 CC 助手（实时用量 5h/7d + 重置倒计时 + 可选刘海显示 + 事件通知横幅 + 图形设置面板） |
 
 ### 用量告警（hook）
 
