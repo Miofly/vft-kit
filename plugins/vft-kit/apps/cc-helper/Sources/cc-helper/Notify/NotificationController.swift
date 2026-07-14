@@ -66,7 +66,9 @@ final class NotificationController {
         guard passesDebounce(decision.kind, seconds: config.debounceSeconds) else { return }
 
         if config.useNativeNotification {
-            showNative(title: title, subtitle: subtitle, message: decision.message, sound: typeConfig.sound)
+            showNative(title: title, subtitle: subtitle, message: decision.message,
+                       sound: typeConfig.sound, group: "claude-code-\(decision.kind.rawValue)",
+                       iconPath: config.iconPath)
         } else {
             banner.show(BannerPresenter.Content(
                 title: title, subtitle: subtitle, message: decision.message,
@@ -92,12 +94,19 @@ final class NotificationController {
         }
     }
 
-    private func showNative(title: String, subtitle: String, message: String, sound: String) {
+    private func showNative(title: String, subtitle: String, message: String,
+                            sound: String, group: String, iconPath: String) {
         // 优先 terminal-notifier,失败退 osascript
         let tn = Process()
         tn.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        tn.arguments = ["terminal-notifier", "-title", title, "-subtitle", subtitle,
-                        "-message", message, "-sound", sound]
+        var args = ["terminal-notifier", "-title", title, "-subtitle", subtitle,
+                    "-message", message, "-sound", sound, "-group", group]
+        // 同款图标(与 notify.mjs 一致):同 group 通知会原地替换而非堆叠
+        let expanded = (iconPath as NSString).expandingTildeInPath
+        if !iconPath.isEmpty, FileManager.default.fileExists(atPath: expanded) {
+            args += ["-contentImage", expanded]
+        }
+        tn.arguments = args
         do {
             try tn.run()
         } catch {

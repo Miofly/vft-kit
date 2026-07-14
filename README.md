@@ -11,7 +11,7 @@ claude plugin marketplace add <本仓库路径或 git 地址>
 claude plugin install vft-kit@vft-kit
 ```
 
-装完想用桌面通知 / 用量告警，各跑一次 `notify-setup` / `usage-alert-setup` 开通（仅 macOS，跑完重启会话）。
+装完想用用量告警跑一次 `usage-alert-setup` 开通；想要常驻菜单栏用量 + 任务通知，跑 `cc-helper-setup` 装 cc-helper.app（仅 macOS，跑完重启会话）。
 
 ## 详细文档
 
@@ -20,7 +20,7 @@ claude plugin install vft-kit@vft-kit
 - [vft-kit 总览](https://wflynn.cn/pages/2607131001) —— 定位、安装、全量速查表、FAQ
 - **CC 运维**：[cc-baseline](https://wflynn.cn/pages/2607131002) · [cc-backup-restore](https://wflynn.cn/pages/2607131003) · [plugin-refresh](https://wflynn.cn/pages/2607131004)
 - **通用工具**：[fe-auto-test](https://wflynn.cn/pages/2607131005) · [co-infographic-generator](https://wflynn.cn/pages/2607131006) · [git-auto-push](https://wflynn.cn/pages/2607131007) · [vue-sfc-split](https://wflynn.cn/pages/2607131008)
-- **Hook**：[用量告警](https://wflynn.cn/pages/2607131009) · [桌面通知](https://wflynn.cn/pages/2607131010)
+- **Hook / App**：[用量告警](https://wflynn.cn/pages/2607131009) · [cc-helper 菜单栏助手](https://wflynn.cn/pages/2607131011)
 
 ## 有什么
 
@@ -31,7 +31,6 @@ claude plugin install vft-kit@vft-kit
 | `cc-baseline` | 核对本机 CC 是否符合装配基线（CLI / npm / MCP / 插件 / 权限），缺什么给修复命令 |
 | `cc-backup-restore` | 备份 / 恢复配置与数据（CLAUDE.md、settings.json、插件、skill） |
 | `plugin-refresh` | 刷新插件 cache——改了本地插件源却不生效时用它 |
-| `notify-setup` | 开通桌面通知：装 terminal-notifier、写 hook 到 settings.json、编译双屏横幅、生成配置模板 |
 | `usage-alert-setup` | 开通用量告警：配置 claude-hud 快照、生成阈值配置模板 |
 | `cc-helper-setup` | 构建并安装 **cc-helper.app**：常驻菜单栏的 CC 助手（实时用量 5h/7d + 重置倒计时 + 可选刘海显示 + 事件通知横幅 + 图形设置面板） |
 
@@ -52,36 +51,9 @@ claude plugin install vft-kit@vft-kit
 
 阈值 / 声音 / 新鲜度改 `~/.claude/vft-kit/usage-alert-config.json`（`usage-alert-setup` 会生成模板）；也可用环境变量 `CLAUDE_USAGE_THRESHOLDS="60 80 95"` 临时覆盖（优先级最高）。
 
-### 桌面通知（hook）
+### 任务通知 → 已并入 cc-helper
 
-Claude 干完活、需要你授权、或者卡住等你回话时，发一条 macOS 通知，省得你一直盯着终端。
-
-四种场景，都能单独关：
-
-| 场景 | 触发时机 |
-|---|---|
-| 任务完成 ✅ | 一轮结束（`Stop`），且这轮调用过工具 |
-| 对话已完成 💬 | 一轮结束，但没调用任何工具（纯聊天） |
-| 等待您的输入 ⏸️ | Claude 要提问、要你审批计划、或请求权限 |
-| 任务失败 ❌ | 工具显式报错 |
-
-失败检测只认工具**显式**声明的错误标志（`is_error` / `interrupted`）。不去猜——`git`、`npm` 这类命令成功时也会往 stderr 写东西，拿「stderr 非空」当失败信号会疯狂误报。
-
-**双屏横幅（默认开）**：多屏时系统通知只在主屏弹、盯副屏会漏。内置一个 Swift 自绘横幅，在每块屏右上角弹一张仿 macOS 原生通知的卡片（同款图标、毛玻璃、淡入淡出），默认两屏都弹并接管原生通知，提示音照旧。依赖 `swiftc`，`notify-setup` 自动编译；没 `swiftc` / 编译失败则自动退回原生，绝不「零通知」。想恢复原生：把 `dualScreenBanner.allScreens` 改 `false`（主屏原生 + 副屏横幅）或 `enabled` 改 `false`。
-
-**跑 `notify-setup` 开通**：装 [terminal-notifier](https://github.com/julienXX/terminal-notifier)（带自定义图标，没装则自动降级到 `osascript`）、把 hook 写进 `settings.json`（用稳定绝对路径，不随插件升级失效）、编译双屏横幅、并在 `~/.claude/vft-kit/notify-config.json` 生成一份填满默认值的配置模板。
-
-想改标题、声音、图标，或关掉某几种通知，直接编辑那份模板即可（改后重启会话）。注意每种通知是**整块**配置，改一项也要保留同块其它字段：
-
-```json
-{
-  "notifications": {
-    "taskError":            { "enabled": false, "title": "Claude Code", "subtitle": "任务失败 ❌", "sound": "Basso" },
-    "conversationComplete": { "enabled": false, "title": "Claude Code", "subtitle": "对话已完成 💬", "sound": "Glass" }
-  },
-  "debounce": { "enabled": true, "intervalSeconds": 5 }
-}
-```
+> 原独立的「桌面通知 hook（notify.mjs + 双屏横幅）」已退役，功能整体并入 **cc-helper**（自绘毛玻璃横幅 + 单/双屏 + 分类型开关/声音 + 图形设置面板）。装 cc-helper 见 `cc-helper-setup`。任务完成 ✅ / 失败 ❌ / 等待输入 ⏸️ / 对话完成 💬 四种场景由 cc-helper 统一处理。
 
 ### 通用工具
 
