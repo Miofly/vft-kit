@@ -31,7 +31,7 @@ claude plugin install vft-kit@vft-kit
 | `cc-baseline` | 核对本机 CC 是否符合装配基线（CLI / npm / MCP / 插件 / 权限），缺什么给修复命令 |
 | `cc-backup-restore` | 备份 / 恢复配置与数据（CLAUDE.md、settings.json、插件、skill） |
 | `plugin-refresh` | 刷新插件 cache——改了本地插件源却不生效时用它 |
-| `notify-setup` | 开通桌面通知：装 terminal-notifier、写 hook 到 settings.json、生成配置模板 |
+| `notify-setup` | 开通桌面通知：装 terminal-notifier、写 hook 到 settings.json、编译双屏横幅、生成配置模板 |
 | `usage-alert-setup` | 开通用量告警：配置 claude-hud 快照、生成阈值配置模板 |
 
 ### 用量告警（hook）
@@ -66,7 +66,9 @@ Claude 干完活、需要你授权、或者卡住等你回话时，发一条 mac
 
 失败检测只认工具**显式**声明的错误标志（`is_error` / `interrupted`）。不去猜——`git`、`npm` 这类命令成功时也会往 stderr 写东西，拿「stderr 非空」当失败信号会疯狂误报。
 
-**跑 `notify-setup` 开通**：装 [terminal-notifier](https://github.com/julienXX/terminal-notifier)（带自定义图标，没装则自动降级到 `osascript`）、把 hook 写进 `settings.json`（用稳定绝对路径，不随插件升级失效）、并在 `~/.claude/vft-kit/notify-config.json` 生成一份填满默认值的配置模板。
+**双屏横幅（默认开）**：多屏时系统通知只在主屏弹、盯副屏会漏。内置一个 Swift 自绘横幅，在每块屏右上角弹一张仿 macOS 原生通知的卡片（同款图标、毛玻璃、淡入淡出），默认两屏都弹并接管原生通知，提示音照旧。依赖 `swiftc`，`notify-setup` 自动编译；没 `swiftc` / 编译失败则自动退回原生，绝不「零通知」。想恢复原生：把 `dualScreenBanner.allScreens` 改 `false`（主屏原生 + 副屏横幅）或 `enabled` 改 `false`。
+
+**跑 `notify-setup` 开通**：装 [terminal-notifier](https://github.com/julienXX/terminal-notifier)（带自定义图标，没装则自动降级到 `osascript`）、把 hook 写进 `settings.json`（用稳定绝对路径，不随插件升级失效）、编译双屏横幅、并在 `~/.claude/vft-kit/notify-config.json` 生成一份填满默认值的配置模板。
 
 想改标题、声音、图标，或关掉某几种通知，直接编辑那份模板即可（改后重启会话）。注意每种通知是**整块**配置，改一项也要保留同块其它字段：
 

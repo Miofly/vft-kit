@@ -9,9 +9,10 @@
 // 调试：设 CLAUDE_NOTIFY_DEBUG=1 才写日志。
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
 import { homedir } from 'os';
-import { execFile } from 'child_process';
+import { execFile, spawn } from 'child_process';
+import { fileURLToPath } from 'url';
 
 const HOME = homedir();
 const DATA_DIR = join(HOME, '.claude/vft-kit');
@@ -20,6 +21,11 @@ const LEGACY_CONFIG_PATH = join(HOME, '.claude/hooks/notify-config.json');
 const STATE_FILE = join(DATA_DIR, '.notify-turn-state.json');
 const DEBOUNCE_FILE = join(DATA_DIR, '.notify-debounce.json');
 const DEBUG_LOG = join(DATA_DIR, '.notify-debug.log');
+// 自绘横幅：源码与本脚本同目录(相对定位，不写死安装路径)，编译产物落 DATA_DIR/bin
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+const BANNER_SRC = join(SCRIPT_DIR, 'banner.swift');
+const BIN_DIR = join(DATA_DIR, 'bin');
+const BANNER_BIN = join(BIN_DIR, 'banner');
 const DEBUG = process.env.CLAUDE_NOTIFY_DEBUG === '1';
 const DEBUG_LOG_MAX_BYTES = 1024 * 1024;
 
@@ -33,6 +39,11 @@ const DEFAULT_CONFIG = {
     conversationComplete: { enabled: true, title: 'Claude Code', subtitle: '对话已完成 💬', sound: 'Glass' },
   },
   debounce: { enabled: true, intervalSeconds: 5 },
+  // 自绘横幅：仿 macOS 原生通知，在屏幕右上角画横幅。需 macOS + swiftc；单屏/无 swiftc 自动降级。
+  //   allScreens=true ：两屏都弹自绘横幅，并关掉原生 terminal-notifier(不撞车)，提示音由横幅补放。
+  //   allScreens=false：主屏发原生系统通知 + 副屏补横幅(附加式，非破坏)。
+  // 兜底：横幅二进制若不存在(没 swiftc/未编译)，自动退回发原生通知，绝不「零通知」。
+  dualScreenBanner: { enabled: true, allScreens: true, durationSeconds: 5 },
 };
 
 function debug(msg) {
@@ -75,6 +86,7 @@ function loadConfig() {
     ...user,
     notifications: { ...DEFAULT_CONFIG.notifications, ...(user.notifications ?? {}) },
     debounce: { ...DEFAULT_CONFIG.debounce, ...(user.debounce ?? {}) },
+    dualScreenBanner: { ...DEFAULT_CONFIG.dualScreenBanner, ...(user.dualScreenBanner ?? {}) },
   };
 }
 
@@ -169,29 +181,82 @@ function decide(hookEvent, payload, config) {
   return null;
 }
 
+// 横幅二进制是否已就绪。不存在则(仅 macOS)后台异步编译一次(detached 不阻塞本次 hook，
+// 避免撞 hook 超时)，本次返回 false → 由 notify() 退回原生兜底，编译完成后下次生效。
+function ensureBannerBinary() {
+  if (existsSync(BANNER_BIN)) return true;
+  if (process.platform !== 'darwin') return false;
+  if (!existsSync(BANNER_SRC)) return false;
+  try {
+    if (!existsSync(BIN_DIR)) mkdirSync(BIN_DIR, { recursive: true });
+    const c = spawn('swiftc', ['-O', BANNER_SRC, '-o', BANNER_BIN], { detached: true, stdio: 'ignore' });
+    c.on('error', (e) => debug(`swiftc spawn failed: ${e.message}`));
+    c.unref();
+  } catch (e) {
+    debug(`banner compile kick failed: ${e.message}`);
+  }
+  return false;
+}
+
+// 自绘横幅：detached 起进程立即 unref，node 不等它跑完，绝不拖住 hook。全程静默容错。
+// allScreens 模式画两屏并接管提示音(sound)；否则只补副屏。仅在二进制已就绪时被调用。
+function showBanner(title, subtitle, message, icon, sound, config) {
+  const bconf = config.dualScreenBanner;
+  const args = [
+    '--title', title,
+    '--subtitle', subtitle || '',
+    '--message', message || '',
+    '--duration', String(bconf.durationSeconds ?? 5),
+  ];
+  if (icon && existsSync(icon)) args.push('--icon', icon);
+  if (bconf.allScreens) {
+    args.push('--all-screens');
+    if (sound) args.push('--sound', sound); // 原生被关，声音改由横幅放
+  }
+  try {
+    const child = spawn(BANNER_BIN, args, { detached: true, stdio: 'ignore' });
+    child.on('error', (e) => debug(`banner spawn failed: ${e.message}`));
+    child.unref();
+  } catch (e) {
+    debug(`banner spawn threw: ${e.message}`);
+  }
+}
+
 function notify(type, message, config) {
   const conf = config.notifications[type];
   if (!conf?.enabled) return;
 
   const { title, subtitle, sound } = conf;
   const icon = expandHome(config.iconPath);
-
-  // execFile 不经 shell，参数原样传递，无需转义引号 / $
-  const args = ['-message', message, '-title', title, '-subtitle', subtitle, '-sound', sound, '-group', `claude-code-${type}`];
-  if (icon && existsSync(icon)) args.push('-contentImage', icon);
+  const bconf = config.dualScreenBanner;
 
   debug(`notify ${type}: ${message}`);
 
-  execFile('terminal-notifier', args, (error) => {
-    if (!error) return;
+  // 横幅是否会「真的」显示：macOS + 启用 + 二进制已就绪。只有确定会显示,才敢关掉原生。
+  const bannerReady = bconf?.enabled && process.platform === 'darwin' && ensureBannerBinary();
+  // 两屏接管模式(allScreens) 且横幅就绪 → 不发原生(否则主屏原生 + 横幅会重叠)。
+  // 反之(非接管 / 横幅没就绪) → 照发原生,保证绝不「零通知」。
+  const bannerTakesOver = bannerReady && bconf.allScreens;
 
-    // 没装 terminal-notifier 就退到系统自带的 osascript（不支持自定义图标）
-    debug(`terminal-notifier failed (${error.message}), falling back to osascript`);
-    const script = `display notification ${JSON.stringify(message)} with title ${JSON.stringify(title)} subtitle ${JSON.stringify(subtitle)} sound name ${JSON.stringify(sound)}`;
-    execFile('osascript', ['-e', script], (err) => {
-      if (err) debug(`osascript failed: ${err.message}`);
+  if (!bannerTakesOver) {
+    // execFile 不经 shell，参数原样传递，无需转义引号 / $
+    const args = ['-message', message, '-title', title, '-subtitle', subtitle, '-sound', sound, '-group', `claude-code-${type}`];
+    if (icon && existsSync(icon)) args.push('-contentImage', icon);
+
+    execFile('terminal-notifier', args, (error) => {
+      if (!error) return;
+
+      // 没装 terminal-notifier 就退到系统自带的 osascript（不支持自定义图标）
+      debug(`terminal-notifier failed (${error.message}), falling back to osascript`);
+      const script = `display notification ${JSON.stringify(message)} with title ${JSON.stringify(title)} subtitle ${JSON.stringify(subtitle)} sound name ${JSON.stringify(sound)}`;
+      execFile('osascript', ['-e', script], (err) => {
+        if (err) debug(`osascript failed: ${err.message}`);
+      });
     });
-  });
+  }
+
+  // 横幅就绪就显示(allScreens 画两屏、接管提示音；否则只补副屏)
+  if (bannerReady) showBanner(title, subtitle, message, icon, sound, config);
 }
 
 async function main() {

@@ -3,7 +3,8 @@
 #
 # 幂等、可反复跑。做这些事：
 #   1. 装 terminal-notifier（没 brew 就退 osascript，仍能用，只是没自定义图标）
-#   2. 把 notify.mjs 拷到「不随插件版本变」的稳定路径 ~/.claude/vft-kit/hooks/
+#   2. 把 notify.mjs + banner.swift 拷到「不随插件版本变」的稳定路径 ~/.claude/vft-kit/hooks/
+#   2b. 有 swiftc 就把 banner.swift 编成二进制(自绘双屏横幅)；没有则跳过,通知退回原生
 #   3. 幂等落一份「填满默认值」的 notify-config.json 模板（已存在不覆盖），供用户直接编辑
 #   4. 用 jq 把 4 个事件的 hook 幂等写进 ~/.claude/settings.json（绝对路径，不用 ${CLAUDE_PLUGIN_ROOT}）
 #   5. 弹一条测试通知，触发 macOS 授权弹窗
@@ -19,11 +20,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # scripts/ -> notify-setup/ -> skills/ -> <plugin root>
 PLUGIN_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 SRC_NOTIFY="$PLUGIN_ROOT/hooks/notify.mjs"
+SRC_BANNER="$PLUGIN_ROOT/hooks/banner.swift"
 
 # ── 稳定路径与目标文件 ───────────────────────────────────────────
 DATA_DIR="$HOME/.claude/vft-kit"
 STABLE_HOOK_DIR="$DATA_DIR/hooks"
 DEST_NOTIFY="$STABLE_HOOK_DIR/notify.mjs"
+DEST_BANNER="$STABLE_HOOK_DIR/banner.swift"
+BANNER_BIN="$DATA_DIR/bin/banner"
 CONFIG_PATH="$DATA_DIR/notify-config.json"
 SETTINGS="$HOME/.claude/settings.json"
 
@@ -82,6 +86,26 @@ fi
 mkdir -p "$STABLE_HOOK_DIR"
 cp "$SRC_NOTIFY" "$DEST_NOTIFY" && ok "notify.mjs 已拷到稳定路径：$DEST_NOTIFY"
 
+# ── 3a. 自绘双屏横幅：拷 banner.swift + 编译成二进制 ──────────────
+# 有 swiftc(Xcode CLT) 就当场编译,横幅立即可用;没有则跳过——通知会自动退回原生,绝不失声。
+# 注意:默认配置 allScreens=true 会「接管原生通知」,所以横幅编不出来时 notify.mjs 会退回原生。
+if [ -f "$SRC_BANNER" ]; then
+  cp "$SRC_BANNER" "$DEST_BANNER" && ok "banner.swift 已拷到稳定路径：$DEST_BANNER"
+  if command -v swiftc >/dev/null 2>&1; then
+    echo "  编译自绘横幅（swiftc，约 1-2 秒）…"
+    mkdir -p "$(dirname "$BANNER_BIN")"
+    if swiftc -O "$DEST_BANNER" -o "$BANNER_BIN" 2>/dev/null; then
+      ok "双屏横幅已编译：$BANNER_BIN"
+    else
+      warn "banner.swift 编译失败，将退回原生通知（不影响功能）。可稍后重跑本向导重试。"
+    fi
+  else
+    warn "未找到 swiftc（Xcode 命令行工具），跳过横幅编译，通知退回原生。如需双屏横幅：xcode-select --install"
+  fi
+else
+  warn "banner.swift 源不存在，跳过双屏横幅（不影响原生通知）"
+fi
+
 # ── 3b. 幂等落「填满默认值」的配置模板（已存在则不覆盖）───────────
 # 让用户能直接发现并编辑一个完整文件；因字段齐全，改任意一项都不会触发
 # notify.mjs 浅合并（notifications.<类型> 整块替换）导致丢默认字段的坑。
@@ -99,7 +123,8 @@ else
     "waitingForInput":      { "enabled": true, "title": "Claude Code", "subtitle": "等待您的输入 ⏸️", "sound": "default" },
     "conversationComplete": { "enabled": true, "title": "Claude Code", "subtitle": "对话已完成 💬",  "sound": "Glass"   }
   },
-  "debounce": { "enabled": true, "intervalSeconds": 5 }
+  "debounce": { "enabled": true, "intervalSeconds": 5 },
+  "dualScreenBanner": { "enabled": true, "allScreens": true, "durationSeconds": 5 }
 }
 JSON
   ok "已生成默认配置模板：$CONFIG_PATH"
@@ -170,5 +195,10 @@ echo "完成。还需两步："
 echo "  1. 若刚才没看到通知：打开「系统设置 › 通知」，允许 terminal-notifier（或「脚本编辑器」）发通知。"
 echo "  2. 重启 Claude Code 会话，settings.json 里的 hook 才生效。"
 echo
-echo "自定义（可选）：编辑 ${CONFIG_PATH}（已填满默认值）即可改文案/声音/图标/开关；改后需重启会话。"
+echo "双屏横幅（默认已开）：两块屏会同时弹一张仿原生的横幅，并已「接管」原生系统通知（不再重复弹）。"
+echo "  · 想恢复原生通知：编辑 ${CONFIG_PATH}，把 dualScreenBanner.allScreens 改为 false（变成 主屏原生 + 副屏横幅）。"
+echo "  · 想彻底关横幅只用原生：把 dualScreenBanner.enabled 改为 false。"
+echo "  · 没装 swiftc / 编译失败时：横幅自动不显示，通知退回原生，绝不「零通知」。"
+echo
+echo "自定义（可选）：编辑 ${CONFIG_PATH}（已填满默认值）即可改文案/声音/图标/开关/横幅；改后需重启会话。"
 exit 0
