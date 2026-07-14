@@ -88,6 +88,17 @@ fi
 src_path="$(echo "$src_dir" | sed -E 's/^Directory \((.*)\)$/\1/')"
 echo "==> 源目录: ${src_path}"
 
+# marketplace 根目录未必等于插件根目录:monorepo 里 marketplace.json 在仓库根,
+# 而插件真身在 plugins/<name>/(如 vft-kit)。按 .claude-plugin/plugin.json 的 name
+# 定位插件真实根目录;找不到则退回 src_path(扁平插件如 vft-ai,两者相同)。
+plugin_root=""
+while IFS= read -r _pj; do
+  _nm="$(sed -n 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$_pj" | head -1)"
+  if [[ "$_nm" == "$PLUGIN" ]]; then plugin_root="$(cd "$(dirname "$_pj")/.." && pwd)"; break; fi
+done < <(find "$src_path" -maxdepth 5 -path '*/.claude-plugin/plugin.json' 2>/dev/null)
+[[ -z "$plugin_root" ]] && plugin_root="$src_path"
+[[ "$plugin_root" != "$src_path" ]] && echo "==> 插件根: ${plugin_root}"
+
 # ---- 2. uninstall + install ----
 echo "==> uninstall ${PLUGIN}@${MARKETPLACE}"
 claude plugin uninstall "${PLUGIN}@${MARKETPLACE}" 2>&1 | tail -3 || true
@@ -107,7 +118,7 @@ if [[ -z "$cache_ver_dir" ]]; then
 fi
 cache_dir="${cache_root}/${cache_ver_dir}"
 
-src_skill_count="$(find "${src_path}/skills" -mindepth 2 -maxdepth 2 -name SKILL.md 2>/dev/null | wc -l | tr -d ' ')"
+src_skill_count="$(find "${plugin_root}/skills" -mindepth 2 -maxdepth 2 -name SKILL.md 2>/dev/null | wc -l | tr -d ' ')"
 cache_skill_count="$(find "${cache_dir}/skills" -mindepth 2 -maxdepth 2 -name SKILL.md 2>/dev/null | wc -l | tr -d ' ')"
 
 echo "==> SKILL.md 数量：源 ${src_skill_count} / cache ${cache_skill_count}"
@@ -117,9 +128,9 @@ if [[ "$src_skill_count" != "$cache_skill_count" ]]; then
 fi
 
 # 抽样校验：取一个 skill 的 SKILL.md size 做对比，提早抓到"个数对但内容旧"的边角
-sample_skill="$(find "${src_path}/skills" -mindepth 2 -maxdepth 2 -name SKILL.md 2>/dev/null | head -1)"
+sample_skill="$(find "${plugin_root}/skills" -mindepth 2 -maxdepth 2 -name SKILL.md 2>/dev/null | head -1)"
 if [[ -n "$sample_skill" ]]; then
-  rel="${sample_skill#${src_path}/}"
+  rel="${sample_skill#${plugin_root}/}"
   cache_sample="${cache_dir}/${rel}"
   if [[ -f "$cache_sample" ]]; then
     src_size=$(wc -c < "$sample_skill" | tr -d ' ')
