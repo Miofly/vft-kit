@@ -41,14 +41,14 @@ hook_has(){
   [ -f "$SETTINGS" ] || return 1
   node -e "const s=require('$SETTINGS');process.exit(new RegExp(process.argv[1],'i').test(JSON.stringify(s.hooks||{}))?0:1)" "$1" 2>/dev/null
 }
-# RTK 配置里 [hooks].exclude_commands 是否已排除「压缩会致错」的命令(cat/diff/find)
-# 见 SKILL.md：这三条命令过 RTK 压缩会静默出错(截断文件/坏 patch/漏文件)，必须原样透传。
+# RTK 配置里 [hooks].exclude_commands 是否已排除「压缩会致错」的命令(cat/diff/find/grep)
+# 见 SKILL.md：这四条命令过 RTK 压缩会静默出错(截断文件/坏 patch/漏文件/截断行漏匹配)，必须原样透传。
 RTK_CONFIG="$HOME/Library/Application Support/rtk/config.toml"
 rtk_excludes_verbatim(){
   [ -f "$RTK_CONFIG" ] || return 1
   local line; line=$(grep -E '^[[:space:]]*exclude_commands' "$RTK_CONFIG" 2>/dev/null) || return 1
   local cmd
-  for cmd in cat diff find; do printf '%s' "$line" | grep -q "\"$cmd\"" || return 1; done
+  for cmd in cat diff find grep; do printf '%s' "$line" | grep -q "\"$cmd\"" || return 1; done
 }
 # statusLine 命令是否含关键字
 statusline_has(){
@@ -139,7 +139,7 @@ done
 # ---------- 5. 系统配置 ----------
 head "系统配置"
 hook_has "rtk"                  && ok "RTK hook（PreToolUse Bash 命令优化）" || bad "RTK hook"        "rtk init -g --auto-patch"
-rtk_excludes_verbatim           && ok "RTK 压缩豁免（cat/diff/find 原样透传）" || bad "RTK 压缩豁免"    'rtk config --create 2>/dev/null; sed -i "" '"'"'s/exclude_commands = \[\]/exclude_commands = ["cat", "diff", "find"]/'"'"' "$HOME/Library/Application Support/rtk/config.toml"'
+rtk_excludes_verbatim           && ok "RTK 压缩豁免（cat/diff/find/grep 原样透传）" || bad "RTK 压缩豁免"    'rtk config --create 2>/dev/null; sed -i "" '"'"'s/exclude_commands = \[\]/exclude_commands = ["cat", "diff", "find", "grep"]/'"'"' "$HOME/Library/Application Support/rtk/config.toml"'
 statusline_has "claude-hud"     && ok "状态栏 statusLine（claude-hud）"      || bad "claude-hud 状态栏" "在 CC 里运行 /claude-hud:setup"
 [ -d "/Applications/CC Switch.app" ] && ok "cc-switch App"                  || opt "cc-switch App"    "brew install --cask cc-switch"
 
