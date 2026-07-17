@@ -24,7 +24,7 @@ description: 一键安装 cc-helper —— 一个常驻 macOS 菜单栏的 Claud
 跑安装脚本(解压成品 → 装 `~/Applications/cc-helper.app` → 启动):
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/skills/cc-helper-setup/scripts/setup.sh"
+bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/cc-helper-setup/scripts/setup.sh"
 ```
 
 脚本会:

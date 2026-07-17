@@ -147,7 +147,7 @@ import './video-trim/video-trim-scoped.css';
 **结构自检脚本**：
 
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/vue-sfc-split/scripts/check-sfc-split.sh <平铺入口.vue 的路径>
+bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/vue-sfc-split/scripts/check-sfc-split.sh" <平铺入口.vue 的路径>
 ```
 
 传**平铺入口**的路径。脚本会先探测项目是否用了文件路由，只对适用的约束报错（手写路由表的项目不会被误报）。

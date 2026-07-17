@@ -1,10 +1,12 @@
 # vft-kit
 
-Claude Code 自身的运维工具箱，外加一组通用开发工具。
+Claude Code 自身的运维工具箱，外加一组通用开发工具。插件主体在 `plugins/vft-kit/`，现在同时保留 Claude Code 和 Codex 两个入口。
 
 做这个的起因很实际：Claude Code 用久了，配置、插件、登录态会散落在本机各处，换电脑或者插件坏掉时没人救你。官方文档在这块写得很薄，社区踩的坑倒是不少。这些 skill 是踩坑之后沉淀下来的。
 
 ## 装
+
+### Claude Code
 
 ```bash
 claude plugin marketplace add <本仓库路径或 git 地址>
@@ -12,6 +14,12 @@ claude plugin install vft-kit@vft-kit
 ```
 
 装完想用用量告警跑一次 `usage-alert-setup` 开通；想要常驻菜单栏用量 + 任务通知，跑 `cc-helper-setup` 装 cc-helper.app（仅 macOS，跑完重启会话）。
+
+### Codex
+
+Codex 入口在 `plugins/vft-kit/.codex-plugin/plugin.json`，skill 目录仍是 `plugins/vft-kit/skills/`。把 `plugins/vft-kit/` 作为本地 Codex plugin 源添加后，Codex 会从 `.codex-plugin/plugin.json` 发现这些 skills。
+
+跨平台兼容规则见 `plugins/vft-kit/docs/codex-compat.md`。新增或维护 skill 时，命令示例优先使用 `VFT_PLUGIN_ROOT`，并兼容 `CLAUDE_PLUGIN_ROOT` / `CODEX_PLUGIN_ROOT`。
 
 ## 详细文档
 
@@ -25,6 +33,8 @@ claude plugin install vft-kit@vft-kit
 ## 有什么
 
 ### Claude Code 运维
+
+这些 skill 的目标仍是 Claude Code。Codex 可以读取并辅助执行，但它们操作的是 `~/.claude`、Claude 插件 cache、claude-hud 或 cc-helper，不是 Codex 自身配置。
 
 | skill | 干什么 |
 |---|---|

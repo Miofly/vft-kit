@@ -15,7 +15,7 @@ vft-kit 的 `usage-alert.sh` 会在 5 小时 / 7 天用量窗口越过 70% / 90%
 
 1. 装 `jq`（脚本本体和本向导都需要）；
 2. 检测 **claude-hud** 是否安装（没装则引导安装，不自动装）；
-3. 往 claude-hud 的 `~/.claude/plugins/claude-hud/config.json` 写 `display.externalUsageWritePath`，指向 `usage-alert.sh` 默认读取的快照路径 `~/.claude/usage-snapshot.json`（两者必须指同一文件）。
+3. 往 claude-hud 的 `~/.claude/plugin kans/claude-hud/config.json` 写 `display.externalUsageWritePath`，指向 `usage-alert.sh` 默认读取的快照路径 `~/.claude/usage-snapshot.json`（两者必须指同一文件）。
 
 claude-hud 侧只要这个 path 非空就开始落盘（源码 `shouldWriteUsage = Boolean(externalUsageWritePath)`），无额外开关。
 
@@ -24,7 +24,7 @@ claude-hud 侧只要这个 path 非空就开始落盘（源码 `shouldWriteUsage
 直接跑脚本：
 
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/usage-alert-setup/scripts/setup.sh
+bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/usage-alert-setup/scripts/setup.sh"
 ```
 
 **幂等**，反复跑安全：已配好就跳过。
