@@ -28,7 +28,7 @@ claude plugin install vft-kit@vft-kit
 
 | skill | 干什么 |
 |---|---|
-| `cc-baseline` | 核对本机 CC 是否符合装配基线（CLI / npm / MCP / 插件 / 权限），缺什么给修复命令 |
+| `cc-baseline` | 核对本机 CC 是否符合装配基线（CLI / npm / MCP / 插件 / 权限），缺什么给修复命令（只读，仅 `ponytail` 缺失时自动补齐） |
 | `cc-backup-restore` | 备份 / 恢复配置与数据（CLAUDE.md、settings.json、插件、skill） |
 | `plugin-refresh` | 刷新插件 cache——改了本地插件源却不生效时用它 |
 | `usage-alert-setup` | 开通用量告警：配置 claude-hud 快照、生成阈值配置模板 |
