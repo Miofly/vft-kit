@@ -1,0 +1,20 @@
+{
+  "name": "vft-kit",
+  "interface": {
+    "displayName": "VFT Kit"
+  },
+  "plugins": [
+    {
+      "name": "vft-kit",
+      "source": {
+        "source": "local",
+        "path": "./plugins/vft-kit"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

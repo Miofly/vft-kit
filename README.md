@@ -13,7 +13,7 @@ claude plugin marketplace add <本仓库路径或 git 地址>
 claude plugin install vft-kit@vft-kit
 ```
 
-装完想用用量告警跑一次 `usage-alert-setup` 开通；想要常驻菜单栏用量 + 任务通知，跑 `cc-helper-setup` 装 cc-helper.app（仅 macOS，跑完重启会话）。
+装完想用用量告警跑一次 `usage-alert-setup` 开通（仅 macOS）。
 
 ### Codex
 
@@ -28,13 +28,13 @@ Codex 入口在 `plugins/vft-kit/.codex-plugin/plugin.json`，skill 目录仍是
 - [vft-kit 总览](https://wflynn.cn/pages/2607131001) —— 定位、安装、全量速查表、FAQ
 - **CC 运维**：[cc-baseline](https://wflynn.cn/pages/2607131002) · [cc-backup-restore](https://wflynn.cn/pages/2607131003) · [plugin-refresh](https://wflynn.cn/pages/2607131004)
 - **通用工具**：[fe-auto-test](https://wflynn.cn/pages/2607131005) · [co-infographic-generator](https://wflynn.cn/pages/2607131006) · [git-auto-push](https://wflynn.cn/pages/2607131007) · [vue-sfc-split](https://wflynn.cn/pages/2607131008)
-- **Hook / App**：[用量告警](https://wflynn.cn/pages/2607131009) · [cc-helper 菜单栏助手](https://wflynn.cn/pages/2607131011)
+- **Hook**：[用量告警](https://wflynn.cn/pages/2607131009)
 
 ## 有什么
 
 ### Claude Code 运维
 
-这些 skill 的目标仍是 Claude Code。Codex 可以读取并辅助执行，但它们操作的是 `~/.claude`、Claude 插件 cache、claude-hud 或 cc-helper，不是 Codex 自身配置。
+这些 skill 的目标仍是 Claude Code。Codex 可以读取并辅助执行，但它们操作的是 `~/.claude`、Claude 插件 cache 或 claude-hud，不是 Codex 自身配置。
 
 | skill | 干什么 |
 |---|---|
@@ -42,7 +42,6 @@ Codex 入口在 `plugins/vft-kit/.codex-plugin/plugin.json`，skill 目录仍是
 | `cc-backup-restore` | 备份 / 恢复配置与数据（CLAUDE.md、settings.json、插件、skill） |
 | `plugin-refresh` | 刷新插件 cache——改了本地插件源却不生效时用它 |
 | `usage-alert-setup` | 开通用量告警：配置 claude-hud 快照、生成阈值配置模板 |
-| `cc-helper-setup` | 构建并安装 **cc-helper.app**：常驻菜单栏的 CC 助手（实时用量 5h/7d + 重置倒计时 + 可选刘海显示 + 事件通知横幅 + 图形设置面板） |
 
 ### 用量告警（hook）
 
@@ -60,10 +59,6 @@ Codex 入口在 `plugins/vft-kit/.codex-plugin/plugin.json`，skill 目录仍是
 没配这个、或用的是 API key（按量付费，没有限额窗口）时，hook 静默退出，不影响会话。
 
 阈值 / 声音 / 新鲜度改 `~/.claude/vft-kit/usage-alert-config.json`（`usage-alert-setup` 会生成模板）；也可用环境变量 `CLAUDE_USAGE_THRESHOLDS="60 80 95"` 临时覆盖（优先级最高）。
-
-### 任务通知 → 已并入 cc-helper
-
-> 原独立的「桌面通知 hook（notify.mjs + 双屏横幅）」已退役，功能整体并入 **cc-helper**（自绘毛玻璃横幅 + 单/双屏 + 分类型开关/声音 + 图形设置面板）。装 cc-helper 见 `cc-helper-setup`。任务完成 ✅ / 失败 ❌ / 等待输入 ⏸️ / 对话完成 💬 四种场景由 cc-helper 统一处理。
 
 ### 通用工具
 

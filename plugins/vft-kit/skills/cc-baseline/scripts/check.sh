@@ -12,6 +12,9 @@ for a in "$@"; do [ "$a" = "--health" ] && HEALTH=1; done
 CLAUDE_JSON="$HOME/.claude.json"
 SETTINGS="$HOME/.claude/settings.json"
 NPM_ROOT="$(npm root -g 2>/dev/null || echo '')"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+CODEX_AUTH="$HOME/.codex/auth.json"
+ZSHENV="${ZDOTDIR:-$HOME}/.zshenv"
 
 pass=0; fail=0; warn=0
 c_g=$'\033[32m'; c_r=$'\033[31m'; c_y=$'\033[33m'; c_d=$'\033[2m'; c_0=$'\033[0m'
@@ -79,6 +82,17 @@ claudejson_true(){
 env_is(){
   [ -f "$SETTINGS" ] || return 1
   node -e "const s=require('$SETTINGS');process.exit((s.env||{})[process.argv[1]]===process.argv[2]?0:1)" "$1" "$2" 2>/dev/null
+}
+# ~/.codex/auth.json 是否含非空 OPENAI_API_KEY（只判断，不输出 key）
+codex_auth_has_key(){
+  [ -f "$CODEX_AUTH" ] || return 1
+  node -e 'const fs=require("fs");try{const j=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));process.exit(typeof j.OPENAI_API_KEY==="string"&&j.OPENAI_API_KEY.length>0?0:1)}catch{process.exit(1)}' "$CODEX_AUTH" 2>/dev/null
+}
+# ~/.zshenv 是否装有 vft-kit 管理的 Codex key 注入器
+codex_key_injector_installed(){
+  [ -f "$ZSHENV" ] || return 1
+  grep -Fq '# >>> vft-kit codex auth env >>>' "$ZSHENV" &&
+    grep -Fq '# <<< vft-kit codex auth env <<<' "$ZSHENV"
 }
 # 全局 ~/.claude/CLAUDE.md 是否含「始终中文回复」规范
 claudemd_has_chinese(){
@@ -171,6 +185,11 @@ claudejson_true "bypassPermissionsModeAccepted" && ok "bypass 警告已接受（
 dir_trusted "$HOME"                && ok "~ 目录已信任（免文件夹信任弹窗）"    || bad "~ 目录信任" "jq '.projects[\"$HOME\"].hasTrustDialogAccepted=true' ~/.claude.json"
 perm_allows "codegraph"            && ok "codegraph 只读工具白名单（permissions.allow）" || bad "codegraph 白名单" '把 "mcp__codegraph__*" 加进 ~/.claude/settings.json 的 permissions.allow'
 env_is "DISABLE_AUTOUPDATER" "1"   && ok "自动更新已关闭（env.DISABLE_AUTOUPDATER）"    || bad "关闭自动更新" "jq '.env.DISABLE_AUTOUPDATER=\"1\"' ~/.claude/settings.json > /tmp/s.json && mv /tmp/s.json ~/.claude/settings.json"
+if codex_auth_has_key; then
+  codex_key_injector_installed       && ok "Codex 启动自动注入 OPENAI_API_KEY"            || bad "Codex API key 启动注入" "bash \"$SCRIPT_DIR/install-codex-key-injector.sh\""
+else
+  ok "Codex API key 启动注入（auth.json 无 key，无需配置）"
+fi
 [ -f "$HOME/.claude/CLAUDE.md" ]   && ok "全局 ~/.claude/CLAUDE.md"          || bad "全局 CLAUDE.md" "创建 ~/.claude/CLAUDE.md（全局规范）"
 claudemd_has_chinese               && ok "全局规范含「始终中文回复」"          || bad "中文回复规范" $'printf \'\\n- **始终使用中文回复**（简体中文）。无论用户用什么语言提问、上下文/工具输出是什么语言，回复正文一律中文。\\n\' >> ~/.claude/CLAUDE.md'
 claudemd_has_shortlink             && ok "全局规范含「代码位置用可点短链」"    || bad "代码短链规范" $'printf \'\\n- **引用代码位置一律用 markdown 可点短链**：IDEA 插件里裸文件名点不动会报 Cannot open file，须写成 [短名:行](绝对路径:行)。\\n\' >> ~/.claude/CLAUDE.md'
