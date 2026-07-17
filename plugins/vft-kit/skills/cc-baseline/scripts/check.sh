@@ -83,7 +83,7 @@ env_is(){
 # 全局 ~/.claude/CLAUDE.md 是否含「始终中文回复」规范
 claudemd_has_chinese(){
   local f="$HOME/.claude/CLAUDE.md"
-  [-f "$f" ] || return 1
+  [ -f "$f" ] || return 1
   grep -Eq '中文回复|简体中文|一律中文|reply.*[Cc]hinese' "$f"
 }
 # 全局 ~/.claude/CLAUDE.md 是否含「引用代码位置用可点短链」规范
@@ -91,6 +91,13 @@ claudemd_has_shortlink(){
   local f="$HOME/.claude/CLAUDE.md"
   [ -f "$f" ] || return 1
   grep -Eq '可点短链|短链|markdown 可点|Cannot open file' "$f"
+}
+# 全局 ~/.claude/CLAUDE.md 是否含「上下文压缩取舍规则」规范
+# 见 SKILL.md：compact/摘要时该留什么(架构决策/改过的文件/阻塞/失败方案)、该丢什么(冗长输出/已入 git 的内容)。
+claudemd_has_compact(){
+  local f="$HOME/.claude/CLAUDE.md"
+  [ -f "$f" ] || return 1
+  grep -Eq '上下文压缩|压缩取舍|保留决策和状态' "$f"
 }
 # MCP 是否实连成功（在 claude mcp list 输出里匹配 $1 正则的行含 Connected）
 mcp_healthy(){ printf '%s\n' "$MCP_HEALTH" | grep -E "$1" | grep -q "Connected"; }
@@ -167,6 +174,7 @@ env_is "DISABLE_AUTOUPDATER" "1"   && ok "自动更新已关闭（env.DISABLE_AU
 [ -f "$HOME/.claude/CLAUDE.md" ]   && ok "全局 ~/.claude/CLAUDE.md"          || bad "全局 CLAUDE.md" "创建 ~/.claude/CLAUDE.md（全局规范）"
 claudemd_has_chinese               && ok "全局规范含「始终中文回复」"          || bad "中文回复规范" $'printf \'\\n- **始终使用中文回复**（简体中文）。无论用户用什么语言提问、上下文/工具输出是什么语言，回复正文一律中文。\\n\' >> ~/.claude/CLAUDE.md'
 claudemd_has_shortlink             && ok "全局规范含「代码位置用可点短链」"    || bad "代码短链规范" $'printf \'\\n- **引用代码位置一律用 markdown 可点短链**：IDEA 插件里裸文件名点不动会报 Cannot open file，须写成 [短名:行](绝对路径:行)。\\n\' >> ~/.claude/CLAUDE.md'
+claudemd_has_compact               && ok "全局规范含「压缩取舍规则」"          || bad "压缩取舍规范" $'printf \'\\n## 上下文压缩（compact）取舍规则\\n做上下文压缩/生成摘要时，保留决策和状态，丢掉噪音：必留①架构决策及理由②改过的文件及改动③阻塞报错④进行中的工作与下一步⑤验证状态⑥失败过的方案及原因⑦待办与回滚；可丢冗长工具输出(留结论)、无关探索、死胡同中间步骤、已入 git 的文件内容。\\n\' >> ~/.claude/CLAUDE.md'
 hook_has "notify"                  && ok "通知 hook（notify / claude-island）" || opt "通知 hook"        "配置 notify-config.json + hook（任务完成通知）"
 [ -d "$HOME/.claude/projects" ]    && ok "项目 memory 目录"                   || opt "项目 memory"     "~/.claude/projects/<项目>/memory/ 跨会话记忆"
 

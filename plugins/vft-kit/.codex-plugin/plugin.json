@@ -1,0 +1,33 @@
+{
+  "name": "vft-kit",
+  "version": "0.1.0",
+  "description": "Claude Code operations and reusable development utilities, adapted for Codex skill discovery.",
+  "author": {
+    "name": "wfly"
+  },
+  "keywords": [
+    "vft",
+    "claude-code",
+    "codex",
+    "frontend",
+    "testing"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "VFT Kit",
+    "shortDescription": "Claude Code operations and shared development tools.",
+    "longDescription": "A local toolbox that keeps Claude Code operational skills intact while exposing reusable frontend, testing, infographic, and refactoring skills to Codex.",
+    "developerName": "wfly",
+    "category": "Productivity",
+    "capabilities": [
+      "Write",
+      "Execute"
+    ],
+    "defaultPrompt": [
+      "Use fe-auto-test to verify this page.",
+      "Split this oversized Vue SFC.",
+      "Create an infographic from this content."
+    ],
+    "brandColor": "#0F766E"
+  }
+}
