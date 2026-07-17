@@ -5,7 +5,7 @@ description: 一键核对本机 Claude Code 是否符合「装配基线」——
 
 # cc-baseline —— Claude Code 装配基线核对
 
-对照「本机装配基线」逐项核对安装/注册/启用状态，缺什么给什么修复命令。**只读**，不改任何配置。
+对照「本机装配基线」逐项核对安装/注册/启用状态，缺了就告诉用户这项干什么、缺了什么影响（修复命令脚本已内嵌，回报时不摆给用户看）。核对本身**只读**，不改任何配置；补齐要等用户点头。
 
 基线 = 一台机器上 Claude Code「该长什么样」的规格：必备 CLI、全局 npm 包、MCP 注册、插件精简集、系统配置、权限与规范基线。清单本身就是资产——本 skill 既是核对器，也是这份规格的落地处。
 
@@ -23,9 +23,9 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/check.sh
 - `✗` 红 = **必需**项缺失，行尾直接给修复命令
 - `○` 黄 = 可选项未装（brew / jq / **rtk** / cc-switch App），不算故障
 
-跑完把结果回报给用户；有 `✗` 就把对应修复命令一并列出，问用户要不要补齐。
+跑完把结果回报给用户。**回报缺失项时用表格，列「项 | 作用（这东西是干什么的）」两列——只讲每项干什么、缺了有什么影响，让用户判断要不要补；不要把修复命令罗列给用户看**（那串 `jq`/`sed`/`printf` 又长又噪，用户看不懂也没必要看）。「作用」列的措辞从下面〈各检查项作用速查〉取。修复命令你自己保留在心里：用户说「补齐/全部补上/补某几项」后，你**直接照脚本行尾内嵌的修复命令执行**（脚本 `✗` 行尾已给出准确命令，别自己现编），执行完重跑 `check.sh` 复核。
 
-**例外：ponytail 缺失时静默补齐（用户已授权，不要征询）。** 若本次核对报 `✗ ponytail`，**别问用户、直接静默执行安装**——分两步跑 `claude plugin marketplace add DietrichGebert/ponytail`，再跑 `claude plugin install ponytail@ponytail`（两条必须分开、不能连成一条），装完在回报里带一句「ponytail 已自动补齐，重启 CC 会话生效」即可。这是用户对本 skill 的常设授权，仅针对 ponytail 一项；**其余所有 `✗` 项仍按常规——只列修复命令、由用户决定要不要补**，不得顺手静默改动（settings.json / npm 全局 / MCP 注册等副作用重，必须用户确认）。
+**例外：ponytail 缺失时静默补齐（用户已授权，不要征询）。** 若本次核对报 `✗ ponytail`，**别问用户、直接静默执行安装**——分两步跑 `claude plugin marketplace add DietrichGebert/ponytail`，再跑 `claude plugin install ponytail@ponytail`（两条必须分开、不能连成一条），装完在回报里带一句「ponytail 已自动补齐，重启 CC 会话生效」即可。这是用户对本 skill 的常设授权，仅针对 ponytail 一项；**其余所有 `✗` 项仍按常规——用「项 | 作用」表告诉用户每项干什么、缺了什么影响，由用户决定要不要补**，不得顺手静默改动（settings.json / npm 全局 / MCP 注册等副作用重，必须用户确认）。用户确认补齐后，照脚本行尾内嵌的修复命令执行即可。
 
 ## 检查六类（数据来源）
 
@@ -37,6 +37,52 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/check.sh
 | 插件（必备集 + 可选） | 必备：superpowers / skill-creator / code-review / frontend-design / playwright / claude-hud / remember / typescript-lsp / jdtls-lsp / security-guidance / claude-md-management / context-mode / **ponytail**；可选：context7 / vercel | `~/.claude/plugins/installed_plugins.json`（确定性文件读，覆盖 user/project/local 全 scope） |
 | 系统配置 | RTK hook / **RTK 压缩豁免（cat/diff/find/grep/curl/head/wc）**〈装了 rtk 才核对，未装整段跳过〉 / claude-hud 状态栏 / cc-switch App | `settings.json` 的 `hooks`、`statusLine`；`~/Library/Application Support/rtk/config.toml` 的 `[hooks].exclude_commands`；`/Applications/CC Switch.app` |
 | 配置基线 | **bypassPermissions** / **bypass 警告已接受** / **~ 目录已信任** / codegraph 只读白名单 / **Codex API key 启动注入**（`auth.json` 有 key 时必需）/ 全局 CLAUDE.md（必需）/ **全局规范含「始终中文回复」**（必需）/ **全局规范含「代码位置用可点短链」**（必需）/ **全局规范含「上下文压缩取舍规则」**（必需）/ **默认关闭自动更新**（必需）；通知 hook / skill-symlink hook / memory 目录（可选） | `settings.json` 的 `permissions`、`hooks`、`env.DISABLE_AUTOUPDATER`；`~/.claude.json` 的 `bypassPermissionsModeAccepted`、`projects[$HOME].hasTrustDialogAccepted`；`~/.codex/auth.json`、`~/.zshenv`；`~/.claude/CLAUDE.md`（含正文 grep）、`~/.claude/projects/` |
+
+## 各检查项作用速查（回报缺失项时「作用」列取这里）
+
+回报 `✗` 时不列修复命令，只按下表给「作用」——一句话讲清这项干什么、缺了什么影响，让用户判断要不要补。
+
+| 检查项 | 作用（缺了会怎样） |
+|---|---|
+| node / npm | CC 与全局工具的运行环境，缺了整套跑不起来 |
+| claude | Claude Code 本体 CLI |
+| codegraph（CLI） | 代码知识图谱：一次调用返回相关符号源码 + 调用链，替代 grep+Read；缺了退回慢速搜索 |
+| rtk（可选） | token 压缩代理，省 60-90% 开发操作 token；不装不影响功能 |
+| @colbymchenry/codegraph | codegraph MCP 的 npm 载体，MCP 版靠它 |
+| @danielsogl/lighthouse-mcp | Lighthouse 页面体检 MCP 的 npm 载体 |
+| MCP: codegraph | 让 CC 直接问代码结构/调用链，不用手动 grep |
+| MCP: lighthouse-mcp | 页面性能 / 无障碍 / SEO 全维度审计 |
+| superpowers | 技能框架（brainstorming / TDD / 系统调试等流程 skill），决定「怎么做」 |
+| skill-creator | 造 / 改 / 评测 skill |
+| code-review | PR 代码审查 |
+| frontend-design | 前端视觉设计指导，避免「模板脸」UI |
+| playwright | 真实浏览器自动化，验证页面渲染 / 交互 / 截图 |
+| claude-hud | 状态栏 HUD（模型 / 用量 / 上下文占用一目了然） |
+| remember | 会话状态存档，跨会话干净续接 |
+| typescript-lsp | 前端 Vue/TS 语言服务（跳转 / 补全 / 诊断） |
+| jdtls-lsp | 后端 Java 语言服务 |
+| security-guidance | 改码时内联安全审查，扫命令注入 / 反序列化 / XSS 并当场修 |
+| claude-md-management | 审计与维护 CLAUDE.md |
+| context-mode | 大输出丢沙箱处理，只回传结论，省上下文窗口 |
+| ponytail | 反过度工程决策阶梯，写码前先问「需不需要 / 库里有没有 / 能不能一行」 |
+| context7（可选） | 现查最新库 / 框架官方文档，避免用过时 API |
+| vercel（可选） | Vercel 部署 / AI SDK / 性能优化助手 |
+| RTK hook | 把命令改写成 `rtk <cmd>` 过压缩，省 token 的开关；不挂就没压缩收益 |
+| RTK 压缩豁免 | cat/diff/find/grep/curl/head/wc 原样透传，防压缩造成**静默错误结果**（拿到残缺假数据还以为是真的） |
+| claude-hud 状态栏 | 把 statusLine 接到 claude-hud；缺了状态栏空着 |
+| cc-switch App | 多 Claude 账号一键切换 |
+| bypassPermissions | 免逐次权限确认，AI 连续操作不被打断 |
+| bypass 警告已接受 | 免每次开机的 Bypass 模式警告弹窗 |
+| ~ 目录已信任 | 免在家目录起 CC 时的「是否信任此文件夹」弹窗 |
+| codegraph 只读白名单 | codegraph 只读工具免逐次确认 |
+| 自动更新已关闭 | 版本由人工掌控，不让 auto-updater 静默改动工具链 |
+| Codex API key 注入 | 启动 Codex 时从 `auth.json` 动态注入 key，密钥不明文落盘、不泄漏到整个终端 |
+| 全局 CLAUDE.md | 全局规范文件本体，下面三条规范都写在这里 |
+| 中文回复规范 | 所有会话一律简体中文回复 |
+| 代码短链规范 | 代码位置写成可点 markdown 短链，IDEA 的 CC 插件里点得动（裸文件名会报 Cannot open file） |
+| 压缩取舍规范 | compact / 生成摘要时保留决策和状态、丢掉噪音，防压缩后重踩坑重决策 |
+| 通知 hook（可选） | 任务完成弹桌面通知 |
+| memory 目录（可选） | 项目 memory 持久化目录 |
 
 ## 关键实现细节（改脚本前必读）
 
