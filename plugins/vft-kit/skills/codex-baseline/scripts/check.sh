@@ -50,6 +50,13 @@ agents_has(){
   [ -f "$AGENTS" ] || return 1
   grep -Eq "$1" "$AGENTS"
 }
+chromium_installed(){
+  local dir
+  for dir in "$HOME/Library/Caches/ms-playwright" "$HOME/.cache/ms-playwright"; do
+    [ -d "$dir" ] && find "$dir" -mindepth 1 -maxdepth 1 -type d -name 'chromium*' | grep -q . && return 0
+  done
+  return 1
+}
 
 printf "${c_d}Codex 装配基线核对 (codex-baseline)${c_0}\n"
 
@@ -85,23 +92,26 @@ else
   bad "项目 trust_level" '在 ~/.codex/config.toml 加入 [projects."/"] trust_level = "trusted" 或信任常用代码根'
 fi
 
-sec "MCP / 内置运行时"
-cfg_section_has_line "[mcp_servers.node_repl]" '^[[:space:]]*command[[:space:]]*=' && ok "node_repl MCP 已配置" || bad "node_repl MCP" "检查 Codex App/CLI 安装并重启"
-node_repl_cmd="$(awk '/^\[mcp_servers\.node_repl\]/{s=1;next} /^\[/{s=0} s && /^[[:space:]]*command[[:space:]]*=/{gsub(/^[^=]*=[[:space:]]*\"|\"[[:space:]]*$/,\"\",$0); print; exit}' "$CONFIG" 2>/dev/null)"
-if [ -n "$node_repl_cmd" ] && [ -x "$node_repl_cmd" ]; then ok "node_repl command 可执行"; else opt "node_repl command" "当前路径不存在；Codex App/runtime 更新后通常会自动修复"; fi
+sec "Playwright MCP"
+if cfg_section_has_line "[mcp_servers.playwright]" '^[[:space:]]*command[[:space:]]*='; then
+  ok "playwright MCP 已配置"
+  if cfg_section_has_line "[mcp_servers.playwright]" '^[[:space:]]*enabled[[:space:]]*=[[:space:]]*false[[:space:]]*$'; then
+    bad "playwright MCP 已禁用" '删除 [mcp_servers.playwright] 下的 enabled = false，或改为 enabled = true'
+  else
+    ok "playwright MCP 已启用"
+  fi
+else
+  bad "playwright MCP" "codex mcp add playwright -- npx --yes @playwright/mcp@latest"
+fi
+chromium_installed && ok "Playwright Chromium 内核" || bad "Playwright Chromium 内核" "npx --yes playwright install chromium"
 
-sec "插件（启用 + cache）"
+sec "CLI 插件（启用 + cache）"
 for key in \
-  "browser@openai-bundled" \
   "github@openai-api-curated" \
-  "documents@openai-primary-runtime" \
-  "pdf@openai-primary-runtime" \
-  "spreadsheets@openai-primary-runtime" \
-  "presentations@openai-primary-runtime" \
-  "template-creator@openai-primary-runtime"
+  "superpowers@openai-api-curated"
 do
-  if plugin_enabled "$key"; then ok "$key enabled"; else bad "$key enabled" "codex plugin install/enable ${key%@*}@${key#*@}"; fi
-  if plugin_cached "$key"; then ok "$key cache"; else bad "$key cache" "codex plugin install ${key%@*}@${key#*@}"; fi
+  if plugin_enabled "$key"; then ok "$key enabled"; else bad "$key enabled" "codex plugin add $key"; fi
+  if plugin_cached "$key"; then ok "$key cache"; else bad "$key cache" "codex plugin add $key"; fi
 done
 
 sec "系统 skills"

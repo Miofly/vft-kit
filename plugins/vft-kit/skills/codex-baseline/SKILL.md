@@ -1,11 +1,11 @@
 ---
 name: codex-baseline
-description: 一键核对本机 Codex 是否符合「装配基线」——逐项核对 Codex CLI、Node/npm/git、Codex dangerous full access 基线（等价 `--dangerously-bypass-approvals-and-sandbox`：`sandbox_mode = "danger-full-access"` + `approval_policy = "never"`）、full access 警告隐藏、项目信任、hooks、node_repl MCP、常用插件启用与 cache、系统 skills、全局 AGENTS 规范。缺什么直接打印对应修复命令。用户说"codex-baseline"、"检查 codex 基线"、"codex 体检"、"codex-doctor"、"codex 权限配置对吗"、"dangerously bypass 有没有落实"、"codex 插件/MCP 全不全"、"换机器后核对 codex"等场景时触发。只读检查，不改任何配置。
+description: 一键核对本机 Codex CLI 是否符合「装配基线」——逐项核对 Codex CLI、Node/npm/git、Codex dangerous full access 基线（等价 `--dangerously-bypass-approvals-and-sandbox`：`sandbox_mode = "danger-full-access"` + `approval_policy = "never"`）、full access 警告隐藏、项目信任、hooks、Playwright MCP、GitHub 与 Superpowers 插件、系统 skills、全局 AGENTS 规范。缺什么直接打印对应修复命令。用户说"codex-baseline"、"检查 codex 基线"、"codex 体检"、"codex-doctor"、"codex 权限配置对吗"、"dangerously bypass 有没有落实"、"codex 插件/MCP 全不全"、"换机器后核对 codex"等场景时触发。只读检查，不改任何配置。
 ---
 
 # codex-baseline —— Codex 装配基线核对
 
-对照本机 Codex 装配基线逐项核对安装、配置、插件、MCP 与全局规范状态，缺什么给什么修复命令。**只读**，不改任何配置。
+对照本机 Codex CLI 装配基线逐项核对安装、配置、插件与全局规范状态，缺什么给什么修复命令。**只读**，不改任何配置。本基线不要求安装 Codex App，也不检查 App/runtime 专属的 MCP 或内置插件。
 
 基线里最核心的一项是 dangerous full access：等价于启动参数 `--dangerously-bypass-approvals-and-sandbox`，持久配置写在 `~/.codex/config.toml`：
 
@@ -37,14 +37,16 @@ bash ${CODEX_PLUGIN_ROOT:-${VFT_PLUGIN_ROOT:-.}}/skills/codex-baseline/scripts/c
 | CLI 工具 | `codex` / `node` / `npm` / `git` / `jq` 可选 | `command -v` |
 | dangerous full access | `approval_policy = "never"` / `sandbox_mode = "danger-full-access"` / hide full-access warning | `~/.codex/config.toml` |
 | 项目与 hooks | `features.hooks = true` / `/` 或常用代码根已 trust | `~/.codex/config.toml` |
-| MCP | `node_repl` server 配置与命令存在 | `~/.codex/config.toml` |
-| 插件 | browser / github / documents / pdf / spreadsheets / presentations / template-creator 启用且 cache 存在 | `~/.codex/config.toml` + `~/.codex/plugins/cache` |
+| Playwright MCP | `playwright` stdio server 已配置且未禁用 / Chromium 内核存在 | `~/.codex/config.toml` + Playwright browser cache |
+| CLI 插件 | github / superpowers 启用且 cache 存在 | `~/.codex/config.toml` + `~/.codex/plugins/cache` |
 | 系统 skills | openai-docs / imagegen / skill-creator / plugin-creator / skill-installer | `~/.codex/skills/.system` |
 | 全局规范 | `~/.codex/AGENTS.md` 存在，建议含中文回复 / 可点短链 / 压缩取舍规则 | 文件正文 grep |
 
 ## 关键实现细节
 
 - **dangerous full access 是必需项**：脚本把 `approval_policy = "never"` 和 `sandbox_mode = "danger-full-access"` 当作硬失败项。它们是 `--dangerously-bypass-approvals-and-sandbox` 的持久配置等价物。
+- **只检查纯 CLI 能力**：不检查 Codex App、`node_repl`、`browser@openai-bundled` 或 `openai-primary-runtime` 文档类插件，避免把桌面端/runtime 能力误报为 CLI 必需项。
+- **Playwright 必须能启动浏览器**：既检查 `[mcp_servers.playwright]` 的 stdio command 和启用状态，也检查 Chromium 内核；只注册 MCP 但没有浏览器内核仍算缺失。
 - **只读检查，不自动修复**：本 skill 不写 `~/.codex/config.toml`，只打印 `codex -c ...` 或可粘贴的配置片段。
 - **插件检查分两层**：配置里的 `[plugins."<plugin>@<marketplace>"].enabled = true` 是启用事实；`~/.codex/plugins/cache/<marketplace>/<plugin>/...` 是 cache 落盘事实，两者都要看。
 - **Codex 配置是 TOML**：脚本用 `awk`/`grep` 做轻量检查，不引入额外依赖；`jq` 只作为可选工具提示。
