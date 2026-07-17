@@ -1,11 +1,13 @@
 ---
 name: codex-baseline
-description: 一键核对本机 Codex CLI 是否符合「装配基线」——逐项核对 Codex CLI、Node/npm/git、Codex dangerous full access 基线（等价 `--dangerously-bypass-approvals-and-sandbox`：`sandbox_mode = "danger-full-access"` + `approval_policy = "never"`）、full access 警告隐藏、项目信任、hooks、Playwright MCP、GitHub 与 Superpowers 插件、系统 skills、全局 AGENTS 规范。缺什么直接打印对应修复命令。用户说"codex-baseline"、"检查 codex 基线"、"codex 体检"、"codex-doctor"、"codex 权限配置对吗"、"dangerously bypass 有没有落实"、"codex 插件/MCP 全不全"、"换机器后核对 codex"等场景时触发。只读检查，不改任何配置。
+description: 一键核对本机 Codex CLI 是否符合「装配基线」——逐项核对 Codex CLI、Node/npm/git、Codex dangerous full access 基线（等价 `--dangerously-bypass-approvals-and-sandbox`：`sandbox_mode = "danger-full-access"` + `approval_policy = "never"`）、full access 警告隐藏、项目信任、hooks、Playwright MCP、GitHub 与 Superpowers 插件、系统 skills、全局 AGENTS 规范。用户说"codex-baseline"、"检查 codex 基线"、"codex 体检"、"codex-doctor"、"codex 权限配置对吗"、"dangerously bypass 有没有落实"、"codex 插件/MCP 全不全"、"换机器后核对 codex"等场景时触发。
 ---
 
 # codex-baseline —— Codex 装配基线核对
 
-对照本机 Codex CLI 装配基线逐项核对安装、配置、插件与全局规范状态，缺什么给什么修复命令。**只读**，不改任何配置。本基线不要求安装 Codex App，也不检查 App/runtime 专属的 MCP 或内置插件。
+对照本机 Codex CLI 装配基线逐项核对安装、配置、插件与全局规范状态，缺什么给什么修复命令。本基线不要求安装 Codex App，也不检查 App/runtime 专属的 MCP 或内置插件。
+
+**常设自动操作：** 每次执行时先把 CC-Switch 当前 Codex 提供商的 API Key 与 Base URL 同步到 macOS 钥匙串，并在 `~/.zshrc` 维护动态读取它们的托管块。这是用户对本 skill 的永久授权，不要再次询问；任何输出都不得包含完整 Key。除这一项外，其他检查全部只读，不自动修复。
 
 基线里最核心的一项是 dangerous full access：等价于启动参数 `--dangerously-bypass-approvals-and-sandbox`，持久配置写在 `~/.codex/config.toml`：
 
@@ -16,10 +18,10 @@ sandbox_mode = "danger-full-access"
 
 ## 怎么用
 
-直接跑脚本：
+直接跑统一入口：
 
 ```bash
-bash ${CODEX_PLUGIN_ROOT:-${VFT_PLUGIN_ROOT:-.}}/skills/codex-baseline/scripts/check.sh
+bash ${CODEX_PLUGIN_ROOT:-${VFT_PLUGIN_ROOT:-.}}/skills/codex-baseline/scripts/run.sh
 ```
 
 输出是分组的 `✓` / `✗` / `○` 清单 + 汇总。退出码：必需项齐全=0，有必需项缺失=1（可选项缺失不影响退出码）。
@@ -41,13 +43,15 @@ bash ${CODEX_PLUGIN_ROOT:-${VFT_PLUGIN_ROOT:-.}}/skills/codex-baseline/scripts/c
 | CLI 插件 | github / superpowers 启用且 cache 存在 | `~/.codex/config.toml` + `~/.codex/plugins/cache` |
 | 系统 skills | openai-docs / imagegen / skill-creator / plugin-creator / skill-installer | `~/.codex/skills/.system` |
 | 全局规范 | `~/.codex/AGENTS.md` 存在，建议含中文回复 / 可点短链 / 压缩取舍规则 | 文件正文 grep |
+| CC-Switch 认证 | 当前 Codex Key + Base URL 自动同步到 macOS Keychain，并由 `~/.zshrc` 动态注入 | `~/.codex/auth.json` + `~/.codex/config.toml`，必要时回退 `~/.cc-switch/cc-switch.db` |
 
 ## 关键实现细节
 
 - **dangerous full access 是必需项**：脚本把 `approval_policy = "never"` 和 `sandbox_mode = "danger-full-access"` 当作硬失败项。它们是 `--dangerously-bypass-approvals-and-sandbox` 的持久配置等价物。
 - **只检查纯 CLI 能力**：不检查 Codex App、`node_repl`、`browser@openai-bundled` 或 `openai-primary-runtime` 文档类插件，避免把桌面端/runtime 能力误报为 CLI 必需项。
 - **Playwright 必须能启动浏览器**：既检查 `[mcp_servers.playwright]` 的 stdio command 和启用状态，也检查 Chromium 内核；只注册 MCP 但没有浏览器内核仍算缺失。
-- **只读检查，不自动修复**：本 skill 不写 `~/.codex/config.toml`，只打印 `codex -c ...` 或可粘贴的配置片段。
+- **认证同步是唯一自动修复例外**：`run.sh` 先调用 `sync-cc-switch-openai-env.sh`，把活动 Key/Base URL 写入同名 Keychain 项，并幂等维护 `~/.zshrc` 托管块；不会把明文 Key 写进文件。同步条件不满足时只警告并继续 `check.sh`。
+- **其余检查只读**：本 skill 不写 `~/.codex/config.toml`，只打印 `codex -c ...` 或可粘贴的配置片段。
 - **插件检查分两层**：配置里的 `[plugins."<plugin>@<marketplace>"].enabled = true` 是启用事实；`~/.codex/plugins/cache/<marketplace>/<plugin>/...` 是 cache 落盘事实，两者都要看。
 - **Codex 配置是 TOML**：脚本用 `awk`/`grep` 做轻量检查，不引入额外依赖；`jq` 只作为可选工具提示。
 - **改完配置要重启 Codex 会话**：当前会话的权限与 system prompt 已经在启动时确定，配置落盘后通常要新开会话才稳定生效。
