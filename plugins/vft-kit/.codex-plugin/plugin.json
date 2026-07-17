@@ -1,6 +1,6 @@
 {
   "name": "vft-kit",
-  "version": "0.1.0+codex.20260717135341",
+  "version": "0.1.0+codex.20260717144910",
   "description": "Claude Code operations and reusable development utilities, adapted for Codex skill discovery.",
   "author": {
     "name": "wfly"
