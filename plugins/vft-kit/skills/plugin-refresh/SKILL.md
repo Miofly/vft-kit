@@ -61,10 +61,10 @@ claude plugin marketplace list
 本地目录插件直接跑封装脚本（幂等）：
 
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/plugin-refresh/scripts/refresh-local-plugin.sh -p <plugin-name>
+bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/plugin-refresh/scripts/refresh-local-plugin.sh" -p <plugin-name>
 
 # marketplace 名与 plugin 名不同时
-bash ${CLAUDE_PLUGIN_ROOT}/skills/plugin-refresh/scripts/refresh-local-plugin.sh -p <plugin> -m <marketplace>
+bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/plugin-refresh/scripts/refresh-local-plugin.sh" -p <plugin> -m <marketplace>
 ```
 
 脚本做的事：

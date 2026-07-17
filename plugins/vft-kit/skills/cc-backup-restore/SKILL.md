@@ -20,7 +20,7 @@ description: 备份 / 恢复本机 Claude Code 的配置与数据（全局 CLAUD
 ## 备份（换号 / 重装前）
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/skills/cc-backup-restore/scripts/cc-backup.sh"
+bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/cc-backup-restore/scripts/cc-backup.sh"
 ```
 
 产出 `~/cc-backups/cc-backup-<时间戳>/`（可用 `CC_BACKUP_ROOT` 环境变量改目标目录），**自包含**：内含 `cc-restore.sh` + `README.md` + `MANIFEST.txt`，整个目录拷到任何机器都能独立恢复，不依赖本仓库。
@@ -46,7 +46,7 @@ bash cc-restore.sh -y       # 非交互
 也可以不 cd，直接指定备份目录：
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/skills/cc-backup-restore/scripts/cc-restore.sh" ~/cc-backups/cc-backup-<时间戳> -y
+bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/cc-backup-restore/scripts/cc-restore.sh" ~/cc-backups/cc-backup-<时间戳> -y
 ```
 
 恢复行为要点：

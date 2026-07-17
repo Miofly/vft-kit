@@ -3,7 +3,7 @@
 # vft-kit 里存的是编译好的成品 zip;安装 = 解压 → 去隔离 → 装到 ~/Applications → 启动。
 set -euo pipefail
 
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-}"
+PLUGIN_ROOT="${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}"
 if [ -z "$PLUGIN_ROOT" ]; then
   PLUGIN_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 fi
