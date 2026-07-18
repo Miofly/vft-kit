@@ -127,6 +127,7 @@ has_cmd rtk    && ok "rtk ($(rtk --version 2>/dev/null))"   || opt "rtk"    "bre
 has_cmd codegraph && ok "codegraph ($(codegraph -V 2>/dev/null))" || bad "codegraph" "npm i -g @colbymchenry/codegraph"
 has_cmd brew   && ok "brew"                                 || opt "brew"   "Homebrew 建议装"
 has_cmd jq     && ok "jq"                                   || opt "jq"     "brew install jq"
+has_cmd gh     && ok "gh ($(gh --version 2>/dev/null|head -1|awk '{print $3}'))" || opt "gh"     "brew install gh（GitHub CLI：PR/Actions/仓库操作，可选）"
 
 # ---------- 2. 全局 npm 包（MCP 载体） ----------
 sec "全局 npm 包"

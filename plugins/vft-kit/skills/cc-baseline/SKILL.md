@@ -1,6 +1,6 @@
 ---
 name: cc-baseline
-description: 一键核对本机 Claude Code 是否符合「装配基线」——逐项核对 CLI 工具（codegraph / node / claude，rtk 可选）、全局 npm 包（lighthouse-mcp / codegraph）、MCP 注册（codegraph / lighthouse-mcp）、默认必备插件精简集（superpowers / skill-creator / code-review / frontend-design / playwright / claude-hud / remember / ponytail）、系统配置（RTK hook 与压缩豁免〈装了 rtk 才核对〉、claude-hud 状态栏、cc-switch App）、以及配置基线（bypassPermissions、bypass 警告已接受、~ 目录已信任、codegraph 白名单、Codex API key 启动注入、全局规范含「始终中文回复」「代码位置用可点短链」「上下文压缩取舍规则」、默认关闭自动更新）。缺什么直接打印对应修复命令。可选 --health 参数额外实连核对核心 MCP（含 playwright）。用户说"cc-baseline"、"核对下基线"、"检查我的 cc 工具装齐了没"、"工具链体检"、"cc-doctor"（旧称）、"哪些工具没装"、"环境自检"、"看看必备插件/MCP 全不全"、"换机器后核对一下 cc 装配"、"重装后哪些没恢复"、"claude code 环境检查"等场景时触发。即使只说"体检一下"或"我的 cc 配置全吗"，且上下文是 Claude Code 工具链时，也用本 skill。纯只读，不改任何配置。
+description: 一键核对本机 Claude Code 是否符合「装配基线」——逐项核对 CLI 工具（codegraph / node / claude，rtk/gh 可选）、全局 npm 包（lighthouse-mcp / codegraph）、MCP 注册（codegraph / lighthouse-mcp）、默认必备插件精简集（superpowers / skill-creator / code-review / frontend-design / playwright / claude-hud / remember / ponytail）、系统配置（RTK hook 与压缩豁免〈装了 rtk 才核对〉、claude-hud 状态栏、cc-switch App）、以及配置基线（bypassPermissions、bypass 警告已接受、~ 目录已信任、codegraph 白名单、Codex API key 启动注入、全局规范含「始终中文回复」「代码位置用可点短链」「上下文压缩取舍规则」、默认关闭自动更新）。缺什么直接打印对应修复命令。可选 --health 参数额外实连核对核心 MCP（含 playwright）。用户说"cc-baseline"、"核对下基线"、"检查我的 cc 工具装齐了没"、"工具链体检"、"cc-doctor"（旧称）、"哪些工具没装"、"环境自检"、"看看必备插件/MCP 全不全"、"换机器后核对一下 cc 装配"、"重装后哪些没恢复"、"claude code 环境检查"等场景时触发。即使只说"体检一下"或"我的 cc 配置全吗"，且上下文是 Claude Code 工具链时，也用本 skill。纯只读，不改任何配置。
 ---
 
 # cc-baseline —— Claude Code 装配基线核对
@@ -31,7 +31,7 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/check.sh
 
 | 类别 | 检查项 | 数据来源 |
 |---|---|---|
-| CLI 工具 | node / npm / claude / **codegraph** / rtk（可选）/ brew / jq | `command -v` |
+| CLI 工具 | node / npm / claude / **codegraph** / rtk（可选）/ brew / jq / gh（可选） | `command -v` |
 | 全局 npm 包 | `@colbymchenry/codegraph` / `@danielsogl/lighthouse-mcp` | `$(npm root -g)/<pkg>` 目录 |
 | MCP 注册 | codegraph / lighthouse-mcp | `~/.claude.json` 的 `mcpServers`（含各 project scope） |
 | 插件（必备集 + 可选） | 必备：superpowers / skill-creator / code-review / frontend-design / playwright / claude-hud / remember / typescript-lsp / jdtls-lsp / security-guidance / claude-md-management / context-mode / **ponytail**；可选：context7 / vercel | `~/.claude/plugins/installed_plugins.json`（确定性文件读，覆盖 user/project/local 全 scope） |
@@ -48,6 +48,7 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/check.sh
 | claude | Claude Code 本体 CLI |
 | codegraph（CLI） | 代码知识图谱：一次调用返回相关符号源码 + 调用链，替代 grep+Read；缺了退回慢速搜索 |
 | rtk（可选） | token 压缩代理，省 60-90% 开发操作 token；不装不影响功能 |
+| gh（可选） | GitHub CLI：PR / Issue / Actions 监控 / 仓库操作；缺了这些 GitHub 操作只能走网页或裸 API |
 | @colbymchenry/codegraph | codegraph MCP 的 npm 载体，MCP 版靠它 |
 | @danielsogl/lighthouse-mcp | Lighthouse 页面体检 MCP 的 npm 载体 |
 | MCP: codegraph | 让 CC 直接问代码结构/调用链，不用手动 grep |
@@ -125,6 +126,9 @@ claude plugin install ponytail@ponytail                 # 装完自带 lite/full
 
 # cc-switch（多账号切换 App，可选）
 brew install --cask cc-switch
+
+# gh（GitHub CLI，可选：PR / Actions / 仓库操作；国内 bottle 失败用镜像域）
+brew install gh   # 失败则：HOMEBREW_BOTTLE_DOMAIN=https://mirrors.ustc.edu.cn/homebrew-bottles brew install gh
 
 # 默认关闭自动更新（版本由人工掌控；关闭开关只有 env 这一条路）
 jq '.env.DISABLE_AUTOUPDATER="1"' ~/.claude/settings.json > /tmp/s.json && mv /tmp/s.json ~/.claude/settings.json
