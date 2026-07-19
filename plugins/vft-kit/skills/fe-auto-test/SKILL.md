@@ -84,6 +84,7 @@ bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/f
   - `ResizeObserver loop completed with undelivered notifications`（ResizeObserver 循环，无害）
   - 第三方脚本（统计/广告/SDK）的 404 / CORS / 自身报错
   - 判定真 bug 的标准：报错栈指向**业务代码**、或伴随**渲染缺失/交互失效**（结合 snapshot 与实际表现），而不是只看 error 计数。
+- **⚠ console 报错是异步累积的，别导航完立刻查就下结论**：广告/统计/三方 SDK 异步加载，`browser_navigate` 刚返回时 console 常是 0，几秒后才冒出一批。务必先 `browser_wait_for`（或等 networkidle / 停 2-3s）让异步脚本落定，再用 `browser_console_messages` 拉 **`level:"error"` + `all:true`** 全量——只查 warning、或查得太早，会把"其实有一批三方报错"误判成"无报错"。
 
 ### 4. 全维度页面体检（默认执行，不用等用户开口要"性能"）
 
@@ -102,7 +103,16 @@ node "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/f
 python3 "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/fe-auto-test/scripts/resource-report.py" /tmp/res.json
 ```
 
-一次输出：四维评分（性能/无障碍/最佳实践/SEO）+ 六项指标（FCP/LCP/TBT/CLS/SI/TTI，带 🟢🟡🔴 分档）+ 未用 JS + 未用 CSS + 无障碍 `score:0` 硬失败项 + 最佳实践/SEO 失败项。**等价于下面串行调 7 个 MCP 工具的全部产出**，且不会撑爆 token（输出已主动裁剪，资源清单单独落盘）。
+一次输出：四维评分（性能/无障碍/最佳实践/SEO）+ 六项指标（FCP/LCP/TBT/CLS/SI/TTI，带 🟢🟡🔴 分档）+ 未用 JS + 未用 CSS + **阻塞首屏渲染的资源(render-blocking，逐项给阻塞 ms/KB) + 字体阻塞** + 无障碍 `score:0` 硬失败项 + 最佳实践/SEO 失败项。**等价于串行调 7 个 MCP 工具的全部产出，还多给了「打开速度」的直接抓手**（什么资源在阻塞首屏渲染），且不会撑爆 token（输出已主动裁剪，资源清单单独落盘）。
+
+> **⚠ lab 单次数据有波动，广告站尤甚**：FCP/LCP/TTI 是单次 throttled 测量，第三方广告脚本加载时序会让它剧烈抖动。关键指标建议连跑 2 次看中位，报告里注明"单次 lab、含广告干扰"，别把一次偶发值当铁板结论。判读时先看 SSR 冷启动 TTFB（`http-headers.mjs --cold`）区分是"页面本身重"还是"SSR 回源慢"——这次实测 tools 站 LCP 12s，但冷启动 TTFB 仅 1s，说明慢在前端资源而非后端。
+> **性能/最佳实践低分先甄别第三方占比**：广告站（AdSense/Appier 等）会把 best-practices 拖到 50 上下、把 LCP/TBT 顶高，但根因是三方脚本，不是站点自己的代码——归因前先看资源按域名拆解里第三方的体积占比，别把广告的账算到站点头上。
+
+> **专测 SEO 深度？再跑 `seo-audit.mjs`**（Lighthouse 的 SEO 分很浅，只查 title/meta/robots 有没有，查不到 SSR 空壳、跨路由标题重复、canonical 是否自指这些真正掉收录的问题）：
+> ```bash
+> node "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/fe-auto-test/scripts/seo-audit.mjs" <url> [40] [--all] [--q='?debug=true']
+> ```
+> 抓**原始 SSR HTML**（爬虫视角，不跑 JS）全站/抽样体检：SSR 空壳（200 但爬虫拿到白屏）、title/description 跨路由唯一性、canonical 自指、JSON-LD 结构化数据、og 卡片、h1、noindex 误标。默认抽样 40 条看趋势，`--all` 全量（唯一性判定更准）。
 
 它直接 import lighthouse 库，不经过 MCP，所以**装完立即可用、无需重启**。`localhost` 自动改写 `127.0.0.1`、NO_FCP 自动提示 anti-debug 陷阱，坑都在脚本里处理了。落盘的资源清单格式与 MCP 的 `analyze_resources` 一致，`resource-report.py` 两边都能吃。
 
@@ -324,6 +334,7 @@ bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/f
 | `http-headers.mjs` | CDN / 缓存 / 压缩 / SSR 冷启动 TTFB |
 | `route-audit.mjs` | 逐路由抽样审计（渲染 + console + SEO meta） |
 | `ssr-status-sweep.mjs` | 全站 SSR 状态清扫（抓 500） |
+| `seo-audit.mjs` | SEO 深度体检（原始 SSR HTML：空壳 / 标题·描述跨路由唯一性 / canonical 自指 / JSON-LD / og） |
 | `resilience-audit.mjs` | 容错 / 边界 / 守卫 / Hydration |
 
 #### ① CDN / 缓存 / 压缩 / SSR 冷启动实测 —— `http-headers.mjs`

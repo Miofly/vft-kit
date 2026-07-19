@@ -29,6 +29,7 @@ const flag = (n, d = '') => {
 const DEVICE = flag('device', 'mobile');
 const QUERY = flag('q');
 const RES_OUT = flag('resources');
+const BLOCK = flag('block'); // 逗号分隔的域/子串，如 --block='doubleclick,googlesyndication,adsappier' → 屏蔽广告后测「净性能」
 const AS_JSON = argv.includes('--json');
 
 // localhost → 127.0.0.1（headless Chrome 解析坑）；再拼上 debug 后门参数
@@ -55,6 +56,7 @@ try {
     output: 'json',
     logLevel: 'error',
     onlyCategories: ['performance', 'accessibility', 'best-practices', 'seo'],
+    ...(BLOCK ? { blockedUrlPatterns: BLOCK.split(',').map((s) => `*${s.trim()}*`) } : {}),
     ...(DEVICE === 'desktop' ? DESKTOP : MOBILE),
   });
   lhr = run.lhr;
@@ -134,6 +136,31 @@ const report = {
   },
   unusedJs: waste('unused-javascript', 20 * 1024),
   unusedCss: waste('unused-css-rules', 5 * 1024),
+  // 打开速度机会项。Lighthouse 12.x 改用 *-insight 系列 audit（旧版是 render-blocking-resources /
+  // font-display），items 结构一致，故两个 id 都认，兼容新旧版本。
+  // 注：旧的 largest-contentful-paint-element / uses-rel-preconnect 在 12.x 已删（LCP 元素并入
+  // lcp-discovery-insight 且仅图片 LCP 才有；preconnect 并入 network-dependency-tree-insight），
+  // 通用场景取不到稳定值，不强行提取。
+  renderBlocking: ((A['render-blocking-insight'] ?? A['render-blocking-resources'])?.details?.items ?? [])
+    .filter((i) => (i.wastedMs ?? 0) > 0)
+    .map((i) => ({ url: String(i.url ?? '').replace(/^https?:\/\//, '').slice(0, 80), ms: Math.round(i.wastedMs ?? 0), kb: Math.round((i.totalBytes ?? 0) / 1024) }))
+    .sort((a, b) => b.ms - a.ms)
+    .slice(0, 6),
+  fontDisplay: ((A['font-display-insight'] ?? A['font-display'])?.details?.items ?? []).length,
+  // 最长关键请求链：串行瀑布，首屏被这条链的累计时延卡死（LH12 network-dependency-tree-insight，顺 isLongest 循迹）
+  criticalChain: (() => {
+    const root = (A['network-dependency-tree-insight']?.details?.items ?? []).map((i) => i.value?.chains).find(Boolean);
+    if (!root) return [];
+    const chain = [];
+    let level = root;
+    while (level && Object.keys(level).length) {
+      const node = Object.values(level).find((n) => n.isLongest) ?? Object.values(level)[0];
+      if (!node) break;
+      chain.push({ url: String(node.url ?? '').replace(/^https?:\/\//, '').slice(0, 70), ms: Math.round(node.navStartToEndTime ?? 0), kb: Math.round((node.transferSize ?? 0) / 1024) });
+      level = node.children;
+    }
+    return chain.slice(0, 8);
+  })(),
   a11yFails,
   bestPracticeFails: catFails('best-practices'),
   seoFails: catFails('seo'),
@@ -174,7 +201,7 @@ if (AS_JSON) {
 const S = report.scores;
 const M = report.metrics;
 const out = [];
-out.push(`\nLighthouse 全维度体检 — ${report.url}（${DEVICE}）\n`);
+out.push(`\nLighthouse 全维度体检 — ${report.url}（${DEVICE}）${BLOCK ? ` [已屏蔽 ${BLOCK} —— 剔除后的净性能]` : ''}\n`);
 out.push('| 维度 | 评分 |');
 out.push('|---|---|');
 out.push(`| 性能 | ${slamp(S.performance)} ${S.performance ?? 'N/A'} |`);
@@ -197,6 +224,17 @@ const listWaste = (title, arr) => {
 };
 listWaste('未使用的 JS（首屏脂肪，体积优化第一抓手）:', report.unusedJs);
 listWaste('未使用的 CSS:', report.unusedCss);
+
+// 打开速度：什么资源在阻塞首屏渲染（render-blocking，直接对应 FCP/LCP 慢）
+if (report.renderBlocking.length) {
+  out.push('\n阻塞首屏渲染的资源（render-blocking，内联关键 CSS / defer 非关键 JS·CSS）:');
+  for (const i of report.renderBlocking) out.push(`  · ${i.url} — 阻塞 ${i.ms}ms（${i.kb}KB）`);
+}
+if (report.fontDisplay) out.push(`\n字体阻塞：${report.fontDisplay} 个字体缺 font-display:swap（首屏文字可能被卡成空白）`);
+if (report.criticalChain.length > 1) {
+  out.push('\n最长关键请求链（串行瀑布，末端 ms 就是首屏被拖到的时刻，打断串行 / 预加载可提前）:');
+  for (const i of report.criticalChain) out.push(`  · ${i.url} — ${i.ms}ms${i.kb ? `（${i.kb}KB）` : ''}`);
+}
 
 if (a11yFails.length) {
   out.push('\n无障碍硬失败项（score:0）:');
