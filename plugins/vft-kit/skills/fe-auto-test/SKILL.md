@@ -1,11 +1,11 @@
 ---
 name: fe-auto-test
-description: 用 Playwright MCP 在真实浏览器里验证前端页面行为——打开本地 dev server、检查控制台报错、验证组件是否挂载、检查 Canvas / Three.js / WebGL 是否渲染成功、截图调试、做 UI 交互回归；并能用 Lighthouse MCP 对任意页面做**全维度体检**（性能 / 无障碍 / 最佳实践 / SEO）+ 缓存压缩实测 + 资源按域名/大小拆解，产出按收益排序的优化建议。封装了"探测 dev server 实际端口 → 浏览器打开 → 查报错/查渲染 → 全维度体检 → 截图 → 清理 → 关服务"的完整闭环，并处理 dev 端口不固定的坑(脚本自动探测，不硬编码)。用户说"验证下页面/看看渲染对不对/检查控制台报错/三维/Three.js/canvas 没出来/组件没挂载/截个图看看/跑下 UI 测试/playwright 打开看看/页面白屏排查/跑下 lighthouse/做个性能审计/这页性能怎么样/LCP/TBT/Core Web Vitals/无障碍评分/优化建议/首屏太慢/详细报告/全面体检/缓存配得对不对"等场景时触发。即使只说"帮我看看这个页面对不对"且需要真实浏览器渲染时，也用本 skill。打开页面验证后会**默认**附带一次全维度页面体检（性能首屏 / 无障碍 / 最佳实践 / SEO / 缓存压缩 / 资源拆解），无需用户显式说"跑性能"。还能做**容错 / 边界 / 全站批量测试**（bundled Playwright 编程式脚本）：清 LocalStorage/清缓存后刷新、脏存储容错、已登录 vs 未登录守卫差异、SSR Hydration 一致性、逐路由(sitemap 抽样)批量查渲染与 console 报错、CDN 缓存/压缩/SSR 冷启动 TTFB 实测。用户说"做容错测试/清缓存清 localStorage 刷新/已登录未登录区别/每个路由都看下/CDN 缓存实测/SSR 冷启动/hydration"等也触发。纯代码静态分析能解决的问题不用本 skill。
+description: 用 Playwright 浏览器工具或内置 Node 脚本验证前端页面行为——打开本地 dev server、检查控制台报错、验证组件是否挂载、检查 Canvas / Three.js / WebGL 是否渲染成功、截图调试、做 UI 交互回归；并用 Lighthouse 做性能、无障碍、最佳实践、SEO、缓存压缩和资源拆解体检。兼容 Claude Code 与 Codex；当前 Agent 没有浏览器/MCP 工具时自动走脚本路径。用户说"验证页面"、"检查控制台"、"Three.js/canvas 没出来"、"截图看看"、"页面白屏"、"跑 lighthouse"、"性能审计"、"Core Web Vitals"、"容错测试"、"逐路由检查"、"CDN 缓存实测"或"hydration"等场景时触发。纯代码静态分析能解决的问题不用本 skill。
 ---
 
 # fe-auto-test — Playwright 浏览器验证 / 调试
 
-用 Playwright MCP 跑**真实浏览器**来验证前端行为：控制台报错、Vue 挂载、Canvas/Three.js/WebGL 渲染、UI 交互、截图。和静态读代码不同，它能拿到 JS 执行后的真实 DOM 与运行时错误。
+用当前 Agent 可用的浏览器工具或内置 Playwright 脚本跑**真实浏览器**，验证控制台报错、Vue 挂载、Canvas/Three.js/WebGL、UI 交互和截图。
 
 ## 何时用 / 何时不用
 
@@ -33,6 +33,8 @@ description: 用 Playwright MCP 在真实浏览器里验证前端页面行为—
 | 擅长 | 交互式逐步调试、点一下看一下 | 批量、无人值守、依赖没齐时的退路 |
 
 **关键认知**：CC 的 MCP **新注册后当前会话拿不到工具，必须重启**。所以依赖缺失时**不要停下来让用户重启**——第 0 步会自动补装 npm 包并走脚本路径把活干完，同时把 MCP 注册好留给下次会话。
+
+**运行时映射**：Claude Code 使用 `browser_*` / Lighthouse MCP；Codex 使用当前会话提供的 Browser/Playwright 工具。工具名不一致时按能力映射（导航、快照、控制台、执行 JS、截图、关闭）；缺任何能力就走同表右侧脚本，不臆造不存在的工具名。`check-deps.sh` 会按当前运行时调用 `claude` 或 `codex` 注册软依赖。
 
 ## 标准闭环
 

@@ -1,7 +1,6 @@
 ---
 name: git-auto-push
 description: 绕过 git hooks（husky / pre-commit / commit-msg / pre-push）执行 commit + push。用户说"绕过 hooks 提交"、"跳过钩子提交"、"强制提交"、"--no-verify 推送"、"force commit push"、"不跑 lint 直接推"、"hooks 卡住先推上去"等场景时触发。仅在用户明确要求时使用。
-version: 1.2.0
 ---
 
 # Git Auto Commit + Push (Bypass Hooks)

@@ -53,10 +53,24 @@ rtk_excludes_verbatim(){
   local cmd
   for cmd in cat diff find grep curl head wc; do printf '%s' "$line" | grep -q "\"$cmd\"" || return 1; done
 }
-# statusLine 命令是否含关键字
-statusline_has(){
+# statusLine 最终是否渲染 claude-hud——含直接引用与委托链（如 island-statusline → *-delegate → claude-hud）。
+# 只 grep command 字符串本身、其指向的脚本、及同目录的 *statusline*/*delegate* 伴生脚本，不整目录扫。
+statusline_uses_hud(){
   [ -f "$SETTINGS" ] || return 1
-  node -e "const s=require('$SETTINGS');process.exit(new RegExp(process.argv[1],'i').test(JSON.stringify(s.statusLine||{}))?0:1)" "$1" 2>/dev/null
+  local cmd; cmd=$(node -e "const s=require('$SETTINGS');process.stdout.write((s.statusLine&&s.statusLine.command)||'')" 2>/dev/null)
+  [ -n "$cmd" ] || return 1
+  printf '%s' "$cmd" | grep -qi 'claude-hud' && return 0   # 直接引用
+  local tok f dir base g                                    # 委托链
+  for tok in $cmd; do
+    case "$tok" in /*) f="$tok" ;; *) continue ;; esac
+    [ -f "$f" ] || continue
+    grep -qi 'claude-hud' "$f" 2>/dev/null && return 0
+    dir=$(dirname "$f"); base=$(basename "$f")
+    for g in "$dir/$base"* "$dir/"*delegate* "$dir/"*statusline*; do
+      [ -f "$g" ] && grep -qi 'claude-hud' "$g" 2>/dev/null && return 0
+    done
+  done
+  return 1
 }
 # permissions.defaultMode 是否等于指定值
 defaultmode_is(){
@@ -144,13 +158,14 @@ sec "插件（默认必备集）"
 # 精简后的默认必备插件清单（用户指定）：核心工作流 + 自研 + 反过度工程
 for p in superpowers skill-creator code-review frontend-design playwright \
          claude-hud remember typescript-lsp jdtls-lsp security-guidance \
-         claude-md-management context-mode ponytail caveman; do
+         claude-md-management context-mode ponytail caveman gsap-skills; do
   if plugin_installed "$p"; then ok "$p"; else
     case "$p" in
       claude-hud)                     bad "$p" "claude plugin marketplace add jarrodwatts/claude-hud && claude plugin install claude-hud@claude-hud";;
       context-mode)                   bad "$p" "claude plugin marketplace add mksglu/claude-context-mode && claude plugin install context-mode@context-mode";;
       ponytail)                       bad "$p" "claude plugin marketplace add DietrichGebert/ponytail && claude plugin install ponytail@ponytail（两条要分开发）";;
       caveman)                        bad "$p" "claude plugin marketplace add JuliusBrussee/caveman && claude plugin install caveman@caveman（两条要分开发，省 65% 输出 token）";;
+      gsap-skills)                    bad "$p" "claude plugin marketplace add greensock/gsap-skills && claude plugin install gsap-skills@gsap-skills（GSAP 官方，两条要分开发）";;
       *)                              bad "$p" "claude plugin install $p@claude-plugins-official";;
     esac
   fi
@@ -177,7 +192,7 @@ if has_cmd rtk; then
 else
   opt "RTK（hook + 压缩豁免）"    "brew install rtk && rtk init -g --auto-patch（未装 rtk，跳过）"
 fi
-statusline_has "claude-hud"     && ok "状态栏 statusLine（claude-hud）"      || bad "claude-hud 状态栏" "在 CC 里运行 /claude-hud:setup"
+statusline_uses_hud             && ok "状态栏 statusLine（claude-hud）"      || bad "claude-hud 状态栏" "在 CC 里运行 /claude-hud:setup（或让现有 statusLine 委托给 claude-hud）"
 [ -d "/Applications/CC Switch.app" ] && ok "cc-switch App"                  || opt "cc-switch App"    "brew install --cask cc-switch"
 
 # ---------- 6. 配置基线 ----------
@@ -196,7 +211,6 @@ fi
 claudemd_has_chinese               && ok "全局规范含「始终中文回复」"          || bad "中文回复规范" $'printf \'\\n- **始终使用中文回复**（简体中文）。无论用户用什么语言提问、上下文/工具输出是什么语言，回复正文一律中文。\\n\' >> ~/.claude/CLAUDE.md'
 claudemd_has_shortlink             && ok "全局规范含「代码位置用可点短链」"    || bad "代码短链规范" $'printf \'\\n- **引用代码位置一律用 markdown 可点短链**：IDEA 插件里裸文件名点不动会报 Cannot open file，须写成 [短名:行](绝对路径:行)。\\n\' >> ~/.claude/CLAUDE.md'
 claudemd_has_compact               && ok "全局规范含「压缩取舍规则」"          || bad "压缩取舍规范" $'printf \'\\n## 上下文压缩（compact）取舍规则\\n做上下文压缩/生成摘要时，保留决策和状态，丢掉噪音：必留①架构决策及理由②改过的文件及改动③阻塞报错④进行中的工作与下一步⑤验证状态⑥失败过的方案及原因⑦待办与回滚；可丢冗长工具输出(留结论)、无关探索、死胡同中间步骤、已入 git 的文件内容。\\n\' >> ~/.claude/CLAUDE.md'
-hook_has "notify"                  && ok "通知 hook（notify / claude-island）" || opt "通知 hook"        "配置 notify-config.json + hook（任务完成通知）"
 [ -d "$HOME/.claude/projects" ]    && ok "项目 memory 目录"                   || opt "项目 memory"     "~/.claude/projects/<项目>/memory/ 跨会话记忆"
 
 # ---------- 7. MCP 连接健康（仅 --health） ----------

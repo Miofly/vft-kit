@@ -1,6 +1,6 @@
 ---
 name: cc-baseline
-description: 一键核对本机 Claude Code 是否符合「装配基线」——逐项核对 CLI 工具（codegraph / node / claude，rtk/gh 可选）、全局 npm 包（lighthouse-mcp / codegraph）、MCP 注册（codegraph / lighthouse-mcp）、默认必备插件精简集（superpowers / skill-creator / code-review / frontend-design / playwright / claude-hud / remember / ponytail）、系统配置（RTK hook 与压缩豁免〈装了 rtk 才核对〉、claude-hud 状态栏、cc-switch App）、以及配置基线（bypassPermissions、bypass 警告已接受、~ 目录已信任、codegraph 白名单、Codex API key 启动注入、全局规范含「始终中文回复」「代码位置用可点短链」「上下文压缩取舍规则」、默认关闭自动更新）。缺什么直接打印对应修复命令。可选 --health 参数额外实连核对核心 MCP（含 playwright）。用户说"cc-baseline"、"核对下基线"、"检查我的 cc 工具装齐了没"、"工具链体检"、"cc-doctor"（旧称）、"哪些工具没装"、"环境自检"、"看看必备插件/MCP 全不全"、"换机器后核对一下 cc 装配"、"重装后哪些没恢复"、"claude code 环境检查"等场景时触发。即使只说"体检一下"或"我的 cc 配置全吗"，且上下文是 Claude Code 工具链时，也用本 skill。纯只读，不改任何配置。
+description: 一键核对本机 Claude Code 是否符合「装配基线」——逐项核对 CLI 工具（codegraph / node / claude，rtk/gh 可选）、全局 npm 包（lighthouse-mcp / codegraph）、MCP 注册（codegraph / lighthouse-mcp）、默认必备插件精简集（superpowers / skill-creator / code-review / frontend-design / playwright / claude-hud / remember / typescript-lsp / jdtls-lsp / security-guidance / claude-md-management / context-mode / ponytail / caveman / gsap-skills）、系统配置（RTK hook 与压缩豁免〈装了 rtk 才核对〉、claude-hud 状态栏、cc-switch App）、以及配置基线（bypassPermissions、bypass 警告已接受、~ 目录已信任、codegraph 白名单、Codex API key 启动注入、全局规范含「始终中文回复」「代码位置用可点短链」「上下文压缩取舍规则」、默认关闭自动更新）。缺什么直接打印对应修复命令。可选 --health 参数额外实连核对核心 MCP（含 playwright）。用户说"cc-baseline"、"核对下基线"、"检查我的 cc 工具装齐了没"、"工具链体检"、"cc-doctor"（旧称）、"哪些工具没装"、"环境自检"、"看看必备插件/MCP 全不全"、"换机器后核对一下 cc 装配"、"重装后哪些没恢复"、"claude code 环境检查"等场景时触发。即使只说"体检一下"或"我的 cc 配置全吗"，且上下文是 Claude Code 工具链时，也用本 skill。纯只读，不改任何配置。
 ---
 
 # cc-baseline —— Claude Code 装配基线核对
@@ -34,9 +34,9 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/check.sh
 | CLI 工具 | node / npm / claude / **codegraph** / rtk（可选）/ brew / jq / gh（可选） | `command -v` |
 | 全局 npm 包 | `@colbymchenry/codegraph` / `@danielsogl/lighthouse-mcp` | `$(npm root -g)/<pkg>` 目录 |
 | MCP 注册 | codegraph / lighthouse-mcp | `~/.claude.json` 的 `mcpServers`（含各 project scope） |
-| 插件（必备集 + 可选） | 必备：superpowers / skill-creator / code-review / frontend-design / playwright / claude-hud / remember / typescript-lsp / jdtls-lsp / security-guidance / claude-md-management / context-mode / **ponytail** / **caveman**；可选：context7 / vercel | `~/.claude/plugins/installed_plugins.json`（确定性文件读，覆盖 user/project/local 全 scope） |
+| 插件（必备集 + 可选） | 必备：superpowers / skill-creator / code-review / frontend-design / playwright / claude-hud / remember / typescript-lsp / jdtls-lsp / security-guidance / claude-md-management / context-mode / **ponytail** / **caveman** / **gsap-skills**；可选：context7 / vercel | `~/.claude/plugins/installed_plugins.json`（确定性文件读，覆盖 user/project/local 全 scope） |
 | 系统配置 | RTK hook / **RTK 压缩豁免（cat/diff/find/grep/curl/head/wc）**〈装了 rtk 才核对，未装整段跳过〉 / claude-hud 状态栏 / cc-switch App | `settings.json` 的 `hooks`、`statusLine`；`~/Library/Application Support/rtk/config.toml` 的 `[hooks].exclude_commands`；`/Applications/CC Switch.app` |
-| 配置基线 | **bypassPermissions** / **bypass 警告已接受** / **~ 目录已信任** / codegraph 只读白名单 / **Codex API key 启动注入**（`auth.json` 有 key 时必需）/ 全局 CLAUDE.md（必需）/ **全局规范含「始终中文回复」**（必需）/ **全局规范含「代码位置用可点短链」**（必需）/ **全局规范含「上下文压缩取舍规则」**（必需）/ **默认关闭自动更新**（必需）；通知 hook / skill-symlink hook / memory 目录（可选） | `settings.json` 的 `permissions`、`hooks`、`env.DISABLE_AUTOUPDATER`；`~/.claude.json` 的 `bypassPermissionsModeAccepted`、`projects[$HOME].hasTrustDialogAccepted`；`~/.codex/auth.json`、`~/.zshenv`；`~/.claude/CLAUDE.md`（含正文 grep）、`~/.claude/projects/` |
+| 配置基线 | **bypassPermissions** / **bypass 警告已接受** / **~ 目录已信任** / codegraph 只读白名单 / **Codex API key 启动注入**（`auth.json` 有 key 时必需）/ 全局 CLAUDE.md（必需）/ **全局规范含「始终中文回复」**（必需）/ **全局规范含「代码位置用可点短链」**（必需）/ **全局规范含「上下文压缩取舍规则」**（必需）/ **默认关闭自动更新**（必需）；skill-symlink hook / memory 目录（可选） | `settings.json` 的 `permissions`、`hooks`、`env.DISABLE_AUTOUPDATER`；`~/.claude.json` 的 `bypassPermissionsModeAccepted`、`projects[$HOME].hasTrustDialogAccepted`；`~/.codex/auth.json`、`~/.zshenv`；`~/.claude/CLAUDE.md`（含正文 grep）、`~/.claude/projects/` |
 
 ## 各检查项作用速查（回报缺失项时「作用」列取这里）
 
@@ -67,6 +67,7 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/check.sh
 | context-mode | 大输出丢沙箱处理，只回传结论，省上下文窗口 |
 | ponytail | 反过度工程决策阶梯，写码前先问「需不需要 / 库里有没有 / 能不能一行」 |
 | caveman | 回复用极简「穴居人」句式，省 65% 输出 token，技术准确性不变；缺了输出更啰嗦、更费 token |
+| gsap-skills | GSAP 动画库官方 AI 技能集，教 AI 正确使用 GSAP API、最佳实践与常见动画模式 |
 | context7（可选） | 现查最新库 / 框架官方文档，避免用过时 API |
 | vercel（可选） | Vercel 部署 / AI SDK / 性能优化助手 |
 | RTK hook | 把命令改写成 `rtk <cmd>` 过压缩，省 token 的开关；不挂就没压缩收益 |
@@ -83,18 +84,18 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/check.sh
 | 中文回复规范 | 所有会话一律简体中文回复 |
 | 代码短链规范 | 代码位置写成可点 markdown 短链，IDEA 的 CC 插件里点得动（裸文件名会报 Cannot open file） |
 | 压缩取舍规范 | compact / 生成摘要时保留决策和状态、丢掉噪音，防压缩后重踩坑重决策 |
-| 通知 hook（可选） | 任务完成弹桌面通知 |
 | memory 目录（可选） | 项目 memory 持久化目录 |
 
 ## 关键实现细节（改脚本前必读）
 
 - **插件用 `~/.claude/plugins/installed_plugins.json` 判断，不要用 `claude plugin list`，也不要只读 `settings.json` 的 `enabledPlugins`**。三个坑叠加：① 插件可以装在**项目** scope（`.claude/settings.json`，team 共享进 git），这类插件在用户全局 `enabledPlugins` 里根本没有 → 只查全局会误报「缺失」；② `claude plugin list` 慢（逐个实连 MCP 做健康检查，十几秒）、输出不稳定（同一状态多次跑条目数会变），**且实测跑它本身会触发 CC 重建 `installed_plugins.json`**，越查越乱；③ `installed_plugins.json` 是磁盘上的安装事实（含 scope、marketplace、version），一次文件读，快且确定，覆盖所有 scope。所以本 skill 只读这个文件。
-- **默认必备插件集是「精简集」（可按需增删，见 scripts/check.sh 顶部清单）**：superpowers / skill-creator / code-review / frontend-design / playwright / claude-hud / remember / typescript-lsp / jdtls-lsp / security-guidance / claude-md-management / context-mode / ponytail / caveman。其中 `typescript-lsp`（前端 Vue/TS）与 `jdtls-lsp`（后端 Java）是分语言 LSP，`security-guidance` 是官方内联安全审查（改码时扫命令注入/反序列化/XSS 并当场修），`ponytail` 是「反过度工程」skill（写码前先走七级决策阶梯：需不需要存在→库里有没有→标准库/原生/依赖能不能做→能不能一行→再写最小实现，安全/校验/无障碍不砍），`caveman` 是省 token 的通讯风格 skill（回复用极简「穴居人」句式，省 65% 输出 token，技术准确性不变；副作用仅一处——请求「简短/省 token」时可能自动切换风格，`stop caveman` 关掉）。这是一份「够用就好」的精简集，不追求把装过的插件全列进来。要加/减默认集，改 `check.sh` 里第 4 类的第一个 `for p in ...` 清单即可。多数走 `*)` 默认命令 `claude plugin install $p@claude-plugins-official`；来源不同的要加专属 case：`context-mode` 来自第三方 marketplace `mksglu/claude-context-mode`（本体是 Context Mode MCP，插件方式装完自带 hooks + 11 个 ctx_* 工具），`claude-hud` 来自 `jarrodwatts/claude-hud`，`ponytail` 来自 `DietrichGebert/ponytail`、`caveman` 来自 `JuliusBrussee/caveman`（这两个都是**装两条命令必须分开发送**——`marketplace add` 与 `plugin install` 同一 prompt 里连发会失败，ponytail 官方 README 明确的坑，caveman 同理）。caveman 的 CC 插件方式**只带 skills + agents，不挂 hook / 不装 MCP / 不改 settings.json**（README 里 `curl|bash` 一键装才会挂 hook + 装 caveman-shrink MCP + 改一堆 agent 配置，副作用大——本基线不用那种）。自建的本地插件按需自行加 case。
+- **默认必备插件集是「精简集」（可按需增删，见 scripts/check.sh 顶部清单）**：superpowers / skill-creator / code-review / frontend-design / playwright / claude-hud / remember / typescript-lsp / jdtls-lsp / security-guidance / claude-md-management / context-mode / ponytail / caveman / gsap-skills。其中 `typescript-lsp`（前端 Vue/TS）与 `jdtls-lsp`（后端 Java）是分语言 LSP，`security-guidance` 是官方内联安全审查（改码时扫命令注入/反序列化/XSS 并当场修），`ponytail` 是「反过度工程」skill（写码前先走七级决策阶梯：需不需要存在→库里有没有→标准库/原生/依赖能不能做→能不能一行→再写最小实现，安全/校验/无障碍不砍），`caveman` 是省 token 的通讯风格 skill（回复用极简「穴居人」句式，省 65% 输出 token，技术准确性不变；副作用仅一处——请求「简短/省 token」时可能自动切换风格，`stop caveman` 关掉），`gsap-skills` 是 GSAP 官方的 AI 技能集（教 AI 正确使用 GSAP 动画库 API、最佳实践与常见动画模式）。这是一份「够用就好」的精简集，不追求把装过的插件全列进来。要加/减默认集，改 `check.sh` 里第 4 类的第一个 `for p in ...` 清单即可。多数走 `*)` 默认命令 `claude plugin install $p@claude-plugins-official`；来源不同的要加专属 case：`context-mode` 来自第三方 marketplace `mksglu/claude-context-mode`（本体是 Context Mode MCP，插件方式装完自带 hooks + 11 个 ctx_* 工具），`claude-hud` 来自 `jarrodwatts/claude-hud`，`ponytail` 来自 `DietrichGebert/ponytail`、`caveman` 来自 `JuliusBrussee/caveman`、`gsap-skills` 来自 GSAP 官方 `greensock/gsap-skills`（**不在 `claude-plugins-official`**，官方市场装会报 `Plugin "gsap-skills" not found`；这四个都是**装两条命令必须分开发送**——`marketplace add` 与 `plugin install` 同一 prompt 里连发会失败，ponytail 官方 README 明确的坑，caveman / gsap-skills 同理）。caveman 的 CC 插件方式**只带 skills + agents，不挂 hook / 不装 MCP / 不改 settings.json**（README 里 `curl|bash` 一键装才会挂 hook + 装 caveman-shrink MCP + 改一堆 agent 配置，副作用大——本基线不用那种）。自建的本地插件按需自行加 case。
 - **可选插件（装了显示 ✓，不装显示 ○ 不算故障）**：context7 / vercel（均来自 `claude-plugins-official`）。在第 4 类必备集循环后另有一个 `for p in context7 vercel` 循环，用 `opt` 而非 `bad`，缺失不影响退出码。要加/减可选插件改这个循环。
 - **MCP 注册要扫所有 scope**：`~/.claude.json` 顶层 `mcpServers` 之外，各 `projects[<path>].mcpServers` 也要并进来（否则 project scope 注册的 MCP 会漏报）。
 - **npm 全局包查目录不查 `npm ls -g`**：`npm ls -g <pkg>` 慢且对子依赖会误判；直接 `[ -d "$(npm root -g)/<pkg>" ]` 又快又准。
 - **codegraph 的 target id 是 `claude` 不是 `claude-code`**：修复命令 `codegraph install -t claude -l global -y`。
 - **文件夹信任弹窗（"Is this a project you trust?"）由 `~/.claude.json` 的 `projects[<dir>].hasTrustDialogAccepted` 控制**，不是 `settings.json`。`~`（`$HOME`）默认是 `false`，在家目录起 CC 会弹确认；设为 `true` 免弹。本 skill 检查 `$HOME` 是否已信任。
+- **claude-hud 状态栏检测认「委托链」，不只认字面量**：早期 `statusline_has "claude-hud"` 只 grep `settings.json` 里 `statusLine.command` 字符串含不含 `claude-hud`，会漏报一类真实配置——用户用自定义状态栏包装器（如 ai-helper 的 `island-statusline`）时，`command` 是包装器路径、字面量里没有 `claude-hud`，但它内部 `exec` 委托给了 claude-hud（`island-statusline` 读 `island-statusline-delegate`，delegate 里 `exec node .../claude-hud/*/dist/index.js`），状态栏实际就是 claude-hud 在渲染。现改用 `statusline_uses_hud`：① 先 grep `command` 本身（直接引用）；② 再取 `command` 里的绝对路径脚本 + 其同目录的 `*delegate*`/`*statusline*` 伴生脚本，grep 是否引用 `claude-hud`（委托链）。命中任一即 ✓。只扫「命令指向的脚本 + 同目录伴生脚本」，不整目录递归，避免误命中与性能问题。**因此本 skill 不该为过这一项去覆盖用户已有的 `statusLine`**——包装器往往还带 rate_limits 记录等附加功能，粗暴替换会丢功能；委托到 claude-hud 的配置本就合规。加/改检测改 `check.sh` 的 `statusline_uses_hud` 函数与第 5 类对应 `bad` 行。
 - **「始终中文回复」规范查的是全局 `~/.claude/CLAUDE.md` 的正文（grep 关键字），不是文件存不存在**：用户硬性要求所有项目一律简体中文回复，这条必须写进全局 CLAUDE.md 才对所有会话生效。`claudemd_has_chinese` 用 `grep -Eq '中文回复|简体中文|一律中文|reply.*[Cc]hinese'` 探测，缺失=必需项 `✗`，修复命令直接 `printf ... >> ~/.claude/CLAUDE.md` 把规范追加进去。加/改关键字或规范文案，改 `check.sh` 的 `claudemd_has_chinese` 函数与对应 `bad` 行。
 - **「代码位置用可点短链」同理查全局 `~/.claude/CLAUDE.md` 正文**：用户主要在 **IDEA 的 CC 插件**里用，裸文件名 / 纯相对路径（`config.ts`、`utils.ts:310`）点击定位不到会报 `Cannot open file`，所以引用代码位置必须写成 markdown 链接 `[短名:行](绝对路径:行)`——显示短、href 是绝对路径+行号才跳得动。这条也是跨所有会话恒定的输出规范，与「中文回复」并列写进全局 CLAUDE.md。`claudemd_has_shortlink` 用 `grep -Eq '可点短链|短链|markdown 可点|Cannot open file'` 探测，缺失=必需项 `✗`。加/改关键字改 `check.sh` 的 `claudemd_has_shortlink` 函数与对应 `bad` 行。
 - **「上下文压缩取舍规则」同理查全局 `~/.claude/CLAUDE.md` 正文**：约束 compact / 生成对话摘要时该留什么、该丢什么——核心「保留决策和状态，丢掉噪音」。必留：架构决策及理由（永不压缩掉，无法从代码反推）、改过的文件及改动、当前阻塞报错、进行中的工作与下一步、验证状态、失败过的方案及原因（防重复踩坑）、待办与回滚；可丢：冗长工具输出（提炼结论后弃原文）、无关探索、死胡同中间步骤、已入 git 的文件内容（`git diff` 可恢复）。判据统一：能从 git / 重跑命令廉价恢复的丢，只存于对话里、丢了要重踩坑或重决策的留。这条也是跨所有会话恒定的规范，与「中文回复」「可点短链」并列写进全局 CLAUDE.md。`claudemd_has_compact` 用 `grep -Eq '上下文压缩|压缩取舍|保留决策和状态'` 探测，缺失=必需项 `✗`，修复命令 `printf ... >> ~/.claude/CLAUDE.md` 追加规范。加/改关键字改 `check.sh` 的 `claudemd_has_compact` 函数与对应 `bad` 行。
@@ -124,6 +125,10 @@ claude plugin install claude-hud@claude-hud             # 装完在 CC 里跑 /c
 # ponytail（反过度工程 skill，第三方 marketplace；两条在 CC 里要分开发两次 prompt）
 claude plugin marketplace add DietrichGebert/ponytail
 claude plugin install ponytail@ponytail                 # 装完自带 lite/full/ultra/off 档 + /ponytail-review /ponytail-audit 命令
+
+# gsap-skills（GSAP 官方 AI 技能集，非 claude-plugins-official；两条要分开发两次 prompt）
+claude plugin marketplace add greensock/gsap-skills
+claude plugin install gsap-skills@gsap-skills           # 官方市场装会报 not found，必须走 greensock/gsap-skills marketplace
 
 # cc-switch（多账号切换 App，可选）
 brew install --cask cc-switch

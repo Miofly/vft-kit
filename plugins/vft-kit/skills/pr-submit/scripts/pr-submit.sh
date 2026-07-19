@@ -134,13 +134,11 @@ analyze_changes() {
   BRANCH_NAME="${change_type}/${main_dir}-updates-$(date +%Y%m%d)"
 
   # 生成 commit message
-  COMMIT_MSG="${change_type}: ${change_desc} ${main_dir}
+COMMIT_MSG="${change_type}: ${change_desc} ${main_dir}
 
 - 新增 ${added} 行
 - 删除 ${deleted} 行
-- 改动 ${changed_files} 个文件
-
-Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
+- 改动 ${changed_files} 个文件"
 
   log_success "改动类型: $change_type, 分支名: $BRANCH_NAME"
 }
@@ -170,9 +168,7 @@ ${files_changed}
 
 - [x] 本地测试通过
 - [ ] 添加了单元测试
-
----
-🤖 Generated with [Claude Code](https://claude.com/claude-code)"
+"
 
   log_success "PR 描述已生成"
 }
