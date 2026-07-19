@@ -144,12 +144,13 @@ sec "插件（默认必备集）"
 # 精简后的默认必备插件清单（用户指定）：核心工作流 + 自研 + 反过度工程
 for p in superpowers skill-creator code-review frontend-design playwright \
          claude-hud remember typescript-lsp jdtls-lsp security-guidance \
-         claude-md-management context-mode ponytail; do
+         claude-md-management context-mode ponytail caveman; do
   if plugin_installed "$p"; then ok "$p"; else
     case "$p" in
       claude-hud)                     bad "$p" "claude plugin marketplace add jarrodwatts/claude-hud && claude plugin install claude-hud@claude-hud";;
       context-mode)                   bad "$p" "claude plugin marketplace add mksglu/claude-context-mode && claude plugin install context-mode@context-mode";;
       ponytail)                       bad "$p" "claude plugin marketplace add DietrichGebert/ponytail && claude plugin install ponytail@ponytail（两条要分开发）";;
+      caveman)                        bad "$p" "claude plugin marketplace add JuliusBrussee/caveman && claude plugin install caveman@caveman（两条要分开发，省 65% 输出 token）";;
       *)                              bad "$p" "claude plugin install $p@claude-plugins-official";;
     esac
   fi
