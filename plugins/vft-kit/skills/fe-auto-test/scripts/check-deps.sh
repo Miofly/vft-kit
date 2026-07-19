@@ -32,6 +32,8 @@ for a in "$@"; do [ "$a" = "--no-install" ] && DO_INSTALL=0; done
 
 CLAUDE_JSON="$HOME/.claude.json"
 INSTALLED_PLUGINS="$HOME/.claude/plugins/installed_plugins.json"
+IS_CODEX=0
+[ -n "${CODEX_THREAD_ID:-}" ] && IS_CODEX=1
 NPM_ROOT="$(npm root -g 2>/dev/null || echo '')"
 LH_PKG="@danielsogl/lighthouse-mcp"   # 一包两用：既是 MCP 载体，其 node_modules 里的 lighthouse 也供脚本直接 import
 
@@ -47,8 +49,15 @@ plugin_installed() {
   node -e "const j=require('$INSTALLED_PLUGINS').plugins||{};process.exit(Object.keys(j).some(k=>k.split('@')[0]===process.argv[1])?0:1)" "$1" 2>/dev/null
 }
 mcp_registered() {
+  if [ "$IS_CODEX" -eq 1 ]; then
+    codex mcp list 2>/dev/null | awk -v name="$1" '$1 == name { found=1 } END { exit !found }'
+    return
+  fi
   [ -f "$CLAUDE_JSON" ] || return 1
   node -e "const j=require('$CLAUDE_JSON');const s=new Set(Object.keys(j.mcpServers||{}));for(const p in (j.projects||{})){const m=j.projects[p].mcpServers;if(m)Object.keys(m).forEach(k=>s.add(k))}process.exit(s.has(process.argv[1])?0:1)" "$1" 2>/dev/null
+}
+codex_browser_enabled() {
+  codex plugin list 2>/dev/null | awk '/^(browser|playwright)@/ && /installed, enabled/ { found=1 } END { exit !found }'
 }
 npm_g_installed() { [ -n "$NPM_ROOT" ] && [ -d "$NPM_ROOT/$1" ]; }
 chromium_installed() {
@@ -108,12 +117,20 @@ LH_READY=1
 # playwright 插件装在官方 marketplace 下，install 必须带 @marketplace 后缀，裸名装不上。
 PW_MARKETPLACE="claude-plugins-official"
 
-if plugin_installed playwright; then
+if [ "$IS_CODEX" -eq 1 ] && codex_browser_enabled; then
+  ok "Codex Browser 插件"
+elif [ "$IS_CODEX" -eq 0 ] && plugin_installed playwright; then
   ok "playwright 插件（browser_* 工具）"
 else
   PW_READY=0
   miss "playwright 插件" "注册中（本次会话仍走脚本路径）..."
-  if [ "$DO_INSTALL" -eq 1 ]; then
+  if [ "$DO_INSTALL" -eq 1 ] && [ "$IS_CODEX" -eq 1 ]; then
+    if codex mcp add playwright -- npx --yes @playwright/mcp@latest >/dev/null 2>&1; then
+      ok "Playwright MCP 已注册到 Codex（重启后可用）"
+    else
+      info "     注册失败也没关系，脚本路径能覆盖。手动: codex mcp add playwright -- npx --yes @playwright/mcp@latest"
+    fi
+  elif [ "$DO_INSTALL" -eq 1 ]; then
     if claude plugin install "playwright@${PW_MARKETPLACE}" >/dev/null 2>&1; then
       ok "playwright 插件已装（重启后可用 browser_*）"
     else
@@ -128,7 +145,11 @@ else
   LH_READY=0
   miss "lighthouse-mcp" "注册中（本次会话仍走 lighthouse-audit.mjs）..."
   if [ "$DO_INSTALL" -eq 1 ] && npm_g_installed "$LH_PKG"; then
-    claude mcp add lighthouse-mcp -s user -- node "$NPM_ROOT/$LH_PKG/dist/index.js" >/dev/null 2>&1 \
+    if [ "$IS_CODEX" -eq 1 ]; then
+      codex mcp add lighthouse-mcp -- node "$NPM_ROOT/$LH_PKG/dist/index.js" >/dev/null 2>&1
+    else
+      claude mcp add lighthouse-mcp -s user -- node "$NPM_ROOT/$LH_PKG/dist/index.js" >/dev/null 2>&1
+    fi \
       && ok "lighthouse-mcp 已注册（重启后生效）" \
       || info "     注册失败也没关系，lighthouse-audit.mjs 能覆盖"
   fi
@@ -145,9 +166,17 @@ printf "\n${c_g}依赖齐全，继续跑闭环。${c_0}\n"
 # 两个能力各自降级，互不牵连：缺 lighthouse MCP 不该连 browser_* 一起放弃。
 if [ "$PW_READY" -eq 0 ]; then
   info "渲染 / console / 截图 → 走脚本：route-audit.mjs、resilience-audit.mjs、ssr-status-sweep.mjs"
-  info "（playwright 插件刚注册，CC 的 MCP 要重启会话才加载；重启后 browser_* 交互式调试可用）"
+  if [ "$IS_CODEX" -eq 1 ]; then
+    info "（Playwright MCP 需重启 Codex 会话加载；本次继续走脚本路径）"
+  else
+    info "（playwright 插件刚注册，CC 的 MCP 要重启会话才加载；重启后 browser_* 交互式调试可用）"
+  fi
 else
-  info "渲染 / console / 截图 → browser_* 可用（交互式）"
+  if [ "$IS_CODEX" -eq 1 ]; then
+    info "渲染 / console / 截图 → Codex Browser/Playwright 工具可用（交互式）"
+  else
+    info "渲染 / console / 截图 → browser_* 可用（交互式）"
+  fi
 fi
 if [ "$LH_READY" -eq 0 ]; then
   info "全维度体检           → 走脚本：lighthouse-audit.mjs（评分、指标、未用 JS/CSS、a11y 全都有，能力等价）"
