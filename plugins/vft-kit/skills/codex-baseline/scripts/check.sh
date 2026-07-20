@@ -8,6 +8,10 @@ CONFIG="$CODEX_HOME/config.toml"
 AGENTS="$CODEX_HOME/AGENTS.md"
 PLUGIN_CACHE="$CODEX_HOME/plugins/cache"
 SYSTEM_SKILLS="$CODEX_HOME/skills/.system"
+IMAGEGEN_CLI="${CODEX_IMAGEGEN_CLI:-$SYSTEM_SKILLS/imagegen/scripts/image_gen.py}"
+IMAGEGEN_VENV="${CODEX_IMAGEGEN_VENV:-$CODEX_HOME/venvs/imagegen-cli}"
+IMAGEGEN_WRAPPER="${CODEX_IMAGEGEN_WRAPPER:-$HOME/.local/bin/codex-imagegen}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 pass=0; fail=0; warn=0
 c_g=$'\033[32m'; c_r=$'\033[31m'; c_y=$'\033[33m'; c_d=$'\033[2m'; c_0=$'\033[0m'
@@ -56,6 +60,27 @@ chromium_installed(){
     [ -d "$dir" ] && find "$dir" -mindepth 1 -maxdepth 1 -type d -name 'chromium*' | grep -q . && return 0
   done
   return 1
+}
+imagegen_deps_installed(){
+  [ -x "$IMAGEGEN_VENV/bin/python" ] || return 1
+  "$IMAGEGEN_VENV/bin/python" - <<'PY' >/dev/null 2>&1
+import openai
+import PIL
+PY
+}
+imagegen_key_source_available(){
+  [ -n "${OPENAI_API_KEY:-}" ] && return 0
+  if [ "$(uname -s 2>/dev/null || printf unknown)" = "Darwin" ] && command -v security >/dev/null 2>&1; then
+    security find-generic-password -a "${USER:-$(id -un)}" -s 'CC_SWITCH_CODEX_API_KEY' -w >/dev/null 2>&1 && return 0
+  fi
+  [ -f "$CODEX_HOME/auth.json" ] || return 1
+  if has_cmd node; then
+    node -e 'const fs=require("fs");try{const j=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));process.exit(typeof j.OPENAI_API_KEY==="string"&&j.OPENAI_API_KEY.length>0?0:1)}catch{process.exit(1)}' "$CODEX_HOME/auth.json" 2>/dev/null
+  elif has_cmd jq; then
+    jq -e '(.OPENAI_API_KEY // "") | length > 0' "$CODEX_HOME/auth.json" >/dev/null 2>&1
+  else
+    return 1
+  fi
 }
 
 printf "${c_d}Codex 装配基线核对 (codex-baseline)${c_0}\n"
@@ -119,11 +144,19 @@ for s in openai-docs imagegen skill-creator plugin-creator skill-installer; do
   skill_exists "$s" && ok "$s" || bad "$s" "恢复 $SYSTEM_SKILLS/$s/SKILL.md"
 done
 
+sec "图片生成 CLI/API"
+[ -f "$IMAGEGEN_CLI" ] && ok "imagegen CLI 脚本" || bad "imagegen CLI 脚本" "恢复 $IMAGEGEN_CLI"
+[ -x "$IMAGEGEN_VENV/bin/python" ] && ok "imagegen Python venv" || bad "imagegen Python venv" "bash \"$SCRIPT_DIR/prepare-imagegen-cli-env.sh\""
+imagegen_deps_installed && ok "imagegen 依赖 openai + pillow" || bad "imagegen Python 依赖" "bash \"$SCRIPT_DIR/prepare-imagegen-cli-env.sh\""
+[ -x "$IMAGEGEN_WRAPPER" ] && ok "codex-imagegen 命令" || bad "codex-imagegen 命令" "bash \"$SCRIPT_DIR/prepare-imagegen-cli-env.sh\""
+imagegen_key_source_available && ok "OPENAI_API_KEY 注入源" || bad "OPENAI_API_KEY 注入源" "bash \"$SCRIPT_DIR/sync-cc-switch-openai-env.sh\"；或在 ~/.codex/auth.json 写入 OPENAI_API_KEY"
+
 sec "全局 AGENTS 规范"
 [ -f "$AGENTS" ] && ok "$AGENTS" || opt "全局 AGENTS.md" "创建 ~/.codex/AGENTS.md"
 agents_has '中文回复|简体中文|一律中文|reply.*[Cc]hinese' && ok "全局规范含「始终中文回复」" || opt "中文回复规范" $'printf \'\\n- 始终使用简体中文回复。\\n\' >> ~/.codex/AGENTS.md'
 agents_has '可点短链|短链|markdown 可点|Cannot open file' && ok "全局规范含「代码位置可点短链」" || opt "代码短链规范" $'printf \'\\n- 引用代码位置使用 markdown 可点短链：[短名:行](绝对路径:行)。\\n\' >> ~/.codex/AGENTS.md'
 agents_has '上下文压缩|压缩取舍|保留决策和状态' && ok "全局规范含「压缩取舍规则」" || opt "压缩取舍规范" $'printf \'\\n- 上下文压缩时保留决策和状态，丢弃可重跑恢复的噪音。\\n\' >> ~/.codex/AGENTS.md'
+agents_has 'codex-imagegen generate|不要先声明“我会走 imagegen skill”|不要先跑 `codex-imagegen --help` 做探测' && ok "全局规范含「生图直接走 codex-imagegen」" || bad "生图 codex-imagegen 全局规则" "bash \"$SCRIPT_DIR/install-imagegen-agents-rule.sh\""
 
 printf "\n${c_d}────────────────────────────────${c_0}\n"
 printf "结果：${c_g}%d 正常${c_0} / ${c_r}%d 缺失(必需)${c_0} / ${c_y}%d 可选提醒${c_0}\n" "$pass" "$fail" "$warn"
