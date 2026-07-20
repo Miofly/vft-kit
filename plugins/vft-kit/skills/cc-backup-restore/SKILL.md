@@ -46,27 +46,44 @@ bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/c
 
 ## 恢复（换号 / 重装 / 换机后）
 
-新账号登录后，进备份目录跑恢复脚本：
+新账号登录后，进备份目录跑恢复脚本。**默认带 `-y` 非交互执行，全程零点击**——恢复只搬文件、覆盖前都留 `.pre-restore-*.bak` 回滚点，无破坏性，不需要用户逐步确认：
 
 ```bash
 cd ~/cc-backups/cc-backup-<时间戳>
-bash cc-restore.sh          # 交互确认
-bash cc-restore.sh -y       # 非交互
+bash cc-restore.sh -y       # 默认：非交互，零点击
 ```
 
-也可以不 cd，直接指定备份目录：
+也可以不 cd，直接指定备份目录（推荐这种，一条命令搞定）：
 
 ```bash
 bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/cc-backup-restore/scripts/cc-restore.sh" ~/cc-backups/cc-backup-<时间戳> -y
 ```
+
+> 不加 `-y` 时脚本会 `read` 一句 `继续？(y/N)` 等你敲回车——那是**脚本自身**的交互，跟 Claude Code 的权限模式无关。想要零点击就始终带 `-y`（本 skill 默认如此）。
+>
+> **关于「dangerously-skip-permissions」**：它是 CC 的**启动 flag**（`claude --dangerously-skip-permissions`），只在进程启动时生效，skill 在已运行的会话里**无法为当前进程开启它**，也不该去改。它对应的持久化配置是 `settings.json` 的 `permissions.defaultMode: "bypassPermissions"`——若已设该值，恢复期间 CC 本就不会问 yes；剩下唯一的「点击」就是上面脚本的 `y/N`，用 `-y` 消掉即可。所以本 skill 用 `-y` 达成零点击，不去碰权限配置。
 
 恢复行为要点：
 
 - **settings.json 是合并不是覆盖**：以当前 live 配置为底，用备份覆盖结构项，并再次 `del(.env, .oauthAccount, .oauthToken)` 兜底——即使拿到的是老格式备份，也绝不把旧 token / 代理注回新号。
 - **覆盖前留回滚点**：每个被覆盖的文件另存 `*.pre-restore-<时间戳>.bak`。
 - **directory 型 marketplace 会做存在性校验**：自建插件仓库（本地 directory 型）在 `known_marketplaces.json` 里是绝对路径引用，换机后路径不存在就装不回来。脚本会逐个查、缺的直接点名，而不是让你在启动时静默少几个插件。
+- **hook 引用的本地脚本会做存在性校验**：`settings.json` 里 hook 的 `command` 能指向任意本地脚本（不止 `hooks/` 目录，如公司监控 `cc-otel/*.js`、`~/.cc-helper/*.sh`）。备份只搬固定几个资产目录，换机 / 换号后这些「目录外」脚本可能不在——CC 每次触发该事件就 `MODULE_NOT_FOUND` / command not found 刷屏。脚本恢复后扫 `.hooks` 的 command，抠出带脚本扩展名的路径逐个查、缺的点名，让你当场决定「补脚本」还是「删掉那条 hook」。
 - memory / hooks / skills / agents / commands 按原路径还原；插件在下次启动 CC 时自动重装。
 - Playwright 的 `--output-dir` 需插件装好后手动补（脚本会提示，目标目录见全局 CLAUDE.md 的 Playwright 段落）。
+
+### 恢复完成后：自动核对基线（cc-baseline）
+
+`cc-restore.sh` 跑完后，**紧接着自动执行 cc-baseline 的核对脚本**，把「换机 / 重装后哪些还没恢复到位」一次性亮出来。恢复只搬配置与数据、**不装软件**（见职责边界），所以换机后 CLI（codegraph / node）、全局 npm 包、MCP 注册、插件二进制这些大概率还缺——恢复完立刻核对，正好接上这道缺口，不用用户再手动想起来跑一次。
+
+```bash
+bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/cc-baseline/scripts/check.sh"
+```
+
+- 这一步**纯只读**，不改任何配置，可无条件自动跑（不需要用户点头）。
+- 核对结果按 cc-baseline 自己的规矩回报：缺失项用「项 | 作用」两列表格讲清每项干什么、缺了什么影响，**不要把修复命令罗列给用户**。
+- **补齐仍走 cc-baseline 的确认流程**——除 `ponytail` 缺失可静默补齐（常设授权）外，其余 `✗` 项都要等用户点头再照脚本内嵌命令补。恢复动作本身绝不顺手补基线。
+- 若插件是「下次启动 CC 才自动重装」，此刻核对可能仍报若干插件 `✗`，属正常；回报时提示用户「重启会话后插件会自动装回，可再跑一次核对」。
 
 ## 清理与残留检查
 

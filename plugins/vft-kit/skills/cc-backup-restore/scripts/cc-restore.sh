@@ -160,7 +160,40 @@ for d in hooks skills agents commands; do
     fi
 done
 
-# 6. Playwright MCP 的 --output-dir 需插件装好后再补
+# 6. 校验 settings.json 里 hook 引用的本地脚本是否都在
+#    hook 的 command 可以指向任意本地脚本（不止 hooks/ 目录，如公司监控的 cc-otel/*.js、
+#    ~/.cc-helper/*.sh）。备份只搬固定几个资产目录，换机 / 换号后这些「目录外」的脚本可能
+#    根本不在——CC 每次触发该事件就 MODULE_NOT_FOUND / command not found 刷屏。
+#    这里逐个点名缺失的，和上面 directory 型 marketplace 校验同一套路，别让它在启动后静默报错。
+echo ""
+echo "🔎 校验 hook 引用的本地脚本..."
+if [ -f "$CLAUDE_DIR/settings.json" ] && command -v jq >/dev/null 2>&1; then
+    hook_missing=0
+    # 从所有 hook 的 command 里抠出「带脚本扩展名的文件路径」；裸命令（rtk / node / python3）不算
+    while IFS= read -r script_path; do
+        [ -n "$script_path" ] || continue
+        # 展开 ~ / $HOME，其余原样
+        expanded="${script_path/#\~/$HOME}"
+        expanded="${expanded/#\$HOME/$HOME}"
+        if [ ! -e "$expanded" ]; then
+            [ "$hook_missing" = 0 ] && echo "  ⚠️  以下 hook 引用的脚本在本机不存在，触发对应事件时会报错："
+            echo "     $script_path"
+            hook_missing=1
+        fi
+    done < <(jq -r '.hooks // {} | [.. | .command?] | map(select(. != null)) | .[]' \
+                 "$CLAUDE_DIR/settings.json" 2>/dev/null \
+             | grep -oE '(\$HOME|~|/)[A-Za-z0-9._/-]*\.(js|mjs|cjs|ts|py|sh|bash)' \
+             | sort -u)
+    if [ "$hook_missing" = 1 ]; then
+        echo "     → 要么把脚本补到该路径，要么用 jq 从 ~/.claude/settings.json 的 .hooks 里删掉对应项"
+    else
+        echo "  ✓ 全部就位"
+    fi
+else
+    echo "  ⊘ 跳过（无 settings.json 或未装 jq）"
+fi
+
+# 7. Playwright MCP 的 --output-dir 需插件装好后再补
 if [ -f "$BACKUP_DIR/plugins/cache/playwright/.mcp.json" ]; then
     echo ""
     echo "📦 Playwright MCP 配置（需插件装好后手动补）："
