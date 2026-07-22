@@ -59,6 +59,10 @@ claude plugin marketplace list
 - `Source: Directory (/abs/path)` —— **本地目录插件**
 - `Source: GitHub (org/repo)` / `Source: HTTP (...)` —— **远端 marketplace 插件**
 
+### 用户说"全部 / 都刷 / 全刷"时
+
+统计本地目录插件（`Source: Directory`）数量：**少于 10 个直接全部刷新，不要问刷新哪个**。逐个跑封装脚本即可。只有本地插件 ≥ 10 个时才回列表让用户挑。远端 marketplace 插件不在"全刷本地"范围内，除非用户明确要求连远端一起刷。
+
 本地目录插件直接跑封装脚本（幂等）：
 
 ```bash
