@@ -1,6 +1,6 @@
 ---
 name: cc-baseline
-description: 一键核对本机 Claude Code 是否符合「装配基线」——逐项核对 CLI 工具（codegraph / node / claude，rtk/gh 可选）、全局 npm 包（lighthouse-mcp / codegraph）、MCP 注册（codegraph / lighthouse-mcp）、默认必备插件精简集（superpowers / skill-creator / code-review / frontend-design / playwright / claude-hud / remember / typescript-lsp / jdtls-lsp / security-guidance / claude-md-management / context-mode / ponytail / caveman / gsap-skills）、系统配置（RTK hook 与压缩豁免〈装了 rtk 才核对〉、claude-hud 状态栏、cc-switch App）、以及配置基线（bypassPermissions、bypass 警告已接受、~ 目录已信任、codegraph 白名单、Codex API key 启动注入、全局规范含「始终中文回复」「代码位置用可点短链」「上下文压缩取舍规则」、默认关闭自动更新）。缺什么直接打印对应修复命令。可选 --health 参数额外实连核对核心 MCP（含 playwright）。用户说"cc-baseline"、"核对下基线"、"检查我的 cc 工具装齐了没"、"工具链体检"、"cc-doctor"（旧称）、"哪些工具没装"、"环境自检"、"看看必备插件/MCP 全不全"、"换机器后核对一下 cc 装配"、"重装后哪些没恢复"、"claude code 环境检查"等场景时触发。即使只说"体检一下"或"我的 cc 配置全吗"，且上下文是 Claude Code 工具链时，也用本 skill。纯只读，不改任何配置。
+description: 一键核对本机 Claude Code 是否符合「装配基线」——逐项核对 CLI 工具（codegraph / node / claude，rtk/gh 可选）、全局 npm 包（lighthouse-mcp / codegraph）、MCP 注册（codegraph / lighthouse-mcp）、默认必备插件精简集（superpowers / skill-creator / code-review / frontend-design / playwright / claude-hud / remember / typescript-lsp / jdtls-lsp / security-guidance / claude-md-management / context-mode / ponytail / caveman / gsap-skills）、系统配置（RTK hook 与压缩豁免〈装了 rtk 才核对〉、claude-hud 状态栏、cc-switch App）、以及配置基线（bypassPermissions、bypass 警告已接受、~ 目录已信任、codegraph 白名单、Codex API key 启动注入、全局规范含「始终中文回复」「代码位置用可点短链」「上下文压缩取舍规则」、默认关闭自动更新、装了 anysearch 搜索 skill 时全局规范含其调用场景）；另核对可选的 anysearch 联网搜索 skill。缺什么直接打印对应修复命令。可选 --health 参数额外实连核对核心 MCP（含 playwright）。用户说"cc-baseline"、"核对下基线"、"检查我的 cc 工具装齐了没"、"工具链体检"、"cc-doctor"（旧称）、"哪些工具没装"、"环境自检"、"看看必备插件/MCP 全不全"、"换机器后核对一下 cc 装配"、"重装后哪些没恢复"、"claude code 环境检查"等场景时触发。即使只说"体检一下"或"我的 cc 配置全吗"，且上下文是 Claude Code 工具链时，也用本 skill。纯只读，不改任何配置。
 ---
 
 # cc-baseline —— Claude Code 装配基线核对
@@ -36,7 +36,7 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/check.sh
 | MCP 注册 | codegraph / lighthouse-mcp | `~/.claude.json` 的 `mcpServers`（含各 project scope） |
 | 插件（必备集 + 可选） | 必备：superpowers / skill-creator / code-review / frontend-design / playwright / claude-hud / remember / typescript-lsp / jdtls-lsp / security-guidance / claude-md-management / context-mode / **ponytail** / **caveman** / **gsap-skills**；可选：context7 / vercel | `~/.claude/plugins/installed_plugins.json`（确定性文件读，覆盖 user/project/local 全 scope） |
 | 系统配置 | RTK hook / **RTK 压缩豁免（cat/diff/find/grep/curl/head/wc）**〈装了 rtk 才核对，未装整段跳过〉 / claude-hud 状态栏 / cc-switch App | `settings.json` 的 `hooks`、`statusLine`；`~/Library/Application Support/rtk/config.toml` 的 `[hooks].exclude_commands`；`/Applications/CC Switch.app` |
-| 配置基线 | **bypassPermissions** / **bypass 警告已接受** / **~ 目录已信任** / codegraph 只读白名单 / **Codex API key 启动注入**（`auth.json` 有 key 时必需）/ 全局 CLAUDE.md（必需）/ **全局规范含「始终中文回复」**（必需）/ **全局规范含「代码位置用可点短链」**（必需）/ **全局规范含「上下文压缩取舍规则」**（必需）/ **默认关闭自动更新**（必需）；skill-symlink hook / memory 目录（可选） | `settings.json` 的 `permissions`、`hooks`、`env.DISABLE_AUTOUPDATER`；`~/.claude.json` 的 `bypassPermissionsModeAccepted`、`projects[$HOME].hasTrustDialogAccepted`；`~/.codex/auth.json`、`~/.zshenv`；`~/.claude/CLAUDE.md`（含正文 grep）、`~/.claude/projects/` |
+| 配置基线 | **bypassPermissions** / **bypass 警告已接受** / **~ 目录已信任** / codegraph 只读白名单 / **Codex API key 启动注入**（`auth.json` 有 key 时必需）/ 全局 CLAUDE.md（必需）/ **全局规范含「始终中文回复」**（必需）/ **全局规范含「代码位置用可点短链」**（必需）/ **全局规范含「上下文压缩取舍规则」**（必需）/ **anysearch 调用规范**（装了 anysearch skill 时必需）/ **默认关闭自动更新**（必需）；skill-symlink hook / memory 目录（可选） | `settings.json` 的 `permissions`、`hooks`、`env.DISABLE_AUTOUPDATER`；`~/.claude.json` 的 `bypassPermissionsModeAccepted`、`projects[$HOME].hasTrustDialogAccepted`；`~/.codex/auth.json`、`~/.zshenv`；`~/.claude/CLAUDE.md`（含正文 grep）、`~/.claude/skills/anysearch`、`~/.claude/projects/` |
 
 ## 各检查项作用速查（回报缺失项时「作用」列取这里）
 
@@ -70,6 +70,8 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/check.sh
 | gsap-skills | GSAP 动画库官方 AI 技能集，教 AI 正确使用 GSAP API、最佳实践与常见动画模式 |
 | context7（可选） | 现查最新库 / 框架官方文档，避免用过时 API |
 | vercel（可选） | Vercel 部署 / AI SDK / 性能优化助手 |
+| anysearch skill（可选） | AI Agent 联网实时搜索：通用/垂直领域/并行批量搜索 + 整页正文抓取；缺了只能用内置 WebSearch/WebFetch |
+| anysearch 调用规范（条件必需） | 装了 anysearch 才核对：全局 CLAUDE.md 里有没有「何时优先调 anysearch」的场景说明；没有 = 装了 skill 但 CC 不知何时用，等于白装 |
 | RTK hook | 把命令改写成 `rtk <cmd>` 过压缩，省 token 的开关；不挂就没压缩收益 |
 | RTK 压缩豁免 | cat/diff/find/grep/curl/head/wc 原样透传，防压缩造成**静默错误结果**（拿到残缺假数据还以为是真的） |
 | claude-hud 状态栏 | 把 statusLine 接到 claude-hud；缺了状态栏空着 |
@@ -104,6 +106,7 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/check.sh
 - **bypass 权限警告弹窗（"WARNING: running in Bypass Permissions mode / Yes, I accept"）由 `~/.claude.json` 顶层的 `bypassPermissionsModeAccepted` 控制**（未公开字段，官方文档查不到）。设 `permissions.defaultMode=bypassPermissions` 后每次启动都会弹此警告；把 `bypassPermissionsModeAccepted` 设为 `true`（即点过 "Yes, I accept" 后 CC 自己写的值）可永久免弹。字段名可从 CC 原生二进制 `grep -a bypassPermissionsModeAccepted` 确认（注意 `strings` 读不到，二进制里 JS 是压缩的，要用 `grep -a`）。
 - **rtk 是可选安装，三级分类自洽（改自「rtk 曾是必需项」）**：`rtk` 从 CLI 必需项降为 `opt`；「系统配置」段按 rtk 状态分三级，避免「可选工具的子配置缺失却报必需失败」的矛盾：① **未装 rtk** → 整段 `opt` 跳过（`if has_cmd rtk` 外层门控），不影响退出码；② **装了 rtk 但没挂 hook** → `opt`（装了没启用命令压缩，是用户选择，也不算故障）；③ **挂了 hook 但豁免不全** → `bad`（rtk 真在拦命令却配错 = 静默数据损坏，唯一该硬报的情形）。豁免的修复命令用**整行替换** `s/^…exclude_commands…=.*/…/`，兼容「空数组 / 已有部分值 / 已满」任意现状（旧版只匹配空数组 `[]`，对存量非空配置修不动，是坑）。加/减 rtk 检查改第 1 类的 `has_cmd rtk` 行与第 5 类的 `if has_cmd rtk` 嵌套块。
 - **RTK 压缩豁免（`[hooks].exclude_commands`）防止「静默错误结果」**：`rtk hook claude` 挂在 PreToolUse[Bash] 上，会把有代理的命令改写成 `rtk <cmd>` 过压缩——**连管道和重定向也改**（`cat f | jq` → `rtk read f | jq`、`cat f > out` 把过滤后内容写进文件）。对多数命令（git/ls/tree/build）这是省 token 的主战场、低风险；但七条命令的压缩会造成**静默的错误结果**，必须原样透传：① `cat`→`rtk read` 大文件截断 / 重定向损坏文件复制 / 管道喂下游残缺内容；② `diff`→`rtk diff` 输出浓缩成非标准格式，没法当 patch；③ `find`→`rtk find` 结果截断成 tree，喂 xargs 漏文件；④ `grep`→`rtk grep` 行被截断到 80 字符 + 按文件重新分组，非 `file:line` 输出（reflog / 日志 / 单行长文本）被搞乱，且结果截断到 `[limits].grep_max_results`（默认 200/文件 25）→ 以为没匹配其实是被砍掉了（穷尽式全量搜索尤其致命）；⑤ `curl`→`rtk curl` JSON 响应压成 schema 摘要 / keys-only，`curl|jq`、`curl>out.json` 拿到的是残缺假数据（cat 级损坏，危害最大）；⑥ `head`→`rtk read`（与 cat 同一过滤引擎）`head -n f | 下游`、`head>sample` 内容被截断污染——cat 排了 head 没排就是漏洞；**但 head 豁免只盖住裸 `head` / `head -n N` / `head -c N`**，BSD 简写 `head -NUM`（如 `head -100`）走独立特判绕过豁免、连管道里也被改写，得用 `head -n 100`（长选项）或 `rtk proxy head -100` 规避；⑦ `wc`→`rtk wc` 抹掉路径与对齐空格，`wc -l<f`、`wc -l f|awk` 脚本取数位置变了 → 取错值。基线要求 `~/Library/Application Support/rtk/config.toml` 的 `[hooks].exclude_commands` 至少含 `cat`/`diff`/`find`/`grep`/`curl`/`head`/`wc`。`rtk_excludes_verbatim` 用 grep 那一行 + 逐个匹配 `"cmd"` 判断，缺任一即 `bad`，修复命令 `rtk config --create` + `sed` 填数组。要加/减豁免命令改这个函数的 `for cmd in ...` 与配置。**只有行首的裸命令才会被改写**——管道后的 `xxx | grep`、`xxx | curl` 一律 No rewrite（hook 只认行首命令），所以豁免主要救的是 `grep -rn foo src/`、`curl -s api > f.json` 这种行首独立命令。**`git diff`/`git show` 排不掉**：行首是 `git`，`exclude_commands` 只认行首命令名，而整个排 `git` 会连 `status`/`log`/`branch` 的压缩收益一起丢——所以 `git diff > x.patch`、`git diff | git apply` 拿到的是坏 patch，只能单次用 `rtk proxy git diff` 规避（无法通过豁免修，这是 exclude_commands 的结构性限制）。**注意 RTK 不碰的命令**（逆向类 `otool`/`nm`/`lldb`/`objdump`/`xxd`、还有 `codesign`/`python3`/`echo`/`jq`/`sed`/`awk`/`tail`）本就是「No rewrite」透传，不用加进豁免；真正会被压缩的只有 RTK 有代理的那批。保留压缩的命令若临时要原始输出，单次用 `rtk proxy <原命令>`。
+- **anysearch 是可选 skill，且带一条「条件必需」的调用规范**：anysearch（AI Agent 联网实时搜索，`github.com/anysearch-ai/anysearch-skill`）默认走**手动装到 `~/.claude/skills/anysearch`**（marketplace 装则落为同名插件），因此检测用 `skill_installed`——先看 `~/.claude/skills/<name>` 目录，再回退 `plugin_installed`，两种装法都认。它本身是**可选**（第 4 类插件段末尾一行 `opt`，缺失不算故障）。但配了个「条件必需」的伴生检查：**只有 anysearch 已装时**，第 6 类才要求全局 `~/.claude/CLAUDE.md` 里有「何时优先调 anysearch」的场景规范（`claudemd_has_anysearch` 用 `grep -Eiq 'anysearch'` 探测）——理由是装了搜索 skill 却不告诉 CC 何时用它，CC 有内置 WebSearch/WebFetch 会自己挑、未必优先 anysearch，等于白装；这与 Codex key injector 的「auth.json 有 key 才必需」是同一种「装了 X 才要求配 Y」的条件必需模式。**未装 anysearch 时该条显示「无需配置」的 `ok`**，不影响退出码。规范正文覆盖 SKILL.md 的五类触发场景（查信息/事实核查/读网页正文/垂直领域带标识符查询/多意图并行），并写明 anysearch 不可用时回退内置搜索。加/改：可选检测在第 4 类可选插件循环后那一行，条件规范在第 6 类压缩规范之后的 `if skill_installed anysearch` 块，关键字改 `claudemd_has_anysearch`。
 
 ## 各工具标准安装命令（脚本里也内嵌为修复提示）
 
@@ -129,6 +132,12 @@ claude plugin install ponytail@ponytail                 # 装完自带 lite/full
 # gsap-skills（GSAP 官方 AI 技能集，非 claude-plugins-official；两条要分开发两次 prompt）
 claude plugin marketplace add greensock/gsap-skills
 claude plugin install gsap-skills@gsap-skills           # 官方市场装会报 not found，必须走 greensock/gsap-skills marketplace
+
+# anysearch skill（AI Agent 联网实时搜索，可选；手动装到 ~/.claude/skills/anysearch）
+# 把 v3.0.1 换成 https://github.com/anysearch-ai/anysearch-skill/releases 的最新 tag
+curl -L -o /tmp/anysearch-skill.zip https://github.com/anysearch-ai/anysearch-skill/archive/refs/tags/v3.0.1.zip \
+  && unzip -q /tmp/anysearch-skill.zip -d /tmp && mv /tmp/anysearch-skill-3.0.1 ~/.claude/skills/anysearch
+# 装完后若 CLAUDE.md 缺调用规范，check.sh 会报「anysearch 调用规范 ✗」并给出 printf 追加命令
 
 # cc-switch（多账号切换 App，可选）
 brew install --cask cc-switch
