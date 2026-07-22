@@ -127,6 +127,14 @@ claudemd_has_compact(){
   [ -f "$f" ] || return 1
   grep -Eq '上下文压缩|压缩取舍|保留决策和状态' "$f"
 }
+# 全局 ~/.claude/CLAUDE.md 是否含「外网操作代理兜底」规范
+# 见 SKILL.md：境外访问连不上/被 RST/超时/慢得反常时，先探到可用本地代理走代理重试，别在直连路径反复重试。
+# 关键字用通用语义词，不绑死具体端口/软件——别人机器可能是 v2rayN(10809)/clash verge(7897) 等。
+claudemd_has_proxy(){
+  local f="$HOME/.claude/CLAUDE.md"
+  [ -f "$f" ] || return 1
+  grep -Eiq '代理兜底|走代理重试|外网.*代理|127\.0\.0\.1:78|http\.proxy|https_proxy' "$f"
+}
 # skill 是否已安装（~/.claude/skills/<name> 目录存在，或作为同名插件装了）
 # anysearch 主要走手动装到 ~/.claude/skills/anysearch，marketplace 装则落为插件，两种都认。
 skill_installed(){
@@ -226,6 +234,7 @@ fi
 claudemd_has_chinese               && ok "全局规范含「始终中文回复」"          || bad "中文回复规范" $'printf \'\\n- **始终使用中文回复**（简体中文）。无论用户用什么语言提问、上下文/工具输出是什么语言，回复正文一律中文。\\n\' >> ~/.claude/CLAUDE.md'
 claudemd_has_shortlink             && ok "全局规范含「代码位置用可点短链」"    || bad "代码短链规范" $'printf \'\\n- **引用代码位置一律用 markdown 可点短链**：IDEA 插件里裸文件名点不动会报 Cannot open file，须写成 [短名:行](绝对路径:行)。\\n\' >> ~/.claude/CLAUDE.md'
 claudemd_has_compact               && ok "全局规范含「压缩取舍规则」"          || bad "压缩取舍规范" $'printf \'\\n## 上下文压缩（compact）取舍规则\\n做上下文压缩/生成摘要时，保留决策和状态，丢掉噪音：必留①架构决策及理由②改过的文件及改动③阻塞报错④进行中的工作与下一步⑤验证状态⑥失败过的方案及原因⑦待办与回滚；可丢冗长工具输出(留结论)、无关探索、死胡同中间步骤、已入 git 的文件内容。\\n\' >> ~/.claude/CLAUDE.md'
+claudemd_has_proxy                 && ok "全局规范含「外网操作代理兜底」"      || bad "代理兜底规范" $'printf \'\\n## 外网操作走代理兜底（连不通或慢得反常就切代理）\\n**触发信号**：任何境外资源访问（GitHub/raw.githubusercontent/googleapis 等域、brew bottle、npm/pip/cargo 下载、kaggle 上传下载、curl 探测、WebFetch）出现①TLS 握手后被 RST／连接超时／SSL 报错，或②下载速率慢得反常（几 KB/s、卡住不动）——两者任一都视作被墙干扰，别归因于「网络就是慢」在直连路径反复重试。\\n**先探到可用代理，端口和协议都别写死**（因代理软件/机器而异）：优先复用已设的 $https_proxy/$http_proxy/$all_proxy；没有则依次探常见本地端口、每个端口 http 与 socks5h 都试，取第一个通的（含 scheme）——`for p in 7890 7897 10809 1087 7891 10808 1080; do for s in http socks5h; do curl -fsm2 -x $s://127.0.0.1:$p https://www.gstatic.com/generate_204 >/dev/null 2>&1 && { echo $s://127.0.0.1:$p; break 2; }; done; done`（7890=clash/mihomo 混合口、7897=clash verge rev、10809/10808=v2rayN http/socks、7891=clash socks、1080/1087=ss 等；http 混合口优先命中，socks 口兜底）。都不通说明没开代理，如实告知用户别硬试。\\n**切法按工具选**（下文 $PROXY=探到的地址，形如 http://127.0.0.1:7890 或 socks5h://127.0.0.1:7891，curl/git/环境变量三种都认这两种 scheme）：`curl` 加 `-x $PROXY`；`git` 加 `-c http.proxy=$PROXY`；`brew`/`npm`/`pip`/`kaggle`/`gh` 等吃环境变量的用 `https_proxy=$PROXY http_proxy=$PROXY <命令>`；`WebFetch`/`ctx_fetch`/`Playwright` 无法传代理就直接弃用、改用 `curl -x` 或 `git -c http.proxy` 完成同样抓取。\\n**为什么**：Node 的 fetch/undici（WebFetch 等工具底层）默认不认系统代理与 HTTP_PROXY 环境变量，所以「系统装了代理」不等于「工具会走代理」，必须显式把代理传给每条命令；国内裸直连 GitHub 等域常被 GFW 干扰、成功率很低，走本地代理才稳。**优先命令级/环境变量级代理、不强依赖 TUN 或系统全局代理**——命令级更精准、零系统改动、可随时回退，也不影响其它进程。\\n\' >> ~/.claude/CLAUDE.md'
 # anysearch 调用场景规范：条件必需——仅当 anysearch skill 已装时才要求（装了不告诉 CC 何时调 = 白装）；未装则无需配置。
 if skill_installed anysearch; then
   claudemd_has_anysearch           && ok "全局规范含「anysearch 联网搜索优先」" || bad "anysearch 调用规范" $'printf \'\\n## 联网搜索优先走 anysearch\\n需要联网检索时优先用 anysearch skill（已装于 ~/.claude/skills/anysearch），覆盖：①查信息/新闻/文档/当前数据 ②事实核查 ③读网页正文（超出摘要）④垂直领域查询（股票 Stock:/漏洞 CVE:/论文 DOI: 等带标识符）⑤多意图并行搜索。anysearch 不可用（无 key/超配额/服务错误/断网）时告知用户并可回退内置 WebSearch/WebFetch。\\n\' >> ~/.claude/CLAUDE.md'
