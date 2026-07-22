@@ -154,7 +154,7 @@ bash cc-restore.sh        # 交互确认；-y 跳过确认
 
 恢复只搬配置，不装软件、不改权限模式。被覆盖的旧文件会存成 \`*.pre-restore-<时间戳>.bak\`。
 
-想要个人基线（权限白名单 / RTK / 常用 MCP）→ 恢复后另跑 cc-bootstrap。
+想核对个人基线（权限白名单 / RTK / 常用 MCP）→ 恢复后另跑 cc-baseline。
 
 ## 注意
 

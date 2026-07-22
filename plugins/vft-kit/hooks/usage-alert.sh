@@ -12,7 +12,7 @@
 #   { "thresholds": [70,90], "sound": "Glass", "maxAgeSeconds": 600,
 #     "snapshotPath": "~/.claude/usage-snapshot.json" }
 # 取值优先级：环境变量（CLAUDE_USAGE_THRESHOLDS / CLAUDE_USAGE_SNAPSHOT） > 配置文件 > 内建默认。
-# 配置模板由 usage-alert-setup skill 幂等落盘，也可手建。
+# 配置文件手建即可（不存在时用内建默认）。
 
 CONFIG="$HOME/.claude/vft-kit/usage-alert-config.json"
 STATE="$HOME/.claude/usage-alert-state"
