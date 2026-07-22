@@ -127,6 +127,19 @@ claudemd_has_compact(){
   [ -f "$f" ] || return 1
   grep -Eq '上下文压缩|压缩取舍|保留决策和状态' "$f"
 }
+# skill 是否已安装（~/.claude/skills/<name> 目录存在，或作为同名插件装了）
+# anysearch 主要走手动装到 ~/.claude/skills/anysearch，marketplace 装则落为插件，两种都认。
+skill_installed(){
+  [ -d "$HOME/.claude/skills/$1" ] && return 0
+  plugin_installed "$1"
+}
+# 全局 ~/.claude/CLAUDE.md 是否含「anysearch 联网搜索优先」调用场景规范
+# 仅在 anysearch 已装时才核对：装了搜索 skill 却没告诉 CC 何时调它，等于白装。
+claudemd_has_anysearch(){
+  local f="$HOME/.claude/CLAUDE.md"
+  [ -f "$f" ] || return 1
+  grep -Eiq 'anysearch' "$f"
+}
 # MCP 是否实连成功（在 claude mcp list 输出里匹配 $1 正则的行含 Connected）
 mcp_healthy(){ printf '%s\n' "$MCP_HEALTH" | grep -E "$1" | grep -q "Connected"; }
 
@@ -174,6 +187,8 @@ done
 for p in context7 vercel; do
   if plugin_installed "$p"; then ok "$p"; else opt "$p" "claude plugin install $p@claude-plugins-official"; fi
 done
+# 可选 skill：anysearch（AI Agent 联网实时搜索，装到 ~/.claude/skills/anysearch）
+skill_installed anysearch && ok "anysearch skill（联网实时搜索）" || opt "anysearch skill" "手动装到 ~/.claude/skills/anysearch（github.com/anysearch-ai/anysearch-skill），联网搜索/事实核查/网页正文/垂直领域查询"
 
 # ---------- 5. 系统配置 ----------
 sec "系统配置"
@@ -211,6 +226,12 @@ fi
 claudemd_has_chinese               && ok "全局规范含「始终中文回复」"          || bad "中文回复规范" $'printf \'\\n- **始终使用中文回复**（简体中文）。无论用户用什么语言提问、上下文/工具输出是什么语言，回复正文一律中文。\\n\' >> ~/.claude/CLAUDE.md'
 claudemd_has_shortlink             && ok "全局规范含「代码位置用可点短链」"    || bad "代码短链规范" $'printf \'\\n- **引用代码位置一律用 markdown 可点短链**：IDEA 插件里裸文件名点不动会报 Cannot open file，须写成 [短名:行](绝对路径:行)。\\n\' >> ~/.claude/CLAUDE.md'
 claudemd_has_compact               && ok "全局规范含「压缩取舍规则」"          || bad "压缩取舍规范" $'printf \'\\n## 上下文压缩（compact）取舍规则\\n做上下文压缩/生成摘要时，保留决策和状态，丢掉噪音：必留①架构决策及理由②改过的文件及改动③阻塞报错④进行中的工作与下一步⑤验证状态⑥失败过的方案及原因⑦待办与回滚；可丢冗长工具输出(留结论)、无关探索、死胡同中间步骤、已入 git 的文件内容。\\n\' >> ~/.claude/CLAUDE.md'
+# anysearch 调用场景规范：条件必需——仅当 anysearch skill 已装时才要求（装了不告诉 CC 何时调 = 白装）；未装则无需配置。
+if skill_installed anysearch; then
+  claudemd_has_anysearch           && ok "全局规范含「anysearch 联网搜索优先」" || bad "anysearch 调用规范" $'printf \'\\n## 联网搜索优先走 anysearch\\n需要联网检索时优先用 anysearch skill（已装于 ~/.claude/skills/anysearch），覆盖：①查信息/新闻/文档/当前数据 ②事实核查 ③读网页正文（超出摘要）④垂直领域查询（股票 Stock:/漏洞 CVE:/论文 DOI: 等带标识符）⑤多意图并行搜索。anysearch 不可用（无 key/超配额/服务错误/断网）时告知用户并可回退内置 WebSearch/WebFetch。\\n\' >> ~/.claude/CLAUDE.md'
+else
+  ok "anysearch 调用规范（skill 未装，无需配置）"
+fi
 [ -d "$HOME/.claude/projects" ]    && ok "项目 memory 目录"                   || opt "项目 memory"     "~/.claude/projects/<项目>/memory/ 跨会话记忆"
 
 # ---------- 7. MCP 连接健康（仅 --health） ----------
