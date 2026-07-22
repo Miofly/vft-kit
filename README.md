@@ -13,7 +13,7 @@ claude plugin marketplace add <本仓库路径或 git 地址>
 claude plugin install vft-kit@vft-kit
 ```
 
-装完想用用量告警跑一次 `usage-alert-setup` 开通（仅 macOS）。
+装完想用用量告警,接通 claude-hud 落盘快照即可（仅 macOS,见下文「用量告警」）。
 
 ### Codex
 
@@ -27,7 +27,8 @@ Codex 入口在 `plugins/vft-kit/.codex-plugin/plugin.json`，skill 目录仍是
 
 - [vft-kit 总览](https://wflynn.cn/pages/2607131001) —— 定位、安装、全量速查表、FAQ
 - **CC 运维**：[cc-baseline](https://wflynn.cn/pages/2607131002) · [cc-backup-restore](https://wflynn.cn/pages/2607131003) · [plugin-refresh](https://wflynn.cn/pages/2607131004)
-- **通用工具**：[fe-auto-test](https://wflynn.cn/pages/2607131005) · [co-infographic-generator](https://wflynn.cn/pages/2607131006) · [git-auto-push](https://wflynn.cn/pages/2607131007) · [vue-sfc-split](https://wflynn.cn/pages/2607131008) · [office-doc-rewrite](https://wflynn.cn/pages/2607131011)
+- **Codex 运维**：[codex-baseline](https://wflynn.cn/pages/2607131010)
+- **通用工具**：[fe-auto-test](https://wflynn.cn/pages/2607131005) · [fe-lint-fix](https://wflynn.cn/pages/2607131012) · [co-infographic-generator](https://wflynn.cn/pages/2607131006) · [pr-submit](https://wflynn.cn/pages/2607131013) · [git-auto-push](https://wflynn.cn/pages/2607131007) · [vue-sfc-split](https://wflynn.cn/pages/2607131008) · [office-doc-rewrite](https://wflynn.cn/pages/2607131011)
 - **Hook**：[用量告警](https://wflynn.cn/pages/2607131009)
 
 ## 有什么
@@ -41,7 +42,14 @@ Codex 入口在 `plugins/vft-kit/.codex-plugin/plugin.json`，skill 目录仍是
 | `cc-baseline` | 核对本机 CC 是否符合装配基线（CLI / npm / MCP / 插件 / 权限），缺什么给修复命令（只读，仅 `ponytail` 缺失时自动补齐） |
 | `cc-backup-restore` | 备份 / 恢复配置与数据（CLAUDE.md、settings.json、插件、skill） |
 | `plugin-refresh` | 刷新插件 cache——改了本地插件源却不生效时用它 |
-| `usage-alert-setup` | 开通用量告警：配置 claude-hud 快照、生成阈值配置模板 |
+
+### Codex 运维
+
+`codex-baseline` 的目标是 Codex CLI（`~/.codex`），不是 Claude Code。
+
+| skill | 干什么 |
+|---|---|
+| `codex-baseline` | 核对本机 Codex CLI 装配基线（dangerous full access / hooks / Playwright MCP / 插件 / 系统 skills / 全局 AGENTS / 生图 CLI），缺什么给修复命令 |
 
 ### 用量告警（hook）
 
@@ -49,23 +57,25 @@ Codex 入口在 `plugins/vft-kit/.codex-plugin/plugin.json`，skill 目录仍是
 
 官方 hook 事件的 payload 里**不含任何用量数据**，唯一能拿到 `rate_limits` 的地方是 statusline。所以这个 hook 不直接读用量，而是读一份由 statusline 落盘的快照。需要配合 [claude-hud](https://github.com/jarrodwatts/claude-hud) 开启快照写入。
 
-**跑 `usage-alert-setup` 一步接通**：检测 claude-hud、把 `externalUsageWritePath` 写进它的配置、并生成阈值配置模板。也可手动配：
+**接通只两步**：装 `jq`，再把 `externalUsageWritePath` 写进 claude-hud 配置：
 
 ```json
 // ~/.claude/plugins/claude-hud/config.json
 { "display": { "externalUsageWritePath": "/Users/<你>/.claude/usage-snapshot.json" } }
 ```
 
-没配这个、或用的是 API key（按量付费，没有限额窗口）时，hook 静默退出，不影响会话。
+（早期的 `usage-alert-setup` skill 已移除——ai-helper 原生支持用量告警。）没配这个、或用的是 API key（按量付费，没有限额窗口）时，hook 静默退出，不影响会话。
 
-阈值 / 声音 / 新鲜度改 `~/.claude/vft-kit/usage-alert-config.json`（`usage-alert-setup` 会生成模板）；也可用环境变量 `CLAUDE_USAGE_THRESHOLDS="60 80 95"` 临时覆盖（优先级最高）。
+阈值 / 声音 / 新鲜度改 `~/.claude/vft-kit/usage-alert-config.json`；也可用环境变量 `CLAUDE_USAGE_THRESHOLDS="60 80 95"` 临时覆盖（优先级最高）。
 
 ### 通用工具
 
 | skill | 干什么 |
 |---|---|
 | `fe-auto-test` | Playwright 真实浏览器验证前端页面 + Lighthouse 全维度体检（依赖会自动补装，见下） |
+| `fe-lint-fix` | 前端代码质量一键修复：Prettier → Stylelint → ESLint + TypeScript 校验（自动探测包管理器 / 脚本） |
 | `co-infographic-generator` | 结构化文字 → 信息图（HTML+CSS 排版，puppeteer 截图成 PNG） |
+| `pr-submit` | 全自动 PR 工作流：分析改动 → 建分支 → 提交 → 创建 PR（GitHub/GitLab/Gitee） |
 | `vue-sfc-split` | 拆分过大的 Vue SFC，规避文件路由 / 自动导入的坑 |
 | `git-auto-push` | 绕过 git hooks 提交（husky 卡住时的逃生通道） |
 | `office-doc-rewrite` | 改 Office 文档（xlsx/doc/docx）文字但保留图片/样式/布局——拿模板换内容（zip 层改文字，非整体重存） |

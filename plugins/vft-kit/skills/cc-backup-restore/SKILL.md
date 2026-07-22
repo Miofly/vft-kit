@@ -1,6 +1,6 @@
 ---
 name: cc-backup-restore
-description: 备份、恢复或彻底清理本机 Claude Code。备份/恢复覆盖全局 CLAUDE.md 及其 @ 引用、settings、插件清单与 marketplace、项目 memory、hooks、skills、agents、commands 和 Playwright MCP 配置；清理覆盖 Claude Code 进程、安装包、命令入口、配置/缓存、shell 环境变量及 npm 缓存。用于换账号、重装 CC、换机器前后，或用户说“备份 cc 配置”“恢复 cc 配置”“清除 cc 信息”“卸载 Claude Code”“检查 Claude 残留”等场景。备份默认不搬登录授权；跨机器迁移 token/身份/代理用 cc-auth-migrate，恢复个人基线用 cc-bootstrap。清理具有破坏性，必须先展示范围并由用户交互确认。
+description: 备份、恢复或彻底清理本机 Claude Code。备份/恢复覆盖全局 CLAUDE.md 及其 @ 引用、settings、插件清单与 marketplace、项目 memory、hooks、skills、agents、commands 和 Playwright MCP 配置；清理覆盖 Claude Code 进程、安装包、命令入口、配置/缓存、shell 环境变量及 npm 缓存。用于换账号、重装 CC、换机器前后，或用户说“备份 cc 配置”“恢复 cc 配置”“清除 cc 信息”“卸载 Claude Code”“检查 Claude 残留”等场景。备份默认不搬登录授权；跨机器迁移 token/身份/代理用 cc-auth-migrate，核对个人基线（缺什么给修复命令）用 cc-baseline。清理具有破坏性，必须先展示范围并由用户交互确认。
 ---
 
 # Claude Code 配置备份 / 恢复 / 清理
@@ -9,13 +9,13 @@ description: 备份、恢复或彻底清理本机 Claude Code。备份/恢复覆
 
 ## 职责边界（先分清，别用错）
 
-| | 本 skill | cc-auth-migrate | cc-bootstrap |
+| | 本 skill | cc-auth-migrate | cc-baseline |
 |---|---|---|---|
-| 干什么 | 搬配置 + 数据；按确认彻底清理 CC | 搬登录授权（token / 身份 / 代理） | 装个人基线（权限白名单 / RTK / 常用 MCP） |
-| 场景 | 换号 / 重装 / 换机；清空本机 CC 信息 | 目标机不方便走浏览器 OAuth | 新机器 / 新号想要「默认就绪」的环境 |
-| 副作用 | 备份/恢复只拷文件；清理会卸载软件并删除数据 | 写入登录态 | **装软件、改权限模式** |
+| 干什么 | 搬配置 + 数据；按确认彻底清理 CC | 搬登录授权（token / 身份 / 代理） | 核对个人基线（CLI / npm / MCP / 插件 / 权限），缺什么给修复命令 |
+| 场景 | 换号 / 重装 / 换机；清空本机 CC 信息 | 目标机不方便走浏览器 OAuth | 新机器 / 新号想确认环境是否「默认就绪」 |
+| 副作用 | 备份/恢复只拷文件；清理会卸载软件并删除数据 | 写入登录态 | 基本只读（仅 `ponytail` 缺失时自动补齐） |
 
-**本 skill 刻意不做基线安装**：一个「恢复备份」的动作不该顺手改你的 `defaultMode`、`brew install` 二进制、全局 `npm i -g`。那些是「初始化新环境」的语义，拆在 cc-bootstrap 里。三者可按需先后使用。
+**本 skill 刻意不做基线核对**：一个「恢复备份」的动作不该顺手替你判断 `defaultMode`、二进制、全局 `npm i -g` 齐不齐。那是「核对新环境」的语义，拆在 cc-baseline 里。三者可按需先后使用。
 
 ## 清理前固定顺序
 

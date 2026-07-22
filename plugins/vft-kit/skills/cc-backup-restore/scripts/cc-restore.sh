@@ -8,7 +8,7 @@
 #   bash cc-restore.sh <备份目录> -y      # 跳过覆盖确认（非交互）
 #
 # 职责边界（重要）：本脚本只做「把备份搬回来」，不装任何软件、不改权限模式。
-# 想要个人基线（权限白名单 / RTK / 常用 MCP），跑独立的 cc-bootstrap。
+# 想核对个人基线（权限白名单 / RTK / 常用 MCP），跑 cc-baseline。
 
 set -e
 
@@ -207,5 +207,5 @@ echo "✅ 恢复完成！被覆盖的旧文件已存为 *.pre-restore-$STAMP.bak
 echo ""
 echo "📌 后续："
 echo "   1. 重启 Claude Code 让配置与插件生效（插件下载可能要几分钟）"
-echo "   2. 需要个人基线（权限白名单 / RTK / 常用 MCP）→ 另跑 cc-bootstrap"
+echo "   2. 想核对个人基线（权限白名单 / RTK / 常用 MCP）→ 另跑 cc-baseline"
 echo ""
