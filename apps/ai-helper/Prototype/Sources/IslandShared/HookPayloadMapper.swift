@@ -1,0 +1,2116 @@
+import Foundation
+#if canImport(Darwin)
+import Darwin
+#elseif canImport(Musl)
+import Musl
+#elseif canImport(Glibc)
+import Glibc
+#endif
+
+public enum HookPayloadMapper {
+    private static let questionToolNames: Set<String> = [
+        "askuserquestion",
+        "askfollowupquestion"
+    ]
+    private static let qoderIDEForwardedEvents: Set<String> = [
+        "Notification",
+        "SessionEnd",
+        "Stop",
+        "SubagentStop"
+    ]
+
+    public static func makeEnvelope(
+        source: AgentProvider,
+        arguments: [String],
+        environment: [String: String],
+        stdinData: Data,
+        runtimeConfig: BridgeRuntimeConfig = .default
+    ) -> BridgeEnvelope {
+        let rawPayload = BridgeCodec.readJSONObject(from: stdinData) ?? [:]
+        let payload = normalizedPayload(rawPayload, source: source)
+        let effectiveEnvironment = bridgedEnvironment(environment: environment, payload: payload)
+        let eventType = detectEventType(arguments: arguments, payload: payload)
+        let terminalContext = makeTerminalContext(environment: effectiveEnvironment, payload: payload)
+        let sessionKey = detectSessionKey(payload: payload, environment: effectiveEnvironment, provider: source)
+        var metadata = mergedMetadata(arguments: arguments, payload: payload, terminalContext: terminalContext)
+        if runtimeConfig.routePromptsToTerminal {
+            // Marker the app side reads to skip building an in-app prompt for
+            // this event. Keeps the envelope flowing for status updates only.
+            metadata["suppress_in_app_prompt"] = "true"
+        }
+        let explicitClientKind = metadata["client_kind"]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        let clientKind = normalizedClientKind(from: metadata)
+        let detectedIntervention = detectIntervention(
+            provider: source,
+            eventType: eventType,
+            sessionKey: sessionKey,
+            payload: payload,
+            clientKind: clientKind
+        )
+        // When the user has opted to keep prompts in the terminal, drop the
+        // intervention before status/expectsResponse are computed so the bridge
+        // does not block and the app does not surface a prompt UI.
+        let intervention: InterventionRequest? = runtimeConfig.routePromptsToTerminal
+            ? nil
+            : detectedIntervention
+        let status = detectStatus(
+            eventType: eventType,
+            payload: payload,
+            clientKind: clientKind,
+            intervention: intervention
+        )
+        let expectsResponse = runtimeConfig.routePromptsToTerminal
+            ? false
+            : detectExpectsResponse(
+                provider: source,
+                eventType: eventType,
+                payload: payload,
+                clientKind: clientKind,
+                explicitClientKind: explicitClientKind,
+                intervention: intervention
+            )
+
+        return BridgeEnvelope(
+            provider: source,
+            eventType: eventType,
+            sessionKey: sessionKey,
+            title: detectTitle(payload: payload),
+            preview: detectPreview(payload: payload),
+            cwd: detectCWD(payload: payload, environment: effectiveEnvironment),
+            status: status,
+            terminalContext: terminalContext,
+            intervention: intervention,
+            expectsResponse: expectsResponse,
+            metadata: metadata
+        )
+    }
+
+    public static func shouldDeliverEnvelope(_ envelope: BridgeEnvelope) -> Bool {
+        if envelope.shouldFilterBeforeApprovalHandling {
+            return false
+        }
+
+        guard isQoderIDEHostedEnvelope(envelope) else {
+            return true
+        }
+
+        return qoderIDEForwardedEvents.contains(envelope.eventType)
+            || isQuestionNotificationEnvelope(envelope)
+            || isQuestionResolutionEnvelope(envelope)
+    }
+
+    public static func stdoutPayload(
+        for provider: AgentProvider,
+        response: BridgeResponse,
+        eventType: String,
+        metadata: [String: String]
+    ) -> String {
+        guard let decision = response.decision else {
+            return "{}"
+        }
+
+        switch provider {
+        case .claude, .gemini:
+            let clientKind = normalizedClientKind(from: metadata)
+            if clientKind == "qoder-cli",
+               isQoderCLIPlanExitApproval(
+                   eventType: eventType,
+                   toolName: metadata["tool_name"]
+               ) {
+                return qoderCLIPermissionPayload(response: response, decision: decision, eventType: eventType)
+            }
+            if clientKind != "codebuddy-cli",
+               isCodeBuddyFamilyHookClient(clientKind) {
+                return codeBuddyStdoutPayload(response: response, decision: decision)
+            }
+            if clientKind == "qwen-code" {
+                return qwenCodePermissionPayload(
+                    response: response,
+                    decision: decision,
+                    eventType: eventType,
+                    metadata: metadata
+                )
+            }
+            switch decision {
+            case .approve:
+                return #"""
+                {"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow"}}}
+                """#
+            case .approveForSession:
+                return #"""
+                {"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow"}}}
+                """#
+            case .deny, .cancel:
+                return #"""
+                {"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"deny","message":"Denied from Island"}}}
+                """#
+            case .answer(let answers):
+                if clientKind == "qoder-cli" {
+                    return qoderCLIAnswerPayload(
+                        response: response,
+                        eventType: eventType,
+                        answers: answers
+                    )
+                }
+                if clientKind == "qoderwork" {
+                    return qoderWorkAnswerPayload(
+                        response: response,
+                        eventType: eventType,
+                        answers: answers
+                    )
+                }
+                let usesFullUpdatedInput = shouldPreserveFullUpdatedInputForClaudeAnswer(
+                    response: response,
+                    metadata: metadata
+                )
+                let payloadObject: Any = usesFullUpdatedInput
+                    ? (response.updatedInput?.mapValues(\.foundationObject) ?? answers)
+                    : answers
+
+                guard JSONSerialization.isValidJSONObject(payloadObject),
+                      let payloadData = try? JSONSerialization.data(withJSONObject: payloadObject, options: [.sortedKeys]),
+                      let payloadJson = String(data: payloadData, encoding: .utf8) else {
+                    return "{}"
+                }
+
+                if eventType.contains("Question") || eventType == "UserInputRequest" || eventType == "UserPromptSubmit" {
+                    return """
+                    {"hookSpecificOutput":{"hookEventName":"\(eventType)","permissionDecision":"allow","updatedInput":\(payloadJson)}}
+                    """
+                }
+
+                return """
+                {"hookSpecificOutput":{"hookEventName":"\(eventType)","decision":{"behavior":"allow","updatedInput":\(payloadJson)}}}
+                """
+            }
+        // case .gemini:
+        //     switch decision {
+        //     case .approve, .approveForSession:
+        //         return #"{"decision":{"behavior":"allow"}}"#
+        //     case .deny, .cancel:
+        //         return #"{"decision":{"behavior":"deny","message":"Denied from Island"}}"#
+        //     case .answer:
+        //         guard let message = response.updatedInput else { return "{}" }
+        //         let escaped = BridgeCodec.jsonString(for: message) ?? "{}"
+        //         return """
+        //         {"decision":{"behavior":"allow","updatedInput":\(escaped)}}
+        //         """
+        //     }
+        case .kimi:
+            // See: https://www.kimi.com/code/docs/en/kimi-code-cli/customization/hooks.html
+            switch decision {
+            case .approve, .approveForSession:
+                return "{}"
+            case .deny, .cancel:
+                return #"""
+                {"hookSpecificOutput":{"permissionDecision":"deny","permissionDecisionReason":"Denied from Island"}}
+                """#
+            case .answer:
+                // Kimi does not have a documented answer/updatedInput format for hooks.
+                return "{}"
+            }
+        case .codex:
+            switch decision {
+            case .approve:
+                if eventType == "PermissionRequest" {
+                    return codexPermissionRequestPayload(behavior: "allow")
+                }
+                return #"{"decision":"accept"}"#
+            case .approveForSession:
+                if eventType == "PermissionRequest" {
+                    return codexPermissionRequestPayload(behavior: "allow")
+                }
+                return #"{"decision":"acceptForSession"}"#
+            case .deny:
+                if eventType == "PermissionRequest" {
+                    return codexPermissionRequestPayload(
+                        behavior: "deny",
+                        message: response.reason ?? "Denied from Island"
+                    )
+                }
+                return #"{"decision":"decline"}"#
+            case .cancel:
+                return #"{"decision":"cancel"}"#
+            case .answer(let answers):
+                return String(data: (try? JSONSerialization.data(withJSONObject: ["answers": answers], options: [.sortedKeys])) ?? Data("{}".utf8), encoding: .utf8) ?? "{}"
+            }
+        case .copilot:
+            switch decision {
+            case .approve, .approveForSession:
+                return #"{"permissionDecision":"allow"}"#
+            case .deny:
+                let reason = response.reason ?? "Denied from Island"
+                let escaped = reason.replacingOccurrences(of: "\"", with: "\\\"")
+                return #"{"permissionDecision":"deny","permissionDecisionReason":"\#(escaped)"}"#
+            case .cancel:
+                let reason = response.reason ?? "Denied from Island"
+                let escaped = reason.replacingOccurrences(of: "\"", with: "\\\"")
+                return #"{"permissionDecision":"deny","permissionDecisionReason":"\#(escaped)"}"#
+            case .answer(let answers):
+                let modifiedArgs = response.updatedInput?.mapValues(\.foundationObject) ?? ["answers": answers]
+                let payload: [String: Any] = [
+                    "permissionDecision": "allow",
+                    "modifiedArgs": modifiedArgs
+                ]
+                guard JSONSerialization.isValidJSONObject(payload),
+                      let data = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]) else {
+                    return #"{"permissionDecision":"allow"}"#
+                }
+                return String(data: data, encoding: .utf8) ?? #"{"permissionDecision":"allow"}"#
+            }
+        }
+    }
+
+    private static func codexPermissionRequestPayload(
+        behavior: String,
+        message: String? = nil
+    ) -> String {
+        var decision: [String: Any] = ["behavior": behavior]
+        if let message {
+            decision["message"] = message
+        }
+
+        let payload: [String: Any] = [
+            "hookSpecificOutput": [
+                "hookEventName": "PermissionRequest",
+                "decision": decision
+            ]
+        ]
+
+        guard JSONSerialization.isValidJSONObject(payload),
+              let data = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]),
+              let string = String(data: data, encoding: .utf8) else {
+            return "{}"
+        }
+
+        return string
+    }
+
+    private static let codeBuddyApprovalTools: Set<String> = [
+        "bash",
+        "edit",
+        "multiedit",
+        "write",
+        "task",
+        "todowrite"
+    ]
+
+    private static func shouldPreserveFullUpdatedInputForClaudeAnswer(
+        response: BridgeResponse,
+        metadata: [String: String]
+    ) -> Bool {
+        guard let updatedInput = response.updatedInput else {
+            return false
+        }
+
+        if updatedInput["questions"] != nil {
+            return true
+        }
+
+        let normalizedToolName = metadata["tool_name"]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "_", with: "")
+            .replacingOccurrences(of: "-", with: "")
+            .lowercased()
+
+        return normalizedToolName.map(questionToolNames.contains) ?? false
+    }
+
+    private static let codeBuddyReadOnlyTools: Set<String> = [
+        "read",
+        "glob",
+        "grep",
+        "ls",
+        "webfetch",
+        "websearch"
+    ]
+
+    private static func detectEventType(arguments: [String], payload: [String: Any]) -> String {
+        // Check explicit fields first
+        if let explicit = payload["hook_event_name"] as? String { return explicit }
+        if let explicit = payload["event"] as? String { return explicit }
+        if let explicit = payload["type"] as? String { return explicit }
+        
+        // Check arguments
+        if let index = arguments.firstIndex(of: "--event"), arguments.indices.contains(index + 1) {
+            return arguments[index + 1]
+        }
+        
+        // Check for questions/user input
+        if payload["questions"] != nil { return "UserInputRequest" }
+        
+        // Check for permission request indicators
+        if let reason = payload["reason"] as? String, reason.lowercased().contains("permission") {
+            return "PermissionRequest"
+        }
+        
+        // Check for tool use events
+        if payload["tool_input"] != nil || payload["tool_name"] != nil { return "PreToolUse" }
+        
+        return "UnknownEvent"
+    }
+
+    private static func detectSessionKey(
+        payload: [String: Any],
+        environment: [String: String],
+        provider: AgentProvider
+    ) -> String {
+        let candidates = [
+            payload["session_id"] as? String,
+            payload["sessionId"] as? String,
+            payload["thread_id"] as? String,
+            payload["threadId"] as? String,
+            environment["CLAUDE_SESSION_ID"],
+            environment["CODEX_THREAD_ID"],
+            environment["ITERM_SESSION_ID"],
+            environment["TERM_SESSION_ID"],
+            environment["TTY"]
+        ]
+        if let value = candidates.compactMap({ $0 }).first, !value.isEmpty {
+            return "\(provider.rawValue):\(value)"
+        }
+        let cwd = detectCWD(payload: payload, environment: environment) ?? "unknown"
+        return "\(provider.rawValue):\(cwd)"
+    }
+
+    private static func detectStatus(
+        eventType: String,
+        payload: [String: Any],
+        clientKind: String?,
+        intervention: InterventionRequest?
+    ) -> SessionStatus? {
+        if let text = payload["status"] as? String {
+            if hasAnsweredQuestionPayload(payload) {
+                return answeredQuestionStatus(eventType: eventType)
+            }
+            return mapStatusString(text)
+        }
+        if isGeminiHookClient(clientKind) {
+            return geminiStatus(eventType: eventType, payload: payload)
+        }
+        if hasAnsweredQuestionPayload(payload) {
+            return answeredQuestionStatus(eventType: eventType)
+        }
+        if let intervention {
+            switch intervention.kind {
+            case .approval:
+                return SessionStatus(kind: .waitingForApproval)
+            case .question:
+                return SessionStatus(kind: .waitingForInput)
+            }
+        }
+        if isQoderWorkNotifyOnlyPermissionRequest(eventType: eventType, payload: payload, clientKind: clientKind) {
+            return SessionStatus(kind: .active)
+        }
+        if clientKind != nil,
+           isQoderQuestionToolEvent(eventType: eventType, payload: payload) {
+            return SessionStatus(kind: .waitingForInput)
+        }
+        if clientKind == "codebuddy-cli",
+           isCodeBuddyCLIAskUserQuestionNotification(eventType: eventType, payload: payload) {
+            return SessionStatus(kind: .waitingForInput)
+        }
+        let lowered = eventType.lowercased()
+        if lowered.contains("permission") || lowered.contains("approval") {
+            return SessionStatus(kind: .waitingForApproval)
+        }
+        if lowered.contains("question") || lowered.contains("userinput") {
+            return SessionStatus(kind: .waitingForInput)
+        }
+        if lowered.contains("notification") {
+            return SessionStatus(kind: .notification)
+        }
+        // Sub-agent events have to be matched before pretool/posttool/start/end
+        // because their names contain those substrings ("subagentstart" matches
+        // "start"). The parent session continues processing regardless.
+        if lowered == "subagentstart" || lowered == "subagentstop" {
+            return SessionStatus(kind: .runningTool)
+        }
+        if lowered.contains("pretool") {
+            return SessionStatus(kind: .runningTool)
+        }
+        if lowered.contains("posttool") {
+            if payload["error"] != nil {
+                return SessionStatus(kind: .error)
+            }
+            return SessionStatus(kind: .active)
+        }
+        if lowered.contains("stop") || lowered.contains("end") {
+            // Per Anthropic hook docs (and confirmed by farouqaldori/vibe-notch's
+            // shipped behavior): Stop / StopFailure mean "the agent finished its
+            // turn and is waiting for the next user input"; only SessionEnd
+            // actually terminates the session. The Kimi-only carve-out that
+            // previously lived here is now the default behavior for every
+            // shared-.claude client (claude-code, codebuddy, codebuddy-cli,
+            // qoderwork, qwen-code, hermes, openclaw, workbuddy, kimi).
+            switch lowered {
+            case "sessionend":
+                return SessionStatus(kind: .completed)
+            case "stop", "stopfailure":
+                return SessionStatus(kind: .waitingForInput)
+            default:
+                // Unknown stop/end variant from a future client we have not
+                // audited: stay conservative so we don't accumulate ghost
+                // sessions. The periodic liveness sweep is the safety net if
+                // we guessed wrong.
+                return SessionStatus(kind: .completed)
+            }
+        }
+        if lowered.contains("compact") {
+            return SessionStatus(kind: .compacting)
+        }
+        if lowered.contains("start") || lowered.contains("submit") {
+            return SessionStatus(kind: .thinking)
+        }
+        return SessionStatus(kind: .active)
+    }
+
+    private static func detectExpectsResponse(
+        provider: AgentProvider,
+        eventType: String,
+        payload: [String: Any],
+        clientKind: String?,
+        explicitClientKind: String?,
+        intervention: InterventionRequest?
+    ) -> Bool {
+        if isGeminiHookClient(clientKind) {
+            return false
+        }
+
+        if hasAnsweredQuestionPayload(payload) {
+            return isQoderCLIAnsweredQuestionPermissionRequest(
+                eventType: eventType,
+                clientKind: clientKind,
+                explicitClientKind: explicitClientKind
+            )
+        }
+
+        if let intervention {
+            switch intervention.kind {
+            case .approval:
+                return true
+            case .question:
+                return shouldSurfaceQuestionIntervention(
+                    provider: provider,
+                    eventType: eventType,
+                    payload: payload,
+                    clientKind: clientKind
+                )
+            }
+        }
+
+        // Check for qoderwork specific question events
+        if clientKind == "qoderwork",
+           isQoderWorkPreToolQuestionEvent(eventType: eventType, payload: payload) {
+            return true
+        }
+
+        if clientKind == "qoderwork",
+           isQoderWorkPermissionQuestionEvent(eventType: eventType, payload: payload) {
+            return true
+        }
+
+        if clientKind == "codebuddy-cli",
+           isCodeBuddyCLIAskUserQuestionNotification(eventType: eventType, payload: payload) {
+            return true
+        }
+
+        return false
+    }
+
+    private static func mapStatusString(_ string: String) -> SessionStatus {
+        let lowered = string.lowercased()
+        switch lowered {
+        case let text where text.contains("approval"):
+            return SessionStatus(kind: .waitingForApproval, detail: string)
+        case let text where text.contains("input") || text.contains("question"):
+            return SessionStatus(kind: .waitingForInput, detail: string)
+        case let text where text.contains("tool"):
+            return SessionStatus(kind: .runningTool, detail: string)
+        case let text where text.contains("think"):
+            return SessionStatus(kind: .thinking, detail: string)
+        case let text where text.contains("compact"):
+            return SessionStatus(kind: .compacting, detail: string)
+        case let text where text.contains("done") || text.contains("idle"):
+            return SessionStatus(kind: .completed, detail: string)
+        case let text where text.contains("error") || text.contains("fail"):
+            return SessionStatus(kind: .error, detail: string)
+        default:
+            return SessionStatus(kind: .active, detail: string)
+        }
+    }
+
+    private static func detectTitle(payload: [String: Any]) -> String? {
+        [
+            payload["title"] as? String,
+            payload["session_title"] as? String,
+            payload["tool_name"] as? String,
+            payload["hook_event_name"] as? String,
+            payload["event"] as? String
+        ].compactMap { $0 }.first
+    }
+
+    private static func detectPreview(payload: [String: Any]) -> String? {
+        if let toolName = payload["tool_name"] as? String {
+            if let input = summarizeValue(payload["tool_input"]) {
+                return "\(toolName) \(input)"
+            }
+            return toolName
+        }
+        return [
+            payload["prompt"] as? String,
+            payload["message"] as? String,
+            payload["last_assistant_message"] as? String,
+            payload["command"] as? String,
+            summarizeValue(payload["tool_result"]),
+            summarizeValue(payload["tool_input"])
+        ].compactMap { sanitizedDisplayText($0) }.first
+    }
+
+    private static func detectCWD(payload: [String: Any], environment: [String: String]) -> String? {
+        let candidateCWD = [
+            payload["cwd"] as? String,
+            payload["workspace"] as? String,
+            environment["PWD"]
+        ].compactMap { nonEmpty($0) }.first
+        let sessionFileWorkspace = workspacePathFromSessionFilePath(firstNonEmptyString(
+            payload["session_file_path"],
+            payload["rollout_path"],
+            payload["transcript_path"]
+        ))
+
+        if shouldPreferSessionFileWorkspace(sessionFileWorkspace, over: candidateCWD) {
+            return sessionFileWorkspace
+        }
+
+        return candidateCWD ?? sessionFileWorkspace
+    }
+
+    private static func makeTerminalContext(environment: [String: String], payload: [String: Any]) -> TerminalContext {
+        let terminalProgram = environment["TERM_PROGRAM"]
+        let ideContext = detectIDEContext(environment: environment)
+        let remoteContext = detectRemoteContext(environment: environment)
+        let inferredBundleID = inferredTerminalBundleID(
+            for: terminalProgram,
+            fallbackIDEBundleID: ideContext.bundleID
+        )
+
+        return TerminalContext(
+            terminalProgram: terminalProgram,
+            terminalBundleID: environment["__CFBundleIdentifier"]
+                ?? payload["terminalBundleID"] as? String
+                ?? inferredBundleID,
+            ideName: ideContext.name,
+            ideBundleID: ideContext.bundleID,
+            iTermSessionID: environment["ITERM_SESSION_ID"],
+            terminalSessionID: environment["TERM_SESSION_ID"],
+            tty: environment["TTY"],
+            currentDirectory: detectCWD(payload: payload, environment: environment),
+            transport: remoteContext.transport,
+            remoteHost: remoteContext.remoteHost,
+            tmuxSession: environment["TMUX"],
+            tmuxPane: environment["TMUX_PANE"]
+        )
+    }
+
+    private static func inferredTerminalBundleID(
+        for program: String?,
+        fallbackIDEBundleID: String?
+    ) -> String? {
+        let normalizedProgram = program?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+
+        switch normalizedProgram {
+        case "iterm2", "iterm", "iterm.app":
+            return "com.googlecode.iterm2"
+        case "apple_terminal", "terminal", "terminal.app":
+            return "com.apple.Terminal"
+        case "ghostty":
+            return "com.mitchellh.ghostty"
+        case "cmux":
+            return "com.cmuxterm.app"
+        case "alacritty":
+            return "io.alacritty"
+        case "kitty":
+            return "net.kovidgoyal.kitty"
+        case "hyper":
+            return "co.zeit.hyper"
+        case "warp", "warpterminal":
+            return "dev.warp.Warp-Stable"
+        case "wezterm", "wezterm-gui":
+            return "com.github.wez.wezterm"
+        default:
+            return fallbackIDEBundleID
+        }
+    }
+
+    private static func detectIDEContext(environment: [String: String]) -> (name: String?, bundleID: String?) {
+        let terminalProgram = (environment["TERM_PROGRAM"] ?? "").lowercased()
+        let bundleIdentifier = environment["__CFBundleIdentifier"]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        let hintKeys = [
+            "TERM_PROGRAM",
+            "TERM_PROGRAM_VERSION",
+            "__CFBundleIdentifier",
+            "VSCODE_GIT_IPC_HANDLE",
+            "VSCODE_IPC_HOOK_CLI",
+            "VSCODE_GIT_ASKPASS_MAIN",
+            "VSCODE_CWD",
+            "CURSOR_TRACE_ID",
+            "CURSOR_AGENT",
+            "CURSOR_GIT_ASKPASS_MAIN",
+            "WINDSURF_TRACE_ID",
+            "TRAE_TRACE_ID",
+            "TRAE_AGENT",
+            "CODEBUDDY_TRACE_ID",
+            "CODEBUDDY_AGENT",
+            "ZED_CHANNEL",
+        ]
+        let hints = hintKeys
+            .compactMap { environment[$0]?.lowercased() }
+            .joined(separator: " ")
+
+        if bundleIdentifier == "com.qoder.work"
+            || hints.contains("qoderwork.app")
+            || hints.contains("com.qoder.work")
+            || environment.keys.contains(where: { $0.hasPrefix("QODERWORK_") }) {
+            return ("QoderWork", "com.qoder.work")
+        }
+        if bundleIdentifier == "com.qoder.ide"
+            || hints.contains("qoder.app")
+            || hints.contains("com.qoder.ide")
+            || environment.keys.contains(where: { $0.hasPrefix("QODER_") }) {
+            return ("Qoder", "com.qoder.ide")
+        }
+        if hints.contains("cursor") || environment.keys.contains(where: { $0.hasPrefix("CURSOR_") }) {
+            return ("Cursor", "com.todesktop.230313mzl4w4u92")
+        }
+        if hints.contains("windsurf") || environment.keys.contains(where: { $0.hasPrefix("WINDSURF_") }) {
+            return ("Windsurf", "com.exafunction.windsurf")
+        }
+        if hints.contains("trae") || environment.keys.contains(where: { $0.hasPrefix("TRAE_") }) {
+            return ("Trae", "com.trae.app")
+        }
+        if bundleIdentifier == "com.workbuddy.workbuddy"
+            || hints.contains("workbuddy.app")
+            || hints.contains("com.workbuddy.workbuddy")
+            || environment.keys.contains(where: { $0.hasPrefix("WORKBUDDY_") }) {
+            return ("WorkBuddy", "com.workbuddy.workbuddy")
+        }
+        if hints.contains("codebuddy") || environment.keys.contains(where: { $0.hasPrefix("CODEBUDDY_") }) {
+            return ("CodeBuddy", "com.tencent.codebuddy")
+        }
+        if hints.contains("zed") || environment.keys.contains(where: { $0.hasPrefix("ZED_") }) {
+            return ("Zed", "dev.zed.Zed")
+        }
+        if terminalProgram == "vscode" || environment.keys.contains(where: { $0.hasPrefix("VSCODE_") }) {
+            return ("VS Code", "com.microsoft.VSCode")
+        }
+
+        return (nil, nil)
+    }
+
+    private static func detectRemoteContext(environment: [String: String]) -> (transport: String?, remoteHost: String?) {
+        let authority = environment["VSCODE_CLI_REMOTE_AUTHORITY"]
+            ?? environment["VSCODE_REMOTE_AUTHORITY"]
+            ?? environment["REMOTE_CONTAINERS_IPC"]
+        let sshConnection = environment["SSH_CONNECTION"] ?? environment["SSH_CLIENT"]
+
+        if let authority, authority.contains("ssh-remote+") {
+            return ("ssh-remote", authority.components(separatedBy: "ssh-remote+").last.flatMap(nonEmpty))
+        }
+
+        if let sshConnection {
+            let preferredHost = nonEmpty(environment["HOSTNAME"])
+                ?? nonEmpty(environment["HOST"])
+                ?? nonEmpty(ProcessInfo.processInfo.hostName)
+            if let preferredHost {
+                return ("ssh", preferredHost)
+            }
+
+            let parts = sshConnection.split(separator: " ").map(String.init)
+            if parts.count >= 3 {
+                return ("ssh", nonEmpty(parts[2]))
+            }
+            return ("ssh", nonEmpty(environment["SSH_TTY"]))
+        }
+
+        return (nil, nil)
+    }
+
+    private static func detectIntervention(
+        provider: AgentProvider,
+        eventType: String,
+        sessionKey: String,
+        payload: [String: Any],
+        clientKind: String?
+    ) -> InterventionRequest? {
+        if isGeminiHookClient(clientKind) {
+            return nil
+        }
+
+        if hasAnsweredQuestionPayload(payload) {
+            return nil
+        }
+
+        if clientKind == "qoderwork",
+           eventType == "PostToolUse",
+           questionToolNames.contains(normalizedToolName(from: payload) ?? ""),
+           payload["tool_response"] != nil {
+            return nil
+        }
+
+        if clientKind == "qoder-cli",
+           isQoderCLIPlanExitApproval(eventType: eventType, payload: payload) {
+            return InterventionRequest(
+                sessionID: sessionKey,
+                kind: .approval,
+                title: "Qoder CLI needs plan approval",
+                message: qoderCLIPlanApprovalMessage(from: payload),
+                options: [
+                    InterventionOption(id: "approve", title: "Allow Once"),
+                    InterventionOption(id: "deny", title: "Deny")
+                ],
+                rawContext: flattenMetadata(payload: payload)
+            )
+        }
+
+        if questionPayloads(from: payload)?.isEmpty == false,
+           questionToolNames.contains(normalizedToolName(from: payload) ?? ""),
+           !shouldSurfaceQuestionIntervention(
+                provider: provider,
+                eventType: eventType,
+                payload: payload,
+                clientKind: clientKind
+           ) {
+            return nil
+        }
+
+        if let questions = questionPayloads(from: payload), !questions.isEmpty,
+           shouldSurfaceQuestionIntervention(
+                provider: provider,
+                eventType: eventType,
+                payload: payload,
+                clientKind: clientKind
+           ) {
+            if clientKind == "qoder",
+               isQoderQuestionToolEvent(eventType: eventType, payload: payload) {
+                return nil
+            }
+            let options = questions.flatMap { question -> [InterventionOption] in
+                let baseID = (question["id"] as? String) ?? UUID().uuidString
+                let objectEntries = question["options"] as? [[String: Any]] ?? []
+                if !objectEntries.isEmpty {
+                    return objectEntries.enumerated().map { index, option in
+                        InterventionOption(
+                            id: "\(baseID):\(index)",
+                            title: option["label"] as? String ?? "Option \(index + 1)",
+                            detail: option["description"] as? String
+                        )
+                    }
+                }
+
+                let stringEntries = question["options"] as? [String] ?? []
+                if !stringEntries.isEmpty {
+                    return stringEntries.enumerated().map { index, option in
+                        InterventionOption(
+                            id: "\(baseID):\(index)",
+                            title: option,
+                            detail: nil
+                        )
+                    }
+                }
+
+                if let prompt = (question["question"] as? String) ?? (question["title"] as? String) {
+                    return [InterventionOption(id: baseID, title: prompt)]
+                }
+                return [InterventionOption(id: baseID, title: "Answer")]
+            }
+            return InterventionRequest(
+                sessionID: sessionKey,
+                kind: .question,
+                title: "\(interventionDisplayName(provider: provider, clientKind: clientKind)) needs input",
+                message: (questions.first?["question"] as? String)
+                    ?? (questions.first?["title"] as? String)
+                    ?? "Answer required",
+                options: options,
+                rawContext: flattenMetadata(payload: payload)
+            )
+        }
+
+        if shouldRequestCodeBuddyApproval(
+            eventType: eventType,
+            payload: payload,
+            clientKind: clientKind
+        ) {
+            let toolName = (payload["tool_name"] as? String) ?? "Tool"
+            let message = summarizeValue(payload["tool_input"])
+                .map { "\(toolName) \($0)" }
+                ?? toolName
+            return InterventionRequest(
+                sessionID: sessionKey,
+                kind: .approval,
+                title: "\(codeBuddyDisplayName(for: clientKind)) needs approval",
+                message: message,
+                options: [
+                    InterventionOption(id: "approve", title: "Allow Once"),
+                    InterventionOption(id: "deny", title: "Deny")
+                ],
+                rawContext: flattenMetadata(payload: payload)
+            )
+        }
+
+        // Qwen Code Notification + permission_prompt: upgrade to actionable approval
+        if clientKind == "qwen-code",
+           eventType == "Notification",
+           (payload["notification_type"] as? String)?
+               .trimmingCharacters(in: .whitespacesAndNewlines)
+               .lowercased() == "permission_prompt" {
+            let message = (payload["message"] as? String)
+                ?? (payload["title"] as? String)
+                ?? "Qwen Code is waiting for permission."
+            return InterventionRequest(
+                sessionID: sessionKey,
+                kind: .approval,
+                title: "\(provider.displayName) needs approval",
+                message: message,
+                options: [
+                    InterventionOption(id: "approve", title: "Allow Once"),
+                    InterventionOption(id: "approveForSession", title: "Allow for Session"),
+                    InterventionOption(id: "deny", title: "Deny")
+                ],
+                rawContext: flattenMetadata(payload: payload)
+            )
+        }
+
+        if isQoderWorkNotifyOnlyPermissionRequest(eventType: eventType, payload: payload, clientKind: clientKind) {
+            return nil
+        }
+
+        let lowered = eventType.lowercased()
+        guard lowered.contains("permission") || lowered.contains("approval") else {
+            return nil
+        }
+        let message = (payload["reason"] as? String)
+            ?? (payload["tool_name"] as? String)
+            ?? (payload["command"] as? String)
+            ?? "The agent is waiting for permission."
+        return InterventionRequest(
+            sessionID: sessionKey,
+            kind: .approval,
+            title: "\(interventionDisplayName(provider: provider, clientKind: clientKind)) needs approval",
+            message: message,
+            options: [
+                InterventionOption(id: "approve", title: "Allow Once"),
+                InterventionOption(id: "approveForSession", title: "Allow for Session"),
+                InterventionOption(id: "deny", title: "Deny")
+            ],
+            rawContext: flattenMetadata(payload: payload)
+        )
+    }
+
+    private static func mergedMetadata(
+        arguments: [String],
+        payload: [String: Any],
+        terminalContext: TerminalContext
+    ) -> [String: String] {
+        var metadata = flattenMetadata(payload: payload)
+        for (key, value) in argumentMetadata(arguments: arguments) {
+            metadata[key] = value
+        }
+        if let toolInput = payload["tool_input"] as? [String: Any],
+           JSONSerialization.isValidJSONObject(toolInput),
+           let data = try? JSONSerialization.data(withJSONObject: toolInput, options: [.sortedKeys]),
+           let json = String(data: data, encoding: .utf8) {
+            metadata["tool_input_json"] = json.replacingOccurrences(of: "\\/", with: "/")
+        }
+        if let terminalBundleID = nonEmpty(terminalContext.terminalBundleID), metadata["terminal_bundle_id"] == nil {
+            metadata["terminal_bundle_id"] = terminalBundleID
+        }
+        if let terminalProgram = nonEmpty(terminalContext.terminalProgram), metadata["terminal_program"] == nil {
+            metadata["terminal_program"] = terminalProgram
+        }
+        if let ideName = nonEmpty(terminalContext.ideName), metadata["client_originator"] == nil {
+            metadata["client_originator"] = ideName
+        }
+        if let transport = nonEmpty(terminalContext.transport), metadata["connection_transport"] == nil {
+            metadata["connection_transport"] = transport
+        }
+        if let remoteHost = nonEmpty(terminalContext.remoteHost), metadata["remote_host"] == nil {
+            metadata["remote_host"] = remoteHost
+        }
+        if let processName = detectedSourceProcessName(), metadata["source_process_name"] == nil {
+            metadata["source_process_name"] = processName
+        }
+        if let resolvedCWD = nonEmpty(terminalContext.currentDirectory) {
+            metadata["cwd"] = resolvedCWD
+        }
+        return metadata
+    }
+
+    private static func detectedSourceProcessName() -> String? {
+        let process = Process()
+        let output = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/bin/ps")
+        process.arguments = ["-p", String(getppid()), "-o", "comm="]
+        process.standardOutput = output
+        process.standardError = Pipe()
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+            guard process.terminationStatus == 0 else { return nil }
+            let data = output.fileHandleForReading.readDataToEndOfFile()
+            return nonEmpty(String(data: data, encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines))
+        } catch {
+            return nil
+        }
+    }
+
+    private static func argumentMetadata(arguments: [String]) -> [String: String] {
+        let mappings: [String: String] = [
+            "--client-kind": "client_kind",
+            "--client-name": "client_name",
+            "--client-bundle-id": "client_bundle_id",
+            "--client-origin": "client_origin",
+            "--client-originator": "client_originator",
+            "--thread-source": "thread_source",
+            "--launch-url": "launch_url"
+        ]
+
+        var metadata: [String: String] = [:]
+        for (flag, key) in mappings {
+            guard let index = arguments.firstIndex(of: flag), arguments.indices.contains(index + 1) else {
+                continue
+            }
+
+            let value = arguments[index + 1].trimmingCharacters(in: .whitespacesAndNewlines)
+            if !value.isEmpty {
+                metadata[key] = value
+            }
+        }
+
+        return metadata
+    }
+
+    private static func flattenMetadata(payload: [String: Any]) -> [String: String] {
+        var result: [String: String] = [:]
+        for (key, value) in payload {
+            guard let stringValue = summarizeValue(value) else { continue }
+            result[key] = stringValue
+        }
+        return result
+    }
+
+    private static func normalizedPayload(
+        _ payload: [String: Any],
+        source: AgentProvider
+    ) -> [String: Any] {
+        guard source == .copilot || source == .gemini else { return payload }
+
+        var normalized = payload
+
+        if source == .gemini {
+            if normalized["message"] == nil {
+                if let promptResponse = payload["prompt_response"] as? String {
+                    normalized["message"] = promptResponse
+                } else if let prompt = payload["prompt"] as? String {
+                    normalized["message"] = prompt
+                }
+            }
+            if normalized["last_assistant_message"] == nil, let promptResponse = payload["prompt_response"] as? String {
+                normalized["last_assistant_message"] = promptResponse
+            }
+            return normalized
+        }
+
+        if normalized["session_id"] == nil,
+           let sessionId = payload["sessionId"] as? String {
+            normalized["session_id"] = sessionId
+        }
+
+        if normalized["tool_name"] == nil,
+           let toolName = payload["toolName"] as? String {
+            normalized["tool_name"] = toolName
+        }
+
+        if normalized["tool_input"] == nil,
+           let toolArgs = decodedJSONObject(from: payload["toolArgs"]) {
+            normalized["tool_input"] = toolArgs
+        }
+
+        if normalized["prompt"] == nil {
+            normalized["prompt"] = payload["userPrompt"] ?? payload["initialPrompt"]
+        }
+
+        if normalized["message"] == nil {
+            normalized["message"] = firstNonEmptyString(
+                payload["message"],
+                payload["error"],
+                payload["source"]
+            )
+        }
+
+        if normalized["reason"] == nil,
+           let errorMessage = payload["error"] as? String {
+            normalized["reason"] = errorMessage
+        }
+
+        if normalized["tool_result"] == nil,
+           let toolResult = payload["toolResult"] {
+            normalized["tool_result"] = toolResult
+        }
+
+        return normalized
+    }
+
+    private static func bridgedEnvironment(
+        environment: [String: String],
+        payload: [String: Any]
+    ) -> [String: String] {
+        var merged = environment
+
+        if let bridgedEnvironment = payload["_env"] as? [String: Any] {
+            for (key, value) in bridgedEnvironment {
+                guard let value = nonEmpty(summarizeValue(value)) else { continue }
+                merged[key] = value
+            }
+        }
+
+        if let bridgedTTY = nonEmpty(payload["_tty"] as? String) {
+            merged["TTY"] = bridgedTTY
+        }
+
+        return merged
+    }
+
+    private static func summarizeValue(_ value: Any?) -> String? {
+        guard let value else { return nil }
+        switch value {
+        case let string as String:
+            return sanitizedDisplayText(string)
+        case let number as NSNumber:
+            return number.stringValue
+        case let array as [Any]:
+            guard JSONSerialization.isValidJSONObject(array),
+                  let data = try? JSONSerialization.data(withJSONObject: array, options: [.sortedKeys]),
+                  let string = String(data: data, encoding: .utf8)
+            else {
+                return nil
+            }
+            return string.replacingOccurrences(of: "\\/", with: "/")
+        case let object as [String: Any]:
+            guard JSONSerialization.isValidJSONObject(object),
+                  let data = try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]),
+                  let string = String(data: data, encoding: .utf8)
+            else {
+                return nil
+            }
+            return string.replacingOccurrences(of: "\\/", with: "/")
+        default:
+            return nil
+        }
+    }
+
+    private static func decodedJSONObject(from rawValue: Any?) -> [String: Any]? {
+        guard let rawValue else { return nil }
+
+        if let object = rawValue as? [String: Any] {
+            return object
+        }
+
+        if let string = rawValue as? String,
+           let data = string.data(using: .utf8),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            return json
+        }
+
+        return nil
+    }
+
+    private static func firstNonEmptyString(_ values: Any?...) -> String? {
+        values.compactMap { summarizeValue($0) }.first
+    }
+
+    private static func nonEmpty(_ value: String?) -> String? {
+        guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else {
+            return nil
+        }
+        return value
+    }
+
+    private static func workspacePathFromSessionFilePath(_ sessionFilePath: String?) -> String? {
+        guard let sessionFilePath = nonEmpty(sessionFilePath) else { return nil }
+        let components = URL(fileURLWithPath: sessionFilePath)
+            .standardizedFileURL
+            .pathComponents
+        guard let projectsIndex = components.lastIndex(of: "projects"),
+              components.indices.contains(projectsIndex + 1),
+              projectsIndex > 0,
+              components[projectsIndex - 1].hasPrefix(".") else {
+            return nil
+        }
+
+        let slug = components[projectsIndex + 1]
+        return candidateWorkspacePaths(fromProjectSlug: slug).first { path in
+            var isDirectory: ObjCBool = false
+            return FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory)
+                && isDirectory.boolValue
+        }
+    }
+
+    private static func shouldPreferSessionFileWorkspace(
+        _ sessionFileWorkspace: String?,
+        over candidateCWD: String?
+    ) -> Bool {
+        guard let sessionFileWorkspace else { return false }
+        guard let candidateCWD = nonEmpty(candidateCWD) else { return true }
+
+        let normalizedCandidate = URL(fileURLWithPath: candidateCWD).standardizedFileURL.path
+        let normalizedWorkspace = URL(fileURLWithPath: sessionFileWorkspace).standardizedFileURL.path
+        guard normalizedCandidate != normalizedWorkspace else { return false }
+
+        var candidateIsDirectory: ObjCBool = false
+        let candidateExists = FileManager.default.fileExists(
+            atPath: normalizedCandidate,
+            isDirectory: &candidateIsDirectory
+        ) && candidateIsDirectory.boolValue
+
+        if !candidateExists {
+            return true
+        }
+
+        return isTopLevelClientConfigDirectory(normalizedCandidate)
+    }
+
+    private static func isTopLevelClientConfigDirectory(_ path: String) -> Bool {
+        let url = URL(fileURLWithPath: path).standardizedFileURL
+        let knownClientDirectories: Set<String> = [
+            ".claude",
+            ".codebuddy",
+            ".codex",
+            ".cursor",
+            ".gemini",
+            ".kimi",
+            ".openclaw",
+            ".qoder",
+            ".qwen",
+            ".workbuddy"
+        ]
+        guard knownClientDirectories.contains(url.lastPathComponent) else {
+            return false
+        }
+
+        return url.deletingLastPathComponent().path
+            == FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL.path
+    }
+
+    private static func candidateWorkspacePaths(fromProjectSlug slug: String) -> [String] {
+        let trimmedSlug = slug.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedSlug = trimmedSlug.hasPrefix("-")
+            ? String(trimmedSlug.dropFirst())
+            : trimmedSlug
+        let parts = normalizedSlug
+            .split(separator: "-", omittingEmptySubsequences: true)
+            .map(String.init)
+        guard parts.count >= 2, parts.count <= 12 else {
+            return []
+        }
+
+        var candidates: [String] = []
+        var seen: Set<String> = []
+
+        func appendCandidates(startIndex: Int, pathComponents: [String]) {
+            if startIndex == parts.count {
+                let path = "/" + pathComponents.joined(separator: "/")
+                if seen.insert(path).inserted {
+                    candidates.append(path)
+                }
+                return
+            }
+
+            var component = ""
+            for index in startIndex..<parts.count {
+                component = component.isEmpty ? parts[index] : component + "-" + parts[index]
+                appendCandidates(
+                    startIndex: index + 1,
+                    pathComponents: pathComponents + [component]
+                )
+            }
+        }
+
+        appendCandidates(startIndex: 0, pathComponents: [])
+        return candidates.sorted { lhs, rhs in
+            lhs.split(separator: "/").count > rhs.split(separator: "/").count
+        }
+    }
+
+    private static func normalizedClientKind(from metadata: [String: String]) -> String? {
+        let explicitClientKind = metadata["client_kind"]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        if let explicitClientKind, !explicitClientKind.isEmpty {
+            if explicitClientKind == "qoder-cli",
+               metadataHasQoderIDEHost(metadata) {
+                return "qoder"
+            }
+            if explicitClientKind == "qoder",
+               metadataLooksLikeQoderCLI(metadata) {
+                return "qoder-cli"
+            }
+            return explicitClientKind
+        }
+
+        let clientBundleIdentifier = metadata["client_bundle_id"]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        switch clientBundleIdentifier {
+        case "com.qoder.work":
+            return "qoderwork"
+        case "com.qoder.ide":
+            return "qoder"
+        default:
+            break
+        }
+
+        switch clientBundleIdentifier {
+        case "com.tencent.codebuddy", "com.codebuddy.app":
+            return "codebuddy"
+        case "com.workbuddy.workbuddy":
+            return "workbuddy"
+        default:
+            break
+        }
+
+        let nameHint = metadata["client_name"]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+            ?? metadata["client"]?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .lowercased()
+        if let nameHint {
+            if nameHint.contains("qoder cli") || nameHint.contains("qoder-cli") {
+                return "qoder-cli"
+            }
+            if nameHint.contains("qoderwork") || nameHint.contains("qoder work") {
+                return "qoderwork"
+            }
+            if nameHint.contains("qoder") {
+                return "qoder"
+            }
+            if nameHint.contains("codebuddy cli")
+                || nameHint.contains("codebuddy-cli")
+                || nameHint.contains("code buddy cli")
+                || nameHint.contains("code-buddy-cli") {
+                return "codebuddy-cli"
+            }
+            if nameHint.contains("workbuddy") || nameHint.contains("work buddy") {
+                return "workbuddy"
+            }
+            if nameHint.contains("codebuddy") || nameHint.contains("code buddy") {
+                return "codebuddy"
+            }
+        }
+
+        return nil
+    }
+
+    private static func isQoderIDEHostedEnvelope(_ envelope: BridgeEnvelope) -> Bool {
+        let clientKind = envelope.metadata["client_kind"]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        guard clientKind == "qoder" || clientKind == "qoder-cli" else {
+            return false
+        }
+
+        return [
+            envelope.terminalContext.terminalBundleID,
+            envelope.terminalContext.ideBundleID,
+            envelope.metadata["terminal_bundle_id"],
+            envelope.metadata["client_bundle_id"]
+        ].contains { value in
+            value?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .lowercased() == "com.qoder.ide"
+        }
+    }
+
+    private static func isQuestionNotificationEnvelope(_ envelope: BridgeEnvelope) -> Bool {
+        guard envelope.eventType == "PreToolUse" || envelope.eventType == "PermissionRequest" else {
+            return false
+        }
+        guard !isQuestionResolutionEnvelope(envelope) else {
+            return false
+        }
+
+        guard isQuestionToolEnvelope(envelope) else {
+            return false
+        }
+
+        return !decodedQuestionPayloads(from: envelope).isEmpty
+    }
+
+    private static func isQuestionResolutionEnvelope(_ envelope: BridgeEnvelope) -> Bool {
+        guard isQuestionToolEnvelope(envelope) else {
+            return false
+        }
+
+        if hasAnsweredQuestionPayload(in: envelope) {
+            return true
+        }
+
+        if envelope.eventType == "PostToolUse",
+           !decodedQuestionPayloads(from: envelope).isEmpty {
+            return true
+        }
+
+        return false
+    }
+
+    private static func isQuestionToolEnvelope(_ envelope: BridgeEnvelope) -> Bool {
+        let normalizedTool = envelope.metadata["tool_name"]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+            .replacingOccurrences(of: "_", with: "")
+            .replacingOccurrences(of: "-", with: "")
+        return normalizedTool == "askuserquestion" || normalizedTool == "askfollowupquestion"
+    }
+
+    private static func decodedQuestionPayloads(from envelope: BridgeEnvelope) -> [[String: Any]] {
+        guard let toolInputJSON = envelope.metadata["tool_input_json"],
+              let data = toolInputJSON.data(using: .utf8),
+              let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let questions = payload["questions"] as? [[String: Any]] else {
+            return []
+        }
+
+        return questions
+    }
+
+    private static func hasAnsweredQuestionPayload(in envelope: BridgeEnvelope) -> Bool {
+        guard let toolInputJSON = envelope.metadata["tool_input_json"],
+              let data = toolInputJSON.data(using: .utf8),
+              let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return envelope.metadata["tool_response"]?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+        }
+
+        let answersCandidate = payload["answers"]
+        if let answers = answersCandidate as? [String: Any] {
+            return !answers.isEmpty
+        }
+        if let answers = answersCandidate as? [String: String] {
+            return !answers.isEmpty
+        }
+
+        return envelope.metadata["tool_response"]?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+    }
+
+    private static func metadataLooksLikeQoderCLI(_ metadata: [String: String]) -> Bool {
+        let normalizedOrigin = metadata["client_origin"]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        let normalizedBundleIdentifier = (
+            metadata["client_bundle_id"]
+                ?? metadata["terminal_bundle_id"]
+        )?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        if normalizedBundleIdentifier == "com.qoder.ide"
+            || normalizedBundleIdentifier == "com.qoder.work" {
+            return false
+        }
+
+        let nameHints = [
+            metadata["client_name"],
+            metadata["client_originator"],
+            metadata["client"]
+        ].compactMap {
+            $0?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        }
+
+        if nameHints.contains(where: { $0.contains("qoder cli") || $0.contains("qoder-cli") }) {
+            return true
+        }
+
+        return normalizedOrigin == "cli"
+            && nameHints.contains(where: { $0 == "qoder" || $0.contains("qoder ") })
+    }
+
+    private static func metadataHasQoderIDEHost(_ metadata: [String: String]) -> Bool {
+        [
+            metadata["terminal_bundle_id"],
+            metadata["ide_bundle_id"]
+        ].contains { value in
+            value?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .lowercased() == "com.qoder.ide"
+        }
+    }
+
+    private static func isCodeBuddyFamilyHookClient(_ clientKind: String?) -> Bool {
+        guard let clientKind else { return false }
+        switch clientKind {
+        case "codebuddy", "codebuddy-cli", "workbuddy":
+            return true
+        default:
+            return false
+        }
+    }
+
+    private static func codeBuddyDisplayName(for clientKind: String?) -> String {
+        switch clientKind {
+        case "codebuddy-cli":
+            return "CodeBuddy CLI"
+        case "workbuddy":
+            return "WorkBuddy"
+        default:
+            return "CodeBuddy"
+        }
+    }
+
+    private static func interventionDisplayName(provider: AgentProvider, clientKind: String?) -> String {
+        switch clientKind {
+        case "pi":
+            return "Pi Agent"
+        default:
+            return provider.displayName
+        }
+    }
+
+    private static func isGeminiHookClient(_ clientKind: String?) -> Bool {
+        guard let clientKind else { return false }
+        switch clientKind {
+        case "gemini", "gemini-cli", "gemini_cli", "gemini cli":
+            return true
+        default:
+            return false
+        }
+    }
+
+    private static func geminiStatus(
+        eventType: String,
+        payload: [String: Any]
+    ) -> SessionStatus {
+        switch eventType.lowercased() {
+        case "beforetool":
+            return SessionStatus(kind: .runningTool)
+        case "aftertool":
+            if let toolResponse = payload["tool_response"] as? [String: Any],
+               toolResponse["error"] != nil {
+                return SessionStatus(kind: .error)
+            }
+            return SessionStatus(kind: .active)
+        case "beforeagent", "beforetoolselection":
+            return SessionStatus(kind: .thinking)
+        case "afteragent", "aftermodel":
+            return SessionStatus(kind: .waitingForInput)
+        case "sessionstart":
+            return SessionStatus(kind: .waitingForInput)
+        case "sessionend":
+            return SessionStatus(kind: .completed)
+        case "notification":
+            let notificationType = (payload["notification_type"] as? String)?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .lowercased()
+            if notificationType == "error" {
+                return SessionStatus(kind: .error)
+            }
+            return SessionStatus(kind: .notification)
+        case "precompress":
+            return SessionStatus(kind: .compacting)
+        default:
+            return SessionStatus(kind: .active)
+        }
+    }
+
+    private static func questionPayloads(from payload: [String: Any]) -> [[String: Any]]? {
+        if let questions = payload["questions"] as? [[String: Any]], !questions.isEmpty {
+            return questions
+        }
+        if let questions = decodedQuestions(from: payload["questions"]) {
+            return questions
+        }
+        if let toolInput = payload["tool_input"] as? [String: Any],
+           let questions = toolInput["questions"] as? [[String: Any]],
+           !questions.isEmpty {
+            return questions
+        }
+        if let toolInput = payload["tool_input"] as? [String: Any],
+           let questions = decodedQuestions(from: toolInput["questions"]) {
+            return questions
+        }
+        return nil
+    }
+
+    private static func hasAnsweredQuestionPayload(_ payload: [String: Any]) -> Bool {
+        guard questionToolNames.contains(normalizedToolName(from: payload) ?? "") else {
+            return false
+        }
+
+        let answersCandidate =
+            (payload["tool_input"] as? [String: Any])?["answers"]
+            ?? payload["answers"]
+
+        guard let answersCandidate else { return false }
+
+        if let answers = answersCandidate as? [String: Any] {
+            return !answers.isEmpty
+        }
+        if let answers = answersCandidate as? [String: String] {
+            return !answers.isEmpty
+        }
+        return false
+    }
+
+    private static func isQoderCLIAnsweredQuestionPermissionRequest(
+        eventType: String,
+        clientKind: String?,
+        explicitClientKind: String?
+    ) -> Bool {
+        eventType == "PermissionRequest"
+            && (clientKind == "qoder-cli" || explicitClientKind == "qoder-cli")
+    }
+
+    private static func answeredQuestionStatus(eventType: String) -> SessionStatus {
+        switch eventType {
+        case "PreToolUse":
+            return SessionStatus(kind: .runningTool)
+        case "PostToolUse":
+            return SessionStatus(kind: .active)
+        default:
+            return SessionStatus(kind: .active)
+        }
+    }
+
+    private static func normalizedToolName(from payload: [String: Any]) -> String? {
+        guard let toolName = payload["tool_name"] as? String else { return nil }
+        return toolName
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "_", with: "")
+            .replacingOccurrences(of: "-", with: "")
+            .lowercased()
+    }
+
+    private static func isQoderQuestionToolEvent(eventType: String, payload: [String: Any]) -> Bool {
+        guard eventType == "PreToolUse",
+              questionToolNames.contains(normalizedToolName(from: payload) ?? ""),
+              questionPayloads(from: payload) != nil else {
+            return false
+        }
+        return true
+    }
+
+    private static func isQoderWorkPreToolQuestionEvent(eventType: String, payload: [String: Any]) -> Bool {
+        guard eventType == "PreToolUse",
+              questionToolNames.contains(normalizedToolName(from: payload) ?? ""),
+              questionPayloads(from: payload) != nil else {
+            return false
+        }
+        return true
+    }
+
+    private static func isQoderWorkPermissionQuestionEvent(eventType: String, payload: [String: Any]) -> Bool {
+        guard eventType == "PermissionRequest",
+              questionToolNames.contains(normalizedToolName(from: payload) ?? ""),
+              questionPayloads(from: payload) != nil else {
+            return false
+        }
+        return true
+    }
+
+    private static func isQoderWorkNotifyOnlyPermissionRequest(
+        eventType: String,
+        payload: [String: Any],
+        clientKind: String?
+    ) -> Bool {
+        clientKind == "qoderwork"
+            && eventType == "PermissionRequest"
+            && !isQoderWorkPermissionQuestionEvent(eventType: eventType, payload: payload)
+    }
+
+    private static func shouldSurfaceQuestionIntervention(
+        provider: AgentProvider,
+        eventType: String,
+        payload: [String: Any],
+        clientKind: String?
+    ) -> Bool {
+        if hasAnsweredQuestionPayload(payload) {
+            return false
+        }
+
+        if clientKind == "qoderwork" || clientKind == "qwen-code" {
+            return isQoderWorkPreToolQuestionEvent(eventType: eventType, payload: payload)
+                || isQoderWorkPermissionQuestionEvent(eventType: eventType, payload: payload)
+        }
+
+        if clientKind == "codebuddy-cli" {
+            return isQoderWorkPreToolQuestionEvent(eventType: eventType, payload: payload)
+                || isQoderWorkPermissionQuestionEvent(eventType: eventType, payload: payload)
+        }
+
+        if clientKind == nil {
+            if provider == .claude {
+                return eventType == "UserInputRequest"
+                    || isQoderWorkPermissionQuestionEvent(eventType: eventType, payload: payload)
+            }
+            return isQoderWorkPreToolQuestionEvent(eventType: eventType, payload: payload)
+                || isQoderWorkPermissionQuestionEvent(eventType: eventType, payload: payload)
+                || eventType == "UserInputRequest"
+        }
+
+        return eventType == "PreToolUse" || eventType == "UserInputRequest"
+    }
+
+    private static func isCodeBuddyCLIAskUserQuestionNotification(
+        eventType: String,
+        payload: [String: Any]
+    ) -> Bool {
+        guard eventType == "Notification",
+              (payload["notification_type"] as? String)?
+                  .trimmingCharacters(in: .whitespacesAndNewlines)
+                  .lowercased() == "permission_prompt" else {
+            return false
+        }
+
+        let normalizedMessage = ((payload["message"] as? String) ?? (payload["title"] as? String))?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        guard let normalizedMessage else { return false }
+        return normalizedMessage.contains("askuserquestion")
+            || normalizedMessage.contains("ask user question")
+            || normalizedMessage.contains("ask_user_question")
+            || normalizedMessage.contains("askfollowupquestion")
+            || normalizedMessage.contains("ask followup question")
+            || normalizedMessage.contains("ask_followup_question")
+    }
+
+    private static func normalizedPermissionMode(from payload: [String: Any]) -> String? {
+        (payload["permission_mode"] as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "_", with: "")
+            .lowercased()
+    }
+
+    private static func isQoderCLIPlanExitApproval(eventType: String, payload: [String: Any]) -> Bool {
+        isQoderCLIPlanExitApproval(
+            eventType: eventType,
+            toolName: payload["tool_name"] as? String
+        )
+    }
+
+    private static func isQoderCLIPlanExitApproval(
+        eventType: String,
+        toolName: String?
+    ) -> Bool {
+        eventType == "PreToolUse"
+            && normalizedToolName(toolName) == "exitplanmode"
+    }
+
+    private static func qoderCLIPlanApprovalMessage(from payload: [String: Any]) -> String {
+        if let toolInput = payload["tool_input"] as? [String: Any],
+           let plan = nonEmpty(toolInput["plan"] as? String) {
+            return plan
+        }
+
+        return "Qoder CLI wants to exit plan mode and start coding."
+    }
+
+    private static func normalizedToolName(_ toolName: String?) -> String? {
+        guard let toolName else { return nil }
+        return toolName
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "_", with: "")
+            .replacingOccurrences(of: "-", with: "")
+            .lowercased()
+    }
+
+    private static func shouldRequestCodeBuddyApproval(
+        eventType: String,
+        payload: [String: Any],
+        clientKind: String?
+    ) -> Bool {
+        guard isCodeBuddyFamilyHookClient(clientKind), eventType == "PreToolUse" else {
+            return false
+        }
+
+        guard let normalizedToolName = normalizedToolName(from: payload) else {
+            return false
+        }
+
+        if questionToolNames.contains(normalizedToolName), questionPayloads(from: payload) != nil {
+            return false
+        }
+
+        if let permissionMode = normalizedPermissionMode(from: payload),
+           permissionMode == "bypasspermissions" || permissionMode == "plan" {
+            return false
+        }
+
+        if codeBuddyReadOnlyTools.contains(normalizedToolName) {
+            return false
+        }
+
+        if codeBuddyApprovalTools.contains(normalizedToolName) {
+            return true
+        }
+
+        return payload["tool_input"] != nil
+    }
+
+    private static func decodedQuestions(from rawValue: Any?) -> [[String: Any]]? {
+        guard let rawValue else { return nil }
+
+        if let questions = rawValue as? [[String: Any]], !questions.isEmpty {
+            return questions
+        }
+
+        if let question = rawValue as? [String: Any] {
+            return [question]
+        }
+
+        if let string = rawValue as? String,
+           let data = string.data(using: .utf8),
+           let json = try? JSONSerialization.jsonObject(with: data) {
+            if let questions = json as? [[String: Any]], !questions.isEmpty {
+                return questions
+            }
+            if let question = json as? [String: Any] {
+                return [question]
+            }
+        }
+
+        return nil
+    }
+
+    private static func codeBuddyStdoutPayload(
+        response: BridgeResponse,
+        decision: InterventionDecision
+    ) -> String {
+        var payload: [String: Any] = [:]
+
+        switch decision {
+        case .approve, .approveForSession:
+            payload["permissionDecision"] = "allow"
+        case .deny, .cancel:
+            payload["permissionDecision"] = "deny"
+            payload["permissionDecisionReason"] = response.reason ?? "Denied from Island"
+        case .answer:
+            payload["permissionDecision"] = "allow"
+            if let updatedInput = response.updatedInput {
+                payload["modifiedInput"] = updatedInput.mapValues(\.foundationObject)
+            }
+        }
+
+        guard JSONSerialization.isValidJSONObject(payload),
+              let data = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]),
+              let string = String(data: data, encoding: .utf8) else {
+            return "{}"
+        }
+
+        return string
+    }
+
+    private static func qoderCLIAnswerPayload(
+        response: BridgeResponse,
+        eventType: String,
+        answers: [String: String]
+    ) -> String {
+        let updatedInput = response.updatedInput?.mapValues(\.foundationObject)
+            ?? ["answers": answers]
+        let payload: [String: Any] = [
+            "hookSpecificOutput": [
+                "hookEventName": eventType,
+                "permissionDecision": "allow",
+                "decision": [
+                    "behavior": "allow",
+                    "updatedInput": updatedInput
+                ],
+                "updatedInput": updatedInput
+            ]
+        ]
+
+        guard JSONSerialization.isValidJSONObject(payload),
+              let data = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]),
+              let string = String(data: data, encoding: .utf8) else {
+            return "{}"
+        }
+
+        return string
+    }
+
+    private static func qoderCLIPermissionPayload(
+        response: BridgeResponse,
+        decision: InterventionDecision,
+        eventType: String
+    ) -> String {
+        let behavior: String
+        var decisionOutput: [String: Any]
+
+        switch decision {
+        case .approve, .approveForSession:
+            behavior = "allow"
+            decisionOutput = ["behavior": "allow"]
+        case .deny, .cancel:
+            behavior = "deny"
+            decisionOutput = [
+                "behavior": "deny",
+                "message": response.reason ?? "Denied from Island"
+            ]
+        case .answer:
+            behavior = "allow"
+            decisionOutput = ["behavior": "allow"]
+        }
+
+        var hookSpecificOutput: [String: Any] = [
+            "hookEventName": eventType,
+            "permissionDecision": behavior,
+            "decision": decisionOutput
+        ]
+
+        if behavior == "deny" {
+            hookSpecificOutput["permissionDecisionReason"] = response.reason ?? "Denied from Island"
+        }
+
+        let payload: [String: Any] = ["hookSpecificOutput": hookSpecificOutput]
+        guard JSONSerialization.isValidJSONObject(payload),
+              let data = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]),
+              let string = String(data: data, encoding: .utf8) else {
+            return "{}"
+        }
+
+        return string
+    }
+
+    private static func qwenCodePermissionPayload(
+        response: BridgeResponse,
+        decision: InterventionDecision,
+        eventType: String,
+        metadata: [String: String]
+    ) -> String {
+        var decisionOutput: [String: Any]
+
+        switch decision {
+        case .approve:
+            decisionOutput = ["behavior": "allow"]
+        case .approveForSession:
+            decisionOutput = ["behavior": "allow"]
+            if eventType == "PermissionRequest",
+               let updatedPermissions = qwenCodeUpdatedPermissions(from: metadata),
+               !updatedPermissions.isEmpty {
+                decisionOutput["updatedPermissions"] = updatedPermissions
+            }
+        case .deny, .cancel:
+            decisionOutput = [
+                "behavior": "deny",
+                "message": response.reason ?? "Denied from Island"
+            ]
+        case .answer:
+            decisionOutput = ["behavior": "allow"]
+            if let updatedInput = response.updatedInput {
+                decisionOutput["updatedInput"] = updatedInput.mapValues(\.foundationObject)
+            }
+        }
+
+        let payload: [String: Any] = [
+            "hookSpecificOutput": [
+                "hookEventName": eventType,
+                "decision": decisionOutput
+            ]
+        ]
+        guard JSONSerialization.isValidJSONObject(payload),
+              let data = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]),
+              let string = String(data: data, encoding: .utf8) else {
+            return "{}"
+        }
+
+        return string
+    }
+
+    private static func qwenCodeUpdatedPermissions(from metadata: [String: String]) -> [String]? {
+        if let rules = decodedStringArray(from: firstNonEmpty(
+            metadata["updatedPermissions"],
+            metadata["updated_permissions"],
+            metadata["permission_rules"],
+            metadata["permissionRules"]
+        )) {
+            return rules
+        }
+
+        if let suggestions = decodedJSONArray(from: metadata["permission_suggestions"]) {
+            let suggestedRules = suggestions.flatMap { suggestion -> [String] in
+                guard let object = suggestion as? [String: Any] else {
+                    return (suggestion as? String).map { [$0] } ?? []
+                }
+
+                let suggestionType = (object["type"] as? String)?
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                    .lowercased()
+                guard suggestionType == nil || suggestionType == "allow" else {
+                    return []
+                }
+
+                return [
+                    "updatedPermissions",
+                    "updated_permissions",
+                    "permissionRules",
+                    "permission_rules",
+                    "permissions",
+                    "rules"
+                ].flatMap { key in stringArray(from: object[key]) }
+            }
+            if !suggestedRules.isEmpty {
+                return uniqueStrings(suggestedRules)
+            }
+        }
+
+        guard isQwenShellPermission(metadata),
+              let command = qwenShellCommand(from: metadata) else {
+            return nil
+        }
+        return ["Bash(\(command))"]
+    }
+
+    private static func isQwenShellPermission(_ metadata: [String: String]) -> Bool {
+        let toolName = (metadata["tool_name"] ?? metadata["toolName"] ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+            .replacingOccurrences(of: "_", with: "")
+            .replacingOccurrences(of: "-", with: "")
+        return toolName == "runshellcommand" || toolName == "bash" || toolName == "shell"
+    }
+
+    private static func qwenShellCommand(from metadata: [String: String]) -> String? {
+        let rawInput = firstNonEmpty(metadata["tool_input_json"], metadata["toolInputJSON"])
+        guard let object = decodedJSONObject(from: rawInput) else {
+            return nil
+        }
+
+        return firstNonEmpty(
+            object["command"] as? String,
+            object["cmd"] as? String,
+            object["script"] as? String
+        )
+    }
+
+    private static func decodedJSONObject(from string: String?) -> [String: Any]? {
+        guard let string,
+              let data = string.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return nil
+        }
+        return object
+    }
+
+    private static func decodedJSONArray(from string: String?) -> [Any]? {
+        guard let string,
+              let data = string.data(using: .utf8),
+              let array = try? JSONSerialization.jsonObject(with: data) as? [Any] else {
+            return nil
+        }
+        return array
+    }
+
+    private static func decodedStringArray(from string: String?) -> [String]? {
+        guard let string else { return nil }
+        if let array = decodedJSONArray(from: string) {
+            let values = array.compactMap { $0 as? String }
+            return values.isEmpty ? nil : values
+        }
+
+        let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : [trimmed]
+    }
+
+    private static func stringArray(from value: Any?) -> [String] {
+        switch value {
+        case let strings as [String]:
+            return strings
+        case let values as [Any]:
+            return values.compactMap { $0 as? String }
+        case let string as String:
+            return [string]
+        default:
+            return []
+        }
+    }
+
+    private static func uniqueStrings(_ values: [String]) -> [String] {
+        var seen = Set<String>()
+        return values.filter { value in
+            seen.insert(value).inserted
+        }
+    }
+
+    private static func firstNonEmpty(_ values: String?...) -> String? {
+        values.compactMap { nonEmpty($0) }.first
+    }
+
+    private static func qoderWorkAnswerPayload(
+        response: BridgeResponse,
+        eventType: String,
+        answers: [String: String]
+    ) -> String {
+        let updatedInput = response.updatedInput?.mapValues(\.foundationObject)
+            ?? ["answers": answers]
+        let payload: [String: Any] = [
+            "hookSpecificOutput": [
+                "hookEventName": eventType,
+                "permissionDecision": "allow",
+                "updatedInput": updatedInput
+            ]
+        ]
+
+        guard JSONSerialization.isValidJSONObject(payload),
+              let data = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]),
+              let string = String(data: data, encoding: .utf8) else {
+            return "{}"
+        }
+
+        return string
+    }
+
+    private static func sanitizedDisplayText(_ text: String?) -> String? {
+        guard let text else { return nil }
+
+        var cleaned = text
+        cleaned = cleaned.replacingOccurrences(
+            of: #"(?is)<system-reminder>.*?</system-reminder>"#,
+            with: " ",
+            options: .regularExpression
+        )
+        cleaned = cleaned.replacingOccurrences(
+            of: #"(?is)<system-reminder>.*$"#,
+            with: " ",
+            options: .regularExpression
+        )
+        cleaned = cleaned
+            .replacingOccurrences(of: "\r", with: " ")
+            .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return cleaned.isEmpty ? nil : cleaned
+    }
+}
+
+private extension AgentProvider {
+    var displayName: String {
+        switch self {
+        case .claude:
+            return "Claude"
+        case .codex:
+            return "Codex"
+        case .copilot:
+            return "Copilot"
+        case .kimi:
+            return "Kimi"
+        case .gemini:
+            return "Gemini"
+        }
+    }
+}

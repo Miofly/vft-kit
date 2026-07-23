@@ -1,7 +1,7 @@
 {
   "name": "vft-kit",
-  "version": "0.1.0+codex.20260717144910",
-  "description": "Claude Code operations and reusable development utilities, adapted for Codex skill discovery.",
+  "version": "0.2.0+codex.20260723062520",
+  "description": "Claude Code and Codex operations, reusable development utilities, and a verified ai-helper installer.",
   "author": {
     "name": "wfly"
   },
@@ -16,7 +16,7 @@
   "interface": {
     "displayName": "VFT Kit",
     "shortDescription": "Claude Code operations and shared development tools.",
-    "longDescription": "A local toolbox that keeps Claude Code operational skills intact while exposing reusable frontend, testing, infographic, and refactoring skills to Codex.",
+    "longDescription": "A local toolbox for Claude Code and Codex operations, reusable development workflows, and verified installation of the ai-helper macOS menu bar app.",
     "developerName": "wfly",
     "category": "Productivity",
     "capabilities": [
@@ -26,7 +26,8 @@
     "defaultPrompt": [
       "Use fe-auto-test to verify this page.",
       "Split this oversized Vue SFC.",
-      "Create an infographic from this content."
+      "Create an infographic from this content.",
+      "Install the latest signed ai-helper release."
     ],
     "brandColor": "#0F766E"
   }

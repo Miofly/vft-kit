@@ -1,0 +1,185 @@
+# AGENTS.md
+
+This file is a routing layer for coding agents working in this repo. Keep it short. Put long-lived detail in nearby code, focused docs, or tests.
+
+## Mission
+
+- `AIHelper` is a macOS menu bar app that surfaces Dynamic Island-style status for Claude Code, Codex, Gemini CLI, Hermes Agent, Qwen Code, Kimi CLI, and compatible hook-driven agent sessions.
+- The main runtime path is:
+  - hook or app-server events
+  - monitoring and service layers
+  - `SessionStore`
+  - `SessionMonitor` and `NotchViewModel`
+  - SwiftUI notch UI
+- There are two important codepaths:
+  - `AIHelper/`: the shipping Xcode app
+  - `Prototype/`: a SwiftPM prototype with focused tests and reference implementations
+
+## Start Here
+
+- Product overview: `README.md`
+- App entry: `AIHelper/App/AIHelperApp.swift`, `AIHelper/App/AppDelegate.swift`
+- Docked/detached presentation orchestration: `AIHelper/App/IslandPresentationCoordinator.swift`, `AIHelper/App/WindowManager.swift`
+- First-run surface-mode onboarding and mode-switch UI: `AIHelper/App/AppDelegate.swift`, `AIHelper/UI/Window/SettingsWindowController.swift`, `AIHelper/UI/Views/SettingsWindowView.swift`
+- Main state hub: `AIHelper/Services/State/SessionStore.swift`
+- Session association cache: `AIHelper/Services/State/SessionAssociationStore.swift`
+- Usage/quota snapshots for Claude status-line caches, Claude-family transcript token totals, and Codex rollout logs: `AIHelper/Services/Usage/`
+- Menu bar quota summary for Claude and Codex: `AIHelper/App/UsageMenuBarController.swift`
+- Native runtime rollout scaffold: `AIHelper/Services/Runtime/`, `AIHelper/Core/FeatureFlags.swift`
+- Session bridge for UI: `AIHelper/Services/Session/SessionMonitor.swift`
+- Notch state and layout: `AIHelper/Core/NotchViewModel.swift`, `AIHelper/UI/Views/NotchView.swift`
+- App-wide low-power policy for background polling, event monitoring, UI animation tiers, and silent update gating: `AIHelper/Core/EnergyGovernor.swift`
+- User idle protection for temporarily routing blocking approvals/questions back to terminals: `AIHelper/Core/UserIdleAutoProtection.swift`, `AIHelper/Core/Settings.swift`, `AIHelper/Services/Hooks/BridgeRuntimeConfigWriter.swift`
+- Detached floating capsule: `AIHelper/UI/Window/DetachedIslandWindowController.swift`, `AIHelper/UI/Views/DetachedIslandPanelView.swift`, `AIHelper/UI/Views/IslandOpenedContentView.swift`
+  - Detached pet interactions now keep the pet anchored in place while hover/click previews expand sideways as message-bubble lists; trace both the panel layout and window-anchor math together when changing this flow
+  - Expanded content routing is shared with the docked notch through `IslandOpenedContentView` + `IslandExpandedRouteResolver`; keep hover/click/notification semantics aligned instead of reintroducing detached-only content priorities
+- Global shortcuts and shortcut persistence: `AIHelper/Services/Shared/GlobalShortcutManager.swift`, `AIHelper/Utilities/GlobalShortcut.swift`, `AIHelper/Core/Settings.swift`, `AIHelper/UI/Views/SettingsWindowView.swift`
+- Claude hook ingress: `Prototype/Sources/IslandBridge/`, `AIHelper/Services/Hooks/HookInstaller.swift`, `AIHelper/Services/Hooks/HookSocketServer.swift`
+  - `AIHelperBridge` is the unified Claude/Codex hook entrypoint and is responsible for terminal, tmux, SSH-remote, and IDE terminal context capture before envelopes hit Swift code
+- Codex ingress: `AIHelper/Services/Codex/`, `AIHelper/UI/Views/CodexSessionView.swift`
+  - Hook-less fallback parsing for Codex sessions lives in `AIHelper/Services/Codex/CodexRolloutParser.swift`
+- Terminal and focus control: `AIHelper/Services/Tmux/`, `AIHelper/Services/Window/`, `AIHelper/Utilities/TerminalVisibilityDetector.swift`
+  - Terminal focus flows currently cover iTerm2, Ghostty, Terminal.app, tmux, and IDE-hosted terminals
+- Remote SSH forwarding and remote-host management: `AIHelper/Services/Remote/`
+  - Remote hosts can bootstrap a bridge on the SSH target, rewrite remote hooks, install managed plugin-directory integrations such as Hermes under the remote home directory, and attach a bidirectional forwarding channel back into AIHelper
+  - The remote bridge forwards recent Codex app-server thread activity from the SSH target's `~/.codex/state_*.sqlite` through the existing remote hook-event channel
+- Provider/client routing: bridge envelopes are normalized in `AIHelper/Services/Hooks/HookSocketServer.swift`, stored on `SessionState`, and launched via `AIHelper/Services/Window/SessionLauncher.swift`
+- Client profile registry: installable hook clients and runtime client branding / recognition are centralized in `AIHelper/Models/ClientProfile.swift`
+- VS Code-compatible IDE focus extension install / URI launch: `AIHelper/Services/Window/IDEExtensionInstaller.swift`, `AIHelper/Services/Window/TerminalSessionFocuser.swift`
+- Session list UI: `AIHelper/UI/Views/SessionListView.swift`
+- Client mascot system: `AIHelper/UI/Components/MascotView.swift`, `AIHelper/UI/Views/MascotSettingsView.swift`
+- App updates and release notes: `AIHelper/Services/Update/`, `AIHelper/UI/Views/ReleaseNotesWindowView.swift`, `AIHelper/UI/Window/ReleaseNotesWindowController.swift`
+- Sparkle build configuration: `Config/App.xcconfig`, `Config/LocalSecrets.xcconfig`, `docs/sparkle-release.md`
+- Mac App Store distribution lane: `AIHelperAppStore` target / scheme, `AIHelper/Info-AppStore.plist`, `AIHelper/Resources/AIHelper-AppStore.entitlements`, `Config/AppStore.xcconfig`, `scripts/build-app-store.sh`, and `docs/mac-app-store-submission.md`
+
+## Repo Map
+
+- `AIHelper/App`: app lifecycle, window setup, screen observation
+- `AIHelper/Core`: notch geometry, shared state, app settings, selectors
+- `AIHelper/Models`: domain models for sessions, events, tools, phases
+- `AIHelper/Services`: ingestion, socket handling, state management, tmux, windows, updates
+- `AIHelper/Services/Usage`: Claude status-line quota cache readers, Claude-family transcript token parsing, and Codex rollout quota readers for UI usage summaries
+- `AIHelper/Services/Runtime`: isolated native Claude/Codex runtime work. This path should coexist with the current implementation behind feature flags until parity is proven.
+- `AIHelper/Services/Remote`: remote endpoint persistence, SSH bootstrap / attach, and remote hook forwarding
+  - Remote bootstrap currently covers JSON hook configs, managed hook directories, and managed plugin directories (for example remote Hermes installs under `~/.hermes/plugins/ping_island`)
+- `AIHelper/Services/Update`: Sparkle updater bridge, appcast/release-notes loading, update state publishing
+- `AIHelper/Services/Window/IDEExtensionInstaller.swift`: installs the VS Code-compatible terminal-focus extension used by Cursor / VS Code / CodeBuddy / Qoder style IDE hosts (`QoderWork` is hook-only, not an IDE extension host)
+- `AIHelper/UI`: SwiftUI views, reusable components, AppKit-backed window controllers
+- `AIHelper/Resources`: hook assets, entitlements, bundled fonts
+- `Prototype`: Swift package prototype and testbed
+- `Prototype/Tests`: logic-level unit tests plus process/socket e2e coverage for `IslandBridge`, hook mapping, and install flows
+- `scripts`: release, signing, and packaging automation
+- `Config`: checked-in build configuration defaults plus optional local-only secrets overrides
+
+## Change Routing
+
+- If you change hook payload shape or hook event semantics, update these together:
+  - `Prototype/Sources/IslandBridge/`
+  - `AIHelper/Services/Hooks/HookSocketServer.swift`
+  - `AIHelper/Models/SessionEvent.swift`
+  - `AIHelper/Services/State/SessionStore.swift`
+  - the affected UI under `AIHelper/UI/`
+- If you change provider/client detection or click-through behavior, trace through `HookSocketServer`, `SessionStore`, `SessionState`, `SessionLauncher`, and the session list / hover UI so labels and launch targets stay in sync.
+- If you add a Claude-compatible hook client, start in `AIHelper/Models/ClientProfile.swift` and wire any truly client-specific behavior from there before adding new ad-hoc switches elsewhere.
+  - Gemini CLI hooks are managed through `~/.gemini/settings.json`; its `BeforeTool` / `AfterTool` matchers are regex-based, so use `.*` rather than Claude-style `*`.
+  - Hermes Agent CLI integration must use plugin hooks under `~/.hermes/plugins/ping_island/`; `~/.hermes/hooks/` is gateway-only and will not fire in the Hermes CLI, so keep ai-helper on `ctx.register_hook()`-based plugin registration instead of gateway hook directories.
+  - Qwen Code hooks are managed through `~/.qwen/settings.json`; follow the official Qwen Code hook event names (`PreToolUse`, `PostToolUseFailure`, `Notification`, `Stop`, etc.) and remember that `Notification` matcher values are exact notification types such as `permission_prompt`, `idle_prompt`, and `auth_success`.
+  - OpenClaw hooks are managed as a generated internal hook directory under `~/.openclaw/hooks/<hook-name>/` and require the paired enablement entry in `~/.openclaw/openclaw.json`; treat it as a directory-discovery integration, not a JSON hook list.
+  - Gemini `Notification` hooks are observability-only in the upstream protocol; do not treat them as actionable approval callbacks unless the bridge grows explicit Gemini response handling.
+  - Qoder-family hook installs currently cover Qoder IDE and Qoder CLI as separate profiles that share `~/.qoder/settings.json`, plus QoderWork under `~/.qoderwork/settings.json`. Keep Qoder IDE and Qoder CLI hook semantics independent even though they share a file; app launch should refresh only the Qoder CLI managed entries when `qodercli -v` is newer than 0.2.5 while preserving Qoder IDE hooks and unrelated JSON settings. New Qoder CLI uses Claude Code-compatible blocking hooks and response payloads; Qoder IDE and QoderWork remain notify-only and must not create Island-side blocking question or approval responses.
+  - CodeBuddy-family hook installs currently cover CodeBuddy IDE and CodeBuddy CLI as separate profiles that share `~/.codebuddy/settings.json`, plus WorkBuddy under `~/.workbuddy/settings.json`. Keep CodeBuddy IDE and CodeBuddy CLI hook semantics independent even though they share a file; CodeBuddy CLI uses its Claude-compatible hook response shape and must preserve CodeBuddy IDE hooks plus unrelated JSON settings.
+  - OpenCode is managed as a generated plugin file under `~/.config/opencode/plugins/ai-helper.js`; treat it as a plugin-based integration, not a JSON hooks file.
+  - Kimi CLI hooks are managed through `~/.kimi/config.toml`; use `[[hooks]]` array-of-tables syntax. The installer preserves all non-Island TOML content (providers, models, loop_control, etc.) and only manipulates the `[[hooks]]` sections. Event names follow the Claude Code convention (`SessionStart`, `SessionEnd`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PermissionRequest`, `Notification`, `Stop`).
+  - Pi Agent is managed as a generated TypeScript extension under `~/.pi/agent/extensions/ping_island/index.ts`; treat it as an official Pi extension integration that forwards events through the Claude-compatible bridge with `client-kind=pi`, not as JSON/RPC polling or process scanning. Pi has a dedicated `MascotKind.pi`, so trace mascot changes through `ClientProfile`, `SessionProvider`, `MascotView`, and mascot settings together.
+  - `QoderWork` should not be added to `ideExtensionProfiles` unless it actually ships VS Code-compatible extension support in the future.
+- If you change how sessions are associated across relaunches or between hook/app-server ingress paths, inspect both `SessionStore` and `SessionAssociationStore` so cached client metadata stays compatible.
+- If you change the new native runtime rollout path, keep it isolated from the legacy hook/app-server flow. Reuse shared `SessionState`-driven views, but keep runtime orchestration, persistence, and feature gating under `AIHelper/Services/Runtime/` and `AIHelper/Core/FeatureFlags.swift`.
+- If you change session lifecycle or transitions, start in `SessionStore`. Avoid ad-hoc state mutation elsewhere.
+  - Current rule: provider-originated end events should preserve the session in `.ended` so it stays visible in the list; only explicit user archive/removal should delete it from `SessionStore`.
+  - Primary list rule: sessions with no new activity for 30 minutes should auto-hide from the primary list until fresh hook/file/app-server activity updates `lastActivity`; sessions that need manual attention should stay visible.
+- If you change notch sizing, opening behavior, or visibility, inspect both `NotchViewModel` and `NotchView`.
+- If you change docked/detached Island transitions or drag-to-detach behavior, trace through `IslandPresentationCoordinator`, `WindowManager`, `NotchViewModel`, `NotchWindowController`, and `DetachedIslandWindowController` together so gesture gating, content resolution, and re-docking stay aligned.
+- If you change the persisted surface mode or first-run onboarding, trace through `AppDelegate`, `WindowManager`, `IslandPresentationCoordinator`, `SettingsWindowController`, `SettingsWindowView`, and `Settings.swift` together so launch-time routing and in-app switching stay aligned.
+- If you change global shortcuts, shortcut persistence, or shortcut hints, trace through `AIHelper/Services/Shared/GlobalShortcutManager.swift`, `AIHelper/Utilities/GlobalShortcut.swift`, `AIHelper/Core/Settings.swift`, `AIHelper/UI/Views/SettingsWindowView.swift`, `AIHelper/UI/Components/GlobalShortcutHintView.swift`, and the relevant notch/chat/session-list views together so registration, customization, and visible hints stay aligned.
+- If you change background polling, global event monitors, silent update scheduling, or idle animation behavior, inspect `AIHelper/Core/EnergyGovernor.swift` plus the affected service/view so active sessions stay responsive while quiet, locked, or sleeping periods remain low-power.
+- If you change built-in notification sounds or startup audio, inspect `AIHelper/Core/Settings.swift`, `AIHelper/Core/SoundPackCatalog.swift`, `AIHelper/UI/Views/SettingsWindowView.swift`, `AIHelper/App/AppDelegate.swift`, and `AIHelper/Resources/Sounds/` together so mode selection, fixed mappings, previews, and bundled assets stay aligned.
+- If you change client mascot selection or mascot animations, trace through `AIHelper/Models/ClientProfile.swift`, `AIHelper/Core/Settings.swift`, `AIHelper/UI/Components/MascotView.swift`, and the mascot callsites in `NotchView`, `SessionListView`, `SessionHoverPreviewView`, and `MascotSettingsView` so runtime overrides and previews stay aligned.
+- If you change completion-result popup behavior, trace through `SessionStore`, `SessionMonitor`, `AIHelper/UI/Views/NotchView.swift`, and `AIHelper/UI/Views/SessionCompletionNotificationView.swift` so completion detection, queueing, and auto-dismiss timing stay aligned.
+- If you change tmux or terminal focusing, trace through `Services/Tmux`, `Services/Window`, and `TerminalVisibilityDetector`.
+- If you change IDE terminal jump behavior, inspect both `TerminalSessionFocuser` and `IDEExtensionInstaller`, plus the integration settings UI so install state and URI schemes stay aligned.
+- If you change Codex behavior, verify both the monitor layer under `AIHelper/Services/Codex/` and the UI under `AIHelper/UI/Views/CodexSessionView.swift`.
+  - Long Codex/subagent prompts, results, tool details, and transcript rows must keep full data in `SessionStore` / snapshots and apply bounded display text only at SwiftUI rendering boundaries. Prefer `SessionTextSanitizer.boundedDisplayText` for inline `Text` / Markdown content, add or preserve tests for truncation behavior, and avoid passing unbounded transcripts directly into expanded Island detail views.
+- If you change app updates or release notes, trace through `AIHelper/Services/Update/`, `AIHelper/Info.plist`, the settings UI, and `scripts/create-release.sh` so appcast assets, runtime config, and update messaging stay aligned.
+- If you change Sparkle configuration keys or hosting assumptions, update `Config/App.xcconfig`, `Config/LocalSecrets.example.xcconfig`, `scripts/generate-keys.sh`, and `docs/sparkle-release.md` together.
+- If you change App Store distribution behavior, keep the `AIHelperAppStore` target isolated from the regular `AIHelper` Developer ID/Sparkle lane, and update `docs/mac-app-store-submission.md` plus `scripts/build-app-store.sh` together.
+- If you only need logic-level confidence, prefer adding or updating tests under `Prototype/Tests`.
+
+## Build And Test
+
+- Full repo regression:
+  - `./scripts/test.sh`
+- App debug build:
+  - `xcodebuild -project AIHelper.xcodeproj -scheme AIHelper -configuration Debug build`
+- App release build:
+  - `xcodebuild -project AIHelper.xcodeproj -scheme AIHelper -configuration Release build`
+- Mac App Store unsigned archive validation:
+  - `PING_ISLAND_SKIP_APP_STORE_SIGNING=1 ./scripts/build-app-store.sh`
+- Root Xcode unit tests:
+  - `xcodebuild -project AIHelper.xcodeproj -scheme AIHelper -configuration Debug CODE_SIGNING_ALLOWED=NO test -only-testing:AIHelperTests`
+- Root Xcode UI tests:
+  - `xcodebuild -project AIHelper.xcodeproj -scheme AIHelper -configuration Debug CODE_SIGN_IDENTITY=- test -only-testing:AIHelperUITests`
+  - macOS may block the UI test runner until a valid local signing identity is available; if `AIHelperUITests-Runner` stays launch-suspended, inspect `amfid` and `AppleSystemPolicy` logs before treating it as an app regression
+- Prototype tests:
+  - `swift test --package-path Prototype`
+- Bridge-focused e2e slice:
+  - `swift test --package-path Prototype --filter IslandBridgeE2ETests`
+- Mascot GIF export for docs/resources:
+  - `./scripts/render-mascots.sh`
+- Release automation (from `apps/ai-helper/` inside the vft-kit monorepo):
+  - `./scripts/build.sh`
+  - `./scripts/package-release.sh`
+  - `./scripts/package-unsigned.sh`
+  - `./scripts/create-release.sh`
+  - `./scripts/generate-keys.sh`
+  - `scripts/create-release.sh` publishes signed/notarized `dmg` / `zip` assets, `appcast.xml`, and a DMG SHA-256 file to the vft-kit GitHub repository under an `ai-helper-v*` tag. The plugin's `install-ai-helper` skill requires the DMG and matching `.sha256` asset.
+- Release scripts assume local signing and notarization tooling. They may modify `build/`, `releases/`, and `.sparkle-keys/`.
+
+## Working Rules
+
+- Respect existing uncommitted changes. Do not revert unrelated work.
+- Prefer narrow edits. This repo currently has active changes in UI and session-flow files.
+- Treat documentation upkeep as part of the change, not follow-up work.
+- When writing or updating tests, do not use the user's local filesystem paths as example values; prefer repo-relative, generic, or clearly synthetic paths instead.
+- Every major feature change or refactor must review and update `AGENTS.md` plus any affected adjacent docs, tests, scripts, or inline code comments that describe the old behavior.
+- Prefer code search over guesswork:
+  - `rg "process\\(" AIHelper`
+  - `rg "Hook|hook" AIHelper`
+  - `rg "Codex" AIHelper Prototype`
+  - `rg "tmux|Tmux" AIHelper`
+- When adding new state, decide deliberately whether it belongs in:
+  - SwiftUI view-local `@State`
+  - shared `ObservableObject` state
+  - actor-owned `SessionStore` state
+- Keep localization lookups at UI or other actor-appropriate boundaries. `AppLocalization.string` is main-actor isolated on CI toolchains, so nonisolated utilities such as sanitizers, parsers, stores, and model helpers should expose localization keys or plain data instead of calling localization APIs directly.
+- When adding bundled assets or fonts, make sure app startup initializes them.
+- Keep this file high-signal. If a section becomes long, move the durable detail into a dedicated markdown doc and link it here.
+
+## Verification Checklist
+
+- Can the main Xcode scheme still build?
+- If the change is a major feature or refactor, was `AGENTS.md` reviewed and updated to reflect the new structure, ownership, entrypoints, or verification steps?
+- If session ingestion changed, do both Claude and Codex sessions still appear and update?
+- If session lifecycle changed, do ended sessions remain visible until the user archives them, and do final Claude/Codex messages still land before the row settles into `.ended`?
+- If idle-session visibility changed, do sessions auto-hide after 30 minutes of inactivity and reappear when a new message or hook/app-server event arrives?
+- If detached Island behavior changed, can the docked notch still click-open normally, drag-detach from closed/opened states, and re-dock cleanly without duplicate windows?
+- If approval or intervention flows changed, do approve, deny, and answer paths still resolve cleanly?
+- If focus logic changed, does tmux and non-tmux behavior still degrade safely?
+- If release tooling changed, avoid running notarization or signing steps unless the task explicitly requires them.
+
+## Current Reality
+
+- The main shipping target is the Xcode project, not the Swift package under `Prototype/`.
+- The root project now includes `AIHelperTests` and `AIHelperUITests` targets for app-level state and settings-window coverage.
+- `Prototype/Tests` remains the fastest place for logic-level unit tests plus process/socket e2e coverage.
+- Sparkle update discovery is expected to use the GitHub Releases `latest/download/appcast.xml` asset unless a local override explicitly replaces it.
+- The worktree may already be dirty. Check `git status` before broad edits.
