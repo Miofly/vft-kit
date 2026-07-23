@@ -33,6 +33,12 @@ cfg_section_has_line(){
     END { exit found?0:1 }
   ' "$CONFIG"
 }
+mcp_configured(){
+  cfg_section_has_line "[mcp_servers.$1]" '^[[:space:]]*command[[:space:]]*='
+}
+mcp_enabled(){
+  ! cfg_section_has_line "[mcp_servers.$1]" '^[[:space:]]*enabled[[:space:]]*=[[:space:]]*false[[:space:]]*$'
+}
 plugin_enabled(){
   local key="$1"
   cfg_section_has_line "[plugins.\"$key\"]" '^[[:space:]]*enabled[[:space:]]*=[[:space:]]*true[[:space:]]*$'
@@ -100,6 +106,7 @@ has_cmd node  && ok "node ($(node -v 2>/dev/null))"                       || bad
 has_cmd npm   && ok "npm ($(npm -v 2>/dev/null))"                         || bad "npm" "随 node 安装"
 has_cmd git   && ok "git ($(git --version 2>/dev/null | awk '{print $3}'))" || bad "git" "安装 git"
 has_cmd jq    && ok "jq"                                                   || opt "jq" "brew install jq"
+has_cmd gh    && ok "gh ($(gh --version 2>/dev/null | head -1 | awk '{print $3}'))" || opt "gh" "brew install gh（GitHub CLI：PR/Actions/仓库操作，可选）"
 
 sec "dangerous full access 权限基线"
 [ -f "$CONFIG" ] && ok "$CONFIG" || bad "config.toml" "创建 ~/.codex/config.toml"
@@ -118,17 +125,32 @@ else
 fi
 
 sec "Playwright MCP"
-if cfg_section_has_line "[mcp_servers.playwright]" '^[[:space:]]*command[[:space:]]*='; then
+if mcp_configured "playwright"; then
   ok "playwright MCP 已配置"
-  if cfg_section_has_line "[mcp_servers.playwright]" '^[[:space:]]*enabled[[:space:]]*=[[:space:]]*false[[:space:]]*$'; then
-    bad "playwright MCP 已禁用" '删除 [mcp_servers.playwright] 下的 enabled = false，或改为 enabled = true'
-  else
+  if mcp_enabled "playwright"; then
     ok "playwright MCP 已启用"
+  else
+    bad "playwright MCP 已禁用" '删除 [mcp_servers.playwright] 下的 enabled = false，或改为 enabled = true'
   fi
 else
   bad "playwright MCP" "codex mcp add playwright -- npx --yes @playwright/mcp@latest"
 fi
 chromium_installed && ok "Playwright Chromium 内核" || bad "Playwright Chromium 内核" "npx --yes playwright install chromium"
+
+sec "常用 MCP（可选）"
+if has_cmd codegraph; then ok "codegraph CLI ($(codegraph -V 2>/dev/null))"; else opt "codegraph CLI" "npm i -g @colbymchenry/codegraph"; fi
+if mcp_configured "codegraph"; then
+  ok "codegraph MCP 已配置"
+  mcp_enabled "codegraph" && ok "codegraph MCP 已启用" || opt "codegraph MCP 已禁用" '删除 [mcp_servers.codegraph] 下的 enabled = false，或改为 enabled = true'
+else
+  opt "codegraph MCP" "codex mcp add codegraph -- codegraph serve --mcp"
+fi
+if mcp_configured "lighthouse-mcp"; then
+  ok "lighthouse-mcp MCP 已配置"
+  mcp_enabled "lighthouse-mcp" && ok "lighthouse-mcp MCP 已启用" || opt "lighthouse-mcp MCP 已禁用" '删除 [mcp_servers.lighthouse-mcp] 下的 enabled = false，或改为 enabled = true'
+else
+  opt "lighthouse-mcp MCP" "npm i -g @danielsogl/lighthouse-mcp && codex mcp add lighthouse-mcp -- node \"\$(npm root -g)/@danielsogl/lighthouse-mcp/dist/index.js\""
+fi
 
 sec "CLI 插件（启用 + cache）"
 for key in \
@@ -156,6 +178,7 @@ sec "全局 AGENTS 规范"
 agents_has '中文回复|简体中文|一律中文|reply.*[Cc]hinese' && ok "全局规范含「始终中文回复」" || opt "中文回复规范" $'printf \'\\n- 始终使用简体中文回复。\\n\' >> ~/.codex/AGENTS.md'
 agents_has '可点短链|短链|markdown 可点|Cannot open file' && ok "全局规范含「代码位置可点短链」" || opt "代码短链规范" $'printf \'\\n- 引用代码位置使用 markdown 可点短链：[短名:行](绝对路径:行)。\\n\' >> ~/.codex/AGENTS.md'
 agents_has '上下文压缩|压缩取舍|保留决策和状态' && ok "全局规范含「压缩取舍规则」" || opt "压缩取舍规范" $'printf \'\\n- 上下文压缩时保留决策和状态，丢弃可重跑恢复的噪音。\\n\' >> ~/.codex/AGENTS.md'
+agents_has '代理兜底|走代理重试|外网.*代理|127\.0\.0\.1:78|http\.proxy|https_proxy' && ok "全局规范含「外网操作代理兜底」" || opt "代理兜底规范" $'printf \'\\n- 外网操作连不通或慢得反常时，先复用 https_proxy/http_proxy/all_proxy；没有则探测常见本地代理端口，再用 curl -x、git -c http.proxy 或环境变量走代理重试。\\n\' >> ~/.codex/AGENTS.md'
 agents_has 'codex-imagegen generate|不要先声明“我会走 imagegen skill”|不要先跑 `codex-imagegen --help` 做探测' && ok "全局规范含「生图直接走 codex-imagegen」" || bad "生图 codex-imagegen 全局规则" "bash \"$SCRIPT_DIR/install-imagegen-agents-rule.sh\""
 
 printf "\n${c_d}────────────────────────────────${c_0}\n"
