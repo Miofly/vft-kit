@@ -1,0 +1,423 @@
+import XCTest
+@testable import Ping_Island
+
+final class CodexUsageLoaderTests: XCTestCase {
+    func testLoadParsesLastTokenCountRateLimits() throws {
+        let rootURL = temporaryRootURL(named: "codex-usage")
+        let rolloutURL = rootURL
+            .appendingPathComponent("2026/04/03", isDirectory: true)
+            .appendingPathComponent("rollout-latest.jsonl")
+
+        defer {
+            try? FileManager.default.removeItem(at: rootURL)
+        }
+
+        try writeRollout(
+            [
+                rolloutLine(
+                    timestamp: "2026-04-03T01:49:35.000Z",
+                    type: "event_msg",
+                    payload: [
+                        "type": "token_count",
+                        "info": [
+                            "total_token_usage": [
+                                "input_tokens": 600_000,
+                                "output_tokens": 399_999,
+                                "total_tokens": 999_999,
+                            ],
+                        ],
+                        "rate_limits": [
+                            "limit_id": "codex",
+                            "plan_type": "pro",
+                            "primary": [
+                                "used_percent": 12.0,
+                                "window_minutes": 300,
+                                "resets_at": 1_775_158_295,
+                            ],
+                            "secondary": [
+                                "used_percent": 24.0,
+                                "window_minutes": 10_080,
+                                "resets_at": 1_775_635_184,
+                            ],
+                        ],
+                    ]
+                ),
+                rolloutLine(
+                    timestamp: "2026-04-03T01:50:35.000Z",
+                    type: "event_msg",
+                    payload: [
+                        "type": "token_count",
+                        "info": [
+                            "total_token_usage": [
+                                "input_tokens": 800_000,
+                                "output_tokens": 434_567,
+                                "total_tokens": 1_234_567,
+                            ],
+                        ],
+                        "rate_limits": [
+                            "limit_id": "codex",
+                            "plan_type": "pro",
+                            "primary": [
+                                "used_percent": 13.0,
+                                "window_minutes": 300,
+                                "resets_at": 1_775_158_295,
+                            ],
+                            "secondary": [
+                                "used_percent": 25.0,
+                                "window_minutes": 10_080,
+                                "resets_at": 1_775_635_184,
+                            ],
+                        ],
+                    ]
+                ),
+            ],
+            to: rolloutURL
+        )
+        try setModificationDate(Date(timeIntervalSince1970: 2_000), for: rolloutURL)
+
+        let snapshot = try CodexUsageLoader.load(fromRootURL: rootURL)
+
+        XCTAssertEqual(resolvedPath(snapshot?.sourceFilePath), rolloutURL.resolvingSymlinksInPath().path)
+        XCTAssertEqual(snapshot?.limitID, "codex")
+        XCTAssertEqual(snapshot?.planType, "pro")
+        XCTAssertEqual(snapshot?.windows.map(\.label), ["5h", "7d"])
+        XCTAssertEqual(snapshot?.windows.map(\.roundedUsedPercentage), [13, 25])
+        XCTAssertEqual(snapshot?.tokenUsage, CodexTokenUsage(inputTokens: 800_000, outputTokens: 434_567, totalTokens: 1_234_567))
+        XCTAssertEqual(snapshot?.windows.first?.leftPercentage ?? -1, 87, accuracy: 0.001)
+        XCTAssertEqual(snapshot?.windows.first?.resetsAt, Date(timeIntervalSince1970: 1_775_158_295))
+        XCTAssertEqual(snapshot?.capturedAt, isoDate("2026-04-03T01:50:35.000Z"))
+    }
+
+    func testLoadReturnsTokenUsageWhenApiKeySessionHasNoRateLimits() throws {
+        let rootURL = temporaryRootURL(named: "codex-api-key-usage")
+        let rolloutURL = rootURL
+            .appendingPathComponent("2026/07/23", isDirectory: true)
+            .appendingPathComponent("rollout-api-key.jsonl")
+
+        defer {
+            try? FileManager.default.removeItem(at: rootURL)
+        }
+
+        try writeRollout(
+            [
+                rolloutLine(
+                    timestamp: "2026-07-23T02:30:00.000Z",
+                    type: "event_msg",
+                    payload: [
+                        "type": "token_count",
+                        "info": [
+                            "total_token_usage": [
+                                "input_tokens": 12_000,
+                                "output_tokens": 3_500,
+                                "total_tokens": 15_500,
+                            ],
+                        ],
+                        "rate_limits": NSNull(),
+                    ]
+                ),
+            ],
+            to: rolloutURL
+        )
+
+        let snapshot = try CodexUsageLoader.load(fromRootURL: rootURL)
+
+        XCTAssertTrue(snapshot?.windows.isEmpty == true)
+        XCTAssertTrue(snapshot?.hasUsageData == true)
+        XCTAssertEqual(snapshot?.tokenUsage, CodexTokenUsage(inputTokens: 12_000, outputTokens: 3_500, totalTokens: 15_500))
+    }
+
+    func testLoadFallsBackWhenNewestRolloutHasNoRateLimits() throws {
+        let rootURL = temporaryRootURL(named: "codex-usage-fallback")
+        let oldRolloutURL = rootURL
+            .appendingPathComponent("2026/04/02", isDirectory: true)
+            .appendingPathComponent("rollout-has-rate-limits.jsonl")
+        let newRolloutURL = rootURL
+            .appendingPathComponent("2026/04/03", isDirectory: true)
+            .appendingPathComponent("rollout-no-rate-limits.jsonl")
+
+        defer {
+            try? FileManager.default.removeItem(at: rootURL)
+        }
+
+        try writeRollout(
+            [
+                rolloutLine(
+                    timestamp: "2026-04-02T17:54:17.621Z",
+                    type: "event_msg",
+                    payload: [
+                        "type": "token_count",
+                        "rate_limits": [
+                            "limit_id": "codex",
+                            "plan_type": "pro",
+                            "primary": [
+                                "used_percent": 13.0,
+                                "window_minutes": 300,
+                                "resets_at": 1_775_158_295,
+                            ],
+                        ],
+                    ]
+                ),
+            ],
+            to: oldRolloutURL
+        )
+        try writeRollout(
+            [
+                rolloutLine(
+                    timestamp: "2026-04-03T03:00:00.000Z",
+                    type: "event_msg",
+                    payload: [
+                        "type": "user_message",
+                        "message": "Start a fresh session.",
+                    ]
+                ),
+            ],
+            to: newRolloutURL
+        )
+
+        try setModificationDate(Date(timeIntervalSince1970: 1_000), for: oldRolloutURL)
+        try setModificationDate(Date(timeIntervalSince1970: 2_000), for: newRolloutURL)
+
+        let snapshot = try CodexUsageLoader.load(fromRootURL: rootURL)
+
+        XCTAssertEqual(resolvedPath(snapshot?.sourceFilePath), oldRolloutURL.resolvingSymlinksInPath().path)
+        XCTAssertEqual(snapshot?.windows.map(\.label), ["5h"])
+        XCTAssertEqual(snapshot?.windows.first?.roundedUsedPercentage, 13)
+    }
+
+    func testLoadFormatsNonStandardWindowLengths() throws {
+        let rootURL = temporaryRootURL(named: "codex-usage-labels")
+        let rolloutURL = rootURL
+            .appendingPathComponent("2026/04/03", isDirectory: true)
+            .appendingPathComponent("rollout-custom-window.jsonl")
+
+        defer {
+            try? FileManager.default.removeItem(at: rootURL)
+        }
+
+        try writeRollout(
+            [
+                rolloutLine(
+                    timestamp: "2026-04-03T05:30:00.000Z",
+                    type: "event_msg",
+                    payload: [
+                        "type": "token_count",
+                        "rate_limits": [
+                            "primary": [
+                                "used_percent": 8.0,
+                                "window_minutes": 90,
+                                "resets_at": 1_775_200_000,
+                            ],
+                            "secondary": [
+                                "used_percent": 11.0,
+                                "window_minutes": 1_500,
+                                "resets_at": 1_775_260_000,
+                            ],
+                        ],
+                    ]
+                ),
+            ],
+            to: rolloutURL
+        )
+
+        let snapshot = try CodexUsageLoader.load(fromRootURL: rootURL)
+
+        XCTAssertEqual(snapshot?.windows.map(\.label), ["1h 30m", "1d 1h"])
+    }
+
+    func testLoadReturnsNilWhenNoValidRolloutsExist() throws {
+        let rootURL = temporaryRootURL(named: "codex-usage-empty")
+        defer {
+            try? FileManager.default.removeItem(at: rootURL)
+        }
+
+        try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
+
+        let snapshot = try CodexUsageLoader.load(fromRootURL: rootURL)
+
+        XCTAssertNil(snapshot)
+    }
+
+    func testLoadFindsRecentTokenCountFromTailOfLargeRollout() throws {
+        let rootURL = temporaryRootURL(named: "codex-usage-tail")
+        let rolloutURL = rootURL
+            .appendingPathComponent("2026/05/30", isDirectory: true)
+            .appendingPathComponent("rollout-large.jsonl")
+
+        defer {
+            try? FileManager.default.removeItem(at: rootURL)
+        }
+
+        try writeRollout(
+            [
+                rolloutLine(
+                    timestamp: "2026-05-30T00:00:00.000Z",
+                    type: "event_msg",
+                    payload: [
+                        "type": "user_message",
+                        "message": String(repeating: "large-history-line", count: 1_000),
+                    ]
+                ),
+                rolloutLine(
+                    timestamp: "2026-05-30T00:01:00.000Z",
+                    type: "event_msg",
+                    payload: [
+                        "type": "token_count",
+                        "rate_limits": [
+                            "primary": [
+                                "used_percent": 42.0,
+                                "window_minutes": 300,
+                                "resets_at": 1_780_000_000,
+                            ],
+                        ],
+                    ]
+                ),
+            ],
+            to: rolloutURL
+        )
+
+        let snapshot = try CodexUsageLoader.load(
+            fromRootURL: rootURL,
+            candidateScanLimit: 1,
+            maxBytesPerFile: 2_048
+        )
+
+        XCTAssertEqual(resolvedPath(snapshot?.sourceFilePath), rolloutURL.resolvingSymlinksInPath().path)
+        XCTAssertEqual(snapshot?.windows.first?.roundedUsedPercentage, 42)
+    }
+
+    func testLoadDoesNotScanBeyondRecentCandidateLimit() throws {
+        let rootURL = temporaryRootURL(named: "codex-usage-candidate-limit")
+        let oldRolloutURL = rootURL
+            .appendingPathComponent("2026/05/28", isDirectory: true)
+            .appendingPathComponent("rollout-old-valid.jsonl")
+        let middleRolloutURL = rootURL
+            .appendingPathComponent("2026/05/29", isDirectory: true)
+            .appendingPathComponent("rollout-middle-invalid.jsonl")
+        let newestRolloutURL = rootURL
+            .appendingPathComponent("2026/05/30", isDirectory: true)
+            .appendingPathComponent("rollout-newest-invalid.jsonl")
+
+        defer {
+            try? FileManager.default.removeItem(at: rootURL)
+        }
+
+        try writeRollout(
+            [
+                rolloutLine(
+                    timestamp: "2026-05-28T00:01:00.000Z",
+                    type: "event_msg",
+                    payload: [
+                        "type": "token_count",
+                        "rate_limits": [
+                            "primary": [
+                                "used_percent": 9.0,
+                                "window_minutes": 300,
+                            ],
+                        ],
+                    ]
+                ),
+            ],
+            to: oldRolloutURL
+        )
+        try writeRollout(
+            [
+                rolloutLine(
+                    timestamp: "2026-05-29T00:01:00.000Z",
+                    type: "event_msg",
+                    payload: ["type": "user_message", "message": "No usage here."]
+                ),
+            ],
+            to: middleRolloutURL
+        )
+        try writeRollout(
+            [
+                rolloutLine(
+                    timestamp: "2026-05-30T00:01:00.000Z",
+                    type: "event_msg",
+                    payload: ["type": "user_message", "message": "No usage here either."]
+                ),
+            ],
+            to: newestRolloutURL
+        )
+
+        try setModificationDate(Date(timeIntervalSince1970: 1_000), for: oldRolloutURL)
+        try setModificationDate(Date(timeIntervalSince1970: 2_000), for: middleRolloutURL)
+        try setModificationDate(Date(timeIntervalSince1970: 3_000), for: newestRolloutURL)
+
+        let limitedSnapshot = try CodexUsageLoader.load(fromRootURL: rootURL, candidateScanLimit: 2)
+        let broaderSnapshot = try CodexUsageLoader.load(fromRootURL: rootURL, candidateScanLimit: 3)
+
+        XCTAssertNil(limitedSnapshot)
+        XCTAssertEqual(resolvedPath(broaderSnapshot?.sourceFilePath), oldRolloutURL.resolvingSymlinksInPath().path)
+        XCTAssertEqual(broaderSnapshot?.windows.first?.roundedUsedPercentage, 9)
+    }
+
+    func testSnapshotExtractsThreadIDFromRolloutPath() {
+        let snapshot = CodexUsageSnapshot(
+            sourceFilePath: "/tmp/.codex/sessions/2026/04/23/rollout-2026-04-23T17-23-55-019db9a7-336a-7b62-9288-7304c3d2d4b9.jsonl",
+            capturedAt: nil,
+            planType: nil,
+            limitID: nil,
+            tokenUsage: nil,
+            windows: []
+        )
+
+        XCTAssertEqual(snapshot.threadID, "019db9a7-336a-7b62-9288-7304c3d2d4b9")
+    }
+
+    func testSnapshotThreadIDIsNilForNonThreadRolloutPath() {
+        let snapshot = CodexUsageSnapshot(
+            sourceFilePath: "/tmp/.codex/sessions/2026/04/23/rollout-latest.jsonl",
+            capturedAt: nil,
+            planType: nil,
+            limitID: nil,
+            tokenUsage: nil,
+            windows: []
+        )
+
+        XCTAssertNil(snapshot.threadID)
+    }
+}
+
+private func temporaryRootURL(named name: String) -> URL {
+    FileManager.default.temporaryDirectory
+        .appendingPathComponent("ai-helper-\(name)-\(UUID().uuidString)", isDirectory: true)
+}
+
+private func writeRollout(_ lines: [String], to url: URL) throws {
+    let directoryURL = url.deletingLastPathComponent()
+    try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+    try lines.joined(separator: "\n").appending("\n").write(to: url, atomically: true, encoding: .utf8)
+}
+
+private func setModificationDate(_ date: Date, for url: URL) throws {
+    try FileManager.default.setAttributes([.modificationDate: date], ofItemAtPath: url.path)
+}
+
+private func isoDate(_ value: String) -> Date? {
+    let formatter = ISO8601DateFormatter()
+    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    return formatter.date(from: value)
+}
+
+private func resolvedPath(_ value: String?) -> String? {
+    guard let value else {
+        return nil
+    }
+
+    return URL(fileURLWithPath: value).resolvingSymlinksInPath().path
+}
+
+private func rolloutLine(
+    timestamp: String,
+    type: String,
+    payload: [String: Any]
+) -> String {
+    let object: [String: Any] = [
+        "timestamp": timestamp,
+        "type": type,
+        "payload": payload,
+    ]
+    let data = try! JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+    return String(decoding: data, as: UTF8.self)
+}

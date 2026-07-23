@@ -1,0 +1,4 @@
+interface:
+  display_name: "Install ai-helper"
+  short_description: "Install or update the signed ai-helper macOS app."
+  default_prompt: "Use $install-ai-helper to install the latest ai-helper release on this Mac."

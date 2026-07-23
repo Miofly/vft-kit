@@ -1,0 +1,4048 @@
+//
+//  HookInstaller.swift
+//  AIHelper
+//
+//  Installs and manages hook integrations for supported clients.
+//
+
+import AppKit
+import Foundation
+
+private enum HookConfigParser {
+    static func parseJSONObject(from data: Data) -> [String: Any]? {
+        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            return json
+        }
+
+        guard let string = String(data: data, encoding: .utf8) else {
+            return nil
+        }
+
+        let sanitized = removeTrailingCommas(from: stripJSONComments(from: string))
+        guard let sanitizedData = sanitized.data(using: .utf8) else {
+            return nil
+        }
+
+        return try? JSONSerialization.jsonObject(with: sanitizedData) as? [String: Any]
+    }
+
+    private static func stripJSONComments(from string: String) -> String {
+        var output = ""
+        var index = string.startIndex
+        var isInsideString = false
+        var isEscaping = false
+        var isLineComment = false
+        var isBlockComment = false
+
+        while index < string.endIndex {
+            let character = string[index]
+            let nextIndex = string.index(after: index)
+            let nextCharacter = nextIndex < string.endIndex ? string[nextIndex] : nil
+
+            if isLineComment {
+                if character == "\n" {
+                    isLineComment = false
+                    output.append(character)
+                }
+                index = nextIndex
+                continue
+            }
+
+            if isBlockComment {
+                if character == "\n" {
+                    output.append(character)
+                } else if character == "*", nextCharacter == "/" {
+                    isBlockComment = false
+                    index = string.index(after: nextIndex)
+                    continue
+                }
+                index = nextIndex
+                continue
+            }
+
+            if isInsideString {
+                output.append(character)
+                if isEscaping {
+                    isEscaping = false
+                } else if character == "\\" {
+                    isEscaping = true
+                } else if character == "\"" {
+                    isInsideString = false
+                }
+                index = nextIndex
+                continue
+            }
+
+            if character == "\"" {
+                isInsideString = true
+                output.append(character)
+                index = nextIndex
+                continue
+            }
+
+            if character == "/", nextCharacter == "/" {
+                isLineComment = true
+                index = string.index(after: nextIndex)
+                continue
+            }
+
+            if character == "/", nextCharacter == "*" {
+                isBlockComment = true
+                index = string.index(after: nextIndex)
+                continue
+            }
+
+            output.append(character)
+            index = nextIndex
+        }
+
+        return output
+    }
+
+    private static func removeTrailingCommas(from string: String) -> String {
+        let characters = Array(string)
+        var output = ""
+        var index = 0
+        var isInsideString = false
+        var isEscaping = false
+
+        while index < characters.count {
+            let character = characters[index]
+
+            if isInsideString {
+                output.append(character)
+                if isEscaping {
+                    isEscaping = false
+                } else if character == "\\" {
+                    isEscaping = true
+                } else if character == "\"" {
+                    isInsideString = false
+                }
+                index += 1
+                continue
+            }
+
+            if character == "\"" {
+                isInsideString = true
+                output.append(character)
+                index += 1
+                continue
+            }
+
+            if character == "," {
+                var lookahead = index + 1
+                while lookahead < characters.count, characters[lookahead].isWhitespace {
+                    lookahead += 1
+                }
+
+                if lookahead < characters.count, characters[lookahead] == "}" || characters[lookahead] == "]" {
+                    index += 1
+                    continue
+                }
+            }
+
+            output.append(character)
+            index += 1
+        }
+
+        return output
+    }
+}
+
+struct TOMLHookConfigParser {
+    struct TOMLHookEntry: Equatable {
+        let event: String
+        let command: String
+        let matcher: String?
+        let timeout: Int?
+    }
+
+    enum TOMLSegment: Equatable {
+        case text(String)
+        case hook(TOMLHookEntry)
+    }
+
+    static func parse(_ content: String) -> [TOMLSegment] {
+        var segments: [TOMLSegment] = []
+        let lines = content.components(separatedBy: .newlines)
+        var textBuffer: [String] = []
+        var currentHookFields: [String: String] = [:]
+        var isInHooksBlock = false
+
+        func flushText() {
+            if !textBuffer.isEmpty {
+                segments.append(.text(textBuffer.joined(separator: "\n")))
+                textBuffer = []
+            }
+        }
+
+        func flushHook() {
+            if let entry = makeEntry(from: currentHookFields) {
+                segments.append(.hook(entry))
+            }
+            currentHookFields = [:]
+            isInHooksBlock = false
+        }
+
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+
+            if trimmed.hasPrefix("[[hooks]]") {
+                if isInHooksBlock {
+                    flushHook()
+                }
+                flushText()
+                isInHooksBlock = true
+                currentHookFields = [:]
+                continue
+            }
+
+            if isInHooksBlock,
+               (trimmed.hasPrefix("[[") && !trimmed.hasPrefix("[[hooks]]"))
+                || (trimmed.hasPrefix("[") && !trimmed.hasPrefix("[[")) {
+                flushHook()
+                textBuffer.append(line)
+                continue
+            }
+
+            if isInHooksBlock {
+                if let (key, value) = parseKeyValue(line) {
+                    currentHookFields[key] = value
+                }
+                // Blank lines inside hooks are ignored; they don't terminate the block
+            } else {
+                textBuffer.append(line)
+            }
+        }
+
+        if isInHooksBlock {
+            flushHook()
+        }
+        flushText()
+
+        return segments
+    }
+
+    static func rebuild(segments: [TOMLSegment], newHooks: [TOMLHookEntry]) -> String {
+        var output = ""
+        var hasTrailingNewline = false
+
+        for segment in segments {
+            switch segment {
+            case .text(let text):
+                if !output.isEmpty, !hasTrailingNewline {
+                    output += "\n"
+                }
+                output += text
+                hasTrailingNewline = text.hasSuffix("\n") || text.isEmpty
+            case .hook(let entry):
+                if !islandManaged(entry) {
+                    if !output.isEmpty, !hasTrailingNewline {
+                        output += "\n"
+                    }
+                    output += renderHook(entry)
+                    hasTrailingNewline = true
+                }
+            }
+        }
+
+        for entry in newHooks {
+            if !output.isEmpty, !hasTrailingNewline {
+                output += "\n"
+            }
+            output += renderHook(entry)
+            hasTrailingNewline = true
+        }
+
+        return output
+    }
+
+    static func containsManagedHooks(_ content: String) -> Bool {
+        parse(content).contains { segment in
+            if case .hook(let entry) = segment {
+                return islandManaged(entry)
+            }
+            return false
+        }
+    }
+
+    static func islandManaged(_ entry: TOMLHookEntry) -> Bool {
+        entry.command.contains("ai-helper-bridge")
+    }
+
+    static func makeEntry(from fields: [String: String]) -> TOMLHookEntry? {
+        guard let event = fields["event"] else { return nil }
+        let command = fields["command"] ?? ""
+        let matcher = fields["matcher"]
+        let timeout = fields["timeout"].flatMap(Int.init)
+        return TOMLHookEntry(event: event, command: command, matcher: matcher, timeout: timeout)
+    }
+
+    static func parseKeyValue(_ line: String) -> (key: String, value: String)? {
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        guard let eqIndex = trimmed.firstIndex(of: "=") else { return nil }
+        let key = trimmed[..<eqIndex].trimmingCharacters(in: .whitespaces)
+        guard !key.isEmpty else { return nil }
+        var rawValue = trimmed[trimmed.index(after: eqIndex)...].trimmingCharacters(in: .whitespaces)
+        // Strip inline TOML comments (simple heuristic: unquoted #)
+        rawValue = stripInlineComment(rawValue)
+        let value = stripTOMLQuotes(rawValue)
+        return (key, value)
+    }
+
+    static func stripInlineComment(_ value: String) -> String {
+        var inString = false
+        var stringChar: Character? = nil
+        for (index, char) in value.enumerated() {
+            if inString {
+                if char == stringChar {
+                    inString = false
+                    stringChar = nil
+                }
+                continue
+            }
+            if char == "\"" || char == "'" {
+                inString = true
+                stringChar = char
+                continue
+            }
+            if char == "#" {
+                return value[..<value.index(value.startIndex, offsetBy: index)].trimmingCharacters(in: .whitespaces)
+            }
+        }
+        return value
+    }
+
+    static func stripTOMLQuotes(_ value: String) -> String {
+        var result = value
+        if result.hasPrefix("\""), result.hasSuffix("\"") {
+            result = String(result.dropFirst().dropLast())
+        } else if result.hasPrefix("'"), result.hasSuffix("'") {
+            result = String(result.dropFirst().dropLast())
+        }
+        return result
+    }
+
+    static func renderHook(_ entry: TOMLHookEntry) -> String {
+        var lines = ["[[hooks]]"]
+        lines.append("event = \"\(entry.event)\"")
+        lines.append("command = \"\(entry.command.replacingOccurrences(of: "\"", with: "\\\""))\"")
+        if let matcher = entry.matcher {
+            lines.append("matcher = \"\(matcher.replacingOccurrences(of: "\"", with: "\\\""))\"")
+        }
+        if let timeout = entry.timeout {
+            lines.append("timeout = \(timeout)")
+        }
+        return lines.joined(separator: "\n") + "\n"
+    }
+}
+
+struct HookInstaller {
+    struct QoderCLIHookRefreshStatus: Equatable, Sendable {
+        let version: String
+        let minimumVersion: String
+    }
+
+    struct BridgeHealthStatus: Equatable {
+        let isHealthy: Bool
+        let message: String
+    }
+
+    private static let preferredTargetsDefaultsKey = "HookInstaller.preferredTargets.v1"
+    private static let eventSelectionsDefaultsKey = "HookInstaller.eventSelections.v1"
+    private static let qoderMigrationDefaultsKey = "HookInstaller.preferredTargets.qoder-default.v1"
+    private static let qoderWorkMigrationDefaultsKey = "HookInstaller.preferredTargets.qoderwork-default.v1"
+    private static let installedVersionDefaultsKey = "HookInstaller.installedVersion.v1"
+    private static let firstLaunchDefaultsKey = "HookInstaller.isFirstLaunch.v1"
+    private static let versionMetadataDefaultsKey = "HookInstaller.versionMetadata.v1"
+    private static let qoderCLIClaudeHooksMinimumVersion = "0.2.5"
+    private static let qoderCLIExecutableRelativePath = ".local/bin/qodercli"
+    private static let supportDirectoryName = ".ai-helper"
+    private static let bridgeLauncherName = "ai-helper-bridge"
+    private static let bridgeBinaryName = "AIHelperBridge"
+    private static let legacyBridgeBinaryName = "IslandBridge"
+    private static let statusLineScriptName = "island-statusline"
+#if APP_STORE
+    private static let appStoreHookDirectoryBookmarkDefaultsKey = "HookInstaller.appStoreHookDirectoryBookmark.v1"
+#endif
+
+    private struct VersionMetadata: Codable {
+        let version: String
+        let build: String
+        let installedAt: String
+        let previousVersion: String
+
+        var dictionaryValue: [String: Any] {
+            [
+                "version": version,
+                "build": build,
+                "installedAt": installedAt,
+                "previousVersion": previousVersion
+            ]
+        }
+    }
+
+    private static func decodeValue<T: Decodable>(_ type: T.Type, from defaults: UserDefaults, key: String) -> T? {
+        guard let data = defaults.data(forKey: key) else {
+            return nil
+        }
+
+        return try? JSONDecoder().decode(type, from: data)
+    }
+
+    private static func persistValue<T: Encodable>(_ value: T?, defaults: UserDefaults, key: String) {
+        guard let value else {
+            defaults.removeObject(forKey: key)
+            return
+        }
+
+        guard let data = try? JSONEncoder().encode(value) else {
+            return
+        }
+
+        defaults.set(data, forKey: key)
+    }
+
+    private static var defaultPreferredTargets: Set<String> {
+        Set(
+            ClientProfileRegistry.managedHookProfiles
+                .filter { $0.defaultEnabled && canManage($0) }
+                .map(\.id)
+        )
+    }
+
+    /// Install managed hooks for preferred clients on app launch.
+    static func installIfNeeded(
+        markPresentationOnboardingPending: (() -> Void)? = nil,
+        markHookInstallOnboardingPending: (() -> Void)? = nil
+    ) {
+        // Check if this is first launch and perform auto-integration
+        let isFirstLaunch = checkAndMarkFirstLaunch(
+            markPresentationOnboardingPending: markPresentationOnboardingPending
+        )
+
+#if APP_STORE
+        if isFirstLaunch {
+            if let markHookInstallOnboardingPending {
+                markHookInstallOnboardingPending()
+            } else {
+                UserDefaults.standard.set(true, forKey: AppSettingsDefaultKeys.hookInstallOnboardingPending)
+            }
+        }
+        updateVersionMetadata()
+        return
+#else
+        let qoderCLISupportsClaudeHooks = qoderCLIUsesClaudeCompatibleHooks()
+        var preferredTargets = preferredTargets()
+        if qoderCLISupportsClaudeHooks,
+           let qoderCLIProfile = ClientProfileRegistry.managedHookProfile(id: "qoder-cli-hooks") {
+            preferredTargets.insert(qoderCLIProfile.id)
+            persistPreferredTargets(preferredTargets)
+        }
+
+        installBridgeLauncherIfNeeded()
+        removeLegacyTraeHooks()
+
+        if isFirstLaunch {
+            // Defer auto-install of default-enabled profiles to the first-run welcome
+            // sheet so the user can choose between defaults and a customized selection.
+            if let markHookInstallOnboardingPending {
+                markHookInstallOnboardingPending()
+            } else {
+                UserDefaults.standard.set(true, forKey: AppSettingsDefaultKeys.hookInstallOnboardingPending)
+            }
+            updateVersionMetadata()
+            return
+        }
+
+        for profile in ClientProfileRegistry.managedHookProfiles {
+            let canManageProfile = canManage(profile)
+                || (profile.id == "qoder-cli-hooks" && qoderCLISupportsClaudeHooks)
+            if preferredTargets.contains(profile.id) && canManageProfile {
+                install(profile, persistPreference: false, bypassAvailabilityCheck: !canManage(profile))
+            } else {
+                uninstall(profile, persistPreference: false)
+            }
+        }
+
+        // Update version metadata after installation
+        updateVersionMetadata()
+#endif
+    }
+
+    /// Run the default first-run install for every defaultEnabled profile.
+    static func performFirstRunDefaultInstall() {
+        let qoderCLISupportsClaudeHooks = qoderCLIUsesClaudeCompatibleHooks()
+        installBridgeLauncherIfNeeded()
+        for profile in ClientProfileRegistry.managedHookProfiles where profile.defaultEnabled {
+            let canManageProfile = canManage(profile)
+                || (profile.id == "qoder-cli-hooks" && qoderCLISupportsClaudeHooks)
+            guard canManageProfile else { continue }
+            install(profile, persistPreference: true, bypassAvailabilityCheck: !canManage(profile))
+        }
+    }
+
+#if APP_STORE
+    @discardableResult
+    static func restoreAppStoreHookDirectoryAuthorizationIfAvailable() -> Bool {
+        guard appStoreAuthorizedHookDirectory == nil else {
+            return true
+        }
+
+        guard let bookmarkData = UserDefaults.standard.data(forKey: appStoreHookDirectoryBookmarkDefaultsKey) else {
+            return false
+        }
+
+        var isStale = false
+        do {
+            let url = try URL(
+                resolvingBookmarkData: bookmarkData,
+                options: [.withSecurityScope],
+                relativeTo: nil,
+                bookmarkDataIsStale: &isStale
+            )
+
+            guard url.standardizedFileURL == UserHomeDirectoryResolver
+                .hookConfigurationHomeDirectory
+                .standardizedFileURL else {
+                UserDefaults.standard.removeObject(forKey: appStoreHookDirectoryBookmarkDefaultsKey)
+                return false
+            }
+
+            activateAppStoreHookDirectory(url)
+            if isStale {
+                persistAppStoreHookDirectoryBookmark(url)
+            }
+            return true
+        } catch {
+            UserDefaults.standard.removeObject(forKey: appStoreHookDirectoryBookmarkDefaultsKey)
+            return false
+        }
+    }
+
+    @discardableResult
+    static func performFirstRunDefaultInstallWithUserAuthorization() -> Bool {
+        guard requestAppStoreHookDirectoryAuthorization() else {
+            return false
+        }
+        performFirstRunDefaultInstall()
+        return true
+    }
+
+    @discardableResult
+    static func installWithUserAuthorization(_ profile: ManagedHookClientProfile) -> Bool {
+        guard requestAppStoreHookDirectoryAuthorization() else {
+            return false
+        }
+        install(profile)
+        return isInstalled(profile)
+    }
+
+    @discardableResult
+    static func installWithUserAuthorization(
+        _ profile: ManagedHookClientProfile,
+        selection: HookInstallSelection
+    ) -> Bool {
+        guard requestAppStoreHookDirectoryAuthorization() else {
+            return false
+        }
+        install(profile, selection: selection)
+        return isInstalled(profile)
+    }
+
+    @discardableResult
+    static func reinstallWithUserAuthorization(_ profile: ManagedHookClientProfile) -> Bool {
+        guard requestAppStoreHookDirectoryAuthorization() else {
+            return false
+        }
+        reinstall(profile)
+        return isInstalled(profile)
+    }
+
+    @discardableResult
+    static func reinstallWithUserAuthorization(
+        _ profile: ManagedHookClientProfile,
+        selection: HookInstallSelection
+    ) -> Bool {
+        guard requestAppStoreHookDirectoryAuthorization() else {
+            return false
+        }
+        saveSelection(selection, for: profile)
+        reinstall(profile)
+        return isInstalled(profile)
+    }
+
+    static func uninstallWithUserAuthorization(_ profile: ManagedHookClientProfile) -> Bool {
+        guard requestAppStoreHookDirectoryAuthorization() else {
+            return false
+        }
+        uninstall(profile)
+        return true
+    }
+
+    static func uninstallAllWithUserAuthorization() -> Bool {
+        guard requestAppStoreHookDirectoryAuthorization() else {
+            return false
+        }
+        uninstall()
+        return true
+    }
+
+    private static func requestAppStoreHookDirectoryAuthorization() -> Bool {
+        if restoreAppStoreHookDirectoryAuthorizationIfAvailable() {
+            return true
+        }
+
+        let homeDirectory = UserHomeDirectoryResolver.hookConfigurationHomeDirectory
+        let panel = NSOpenPanel()
+        panel.title = AppLocalization.string("授权 Hooks 配置目录")
+        panel.message = AppLocalization.string("Mac App Store 版本需要你手动授权用户主目录，之后才能写入 Claude、Codex 等客户端的 Hooks 配置。")
+        panel.prompt = AppLocalization.string("授权并继续")
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = false
+        panel.directoryURL = homeDirectory
+
+        guard panel.runModal() == .OK,
+              let selectedURL = panel.url else {
+            return false
+        }
+
+        guard selectedURL.standardizedFileURL == homeDirectory.standardizedFileURL else {
+            let alert = NSAlert()
+            alert.messageText = AppLocalization.string("请选择用户主目录")
+            alert.informativeText = AppLocalization.string("为了同时写入 ~/.claude、~/.codex 等多个客户端配置，请授权你的用户主目录。")
+            alert.addButton(withTitle: AppLocalization.string("好"))
+            alert.runModal()
+            return false
+        }
+
+        activateAppStoreHookDirectory(selectedURL)
+        persistAppStoreHookDirectoryBookmark(selectedURL)
+        return true
+    }
+
+    private static func activateAppStoreHookDirectory(_ url: URL) {
+        let standardizedURL = url.standardizedFileURL
+        let didStartAccess = standardizedURL.startAccessingSecurityScopedResource()
+        appStoreAuthorizedHookDirectory = standardizedURL
+        if didStartAccess,
+           !appStoreSecurityScopedHookDirectories.contains(where: {
+               $0.standardizedFileURL == standardizedURL
+           }) {
+            appStoreSecurityScopedHookDirectories.append(standardizedURL)
+        }
+    }
+
+    private static func persistAppStoreHookDirectoryBookmark(_ url: URL) {
+        guard let bookmarkData = try? url.bookmarkData(
+            options: [.withSecurityScope],
+            includingResourceValuesForKeys: nil,
+            relativeTo: nil
+        ) else {
+            return
+        }
+        UserDefaults.standard.set(bookmarkData, forKey: appStoreHookDirectoryBookmarkDefaultsKey)
+    }
+
+    private static var appStoreAuthorizedHookDirectory: URL?
+    private static var appStoreSecurityScopedHookDirectories: [URL] = []
+#endif
+
+    static func defaultEnabledManageableProfiles() -> [ManagedHookClientProfile] {
+        let qoderCLISupportsClaudeHooks = qoderCLIUsesClaudeCompatibleHooks()
+        return ClientProfileRegistry.managedHookProfiles.filter { profile in
+            guard profile.defaultEnabled else { return false }
+            return canManage(profile)
+                || (profile.id == "qoder-cli-hooks" && qoderCLISupportsClaudeHooks)
+        }
+    }
+
+    @MainActor
+    static func bridgeHealthStatus() -> BridgeHealthStatus {
+        installBridgeLauncherIfNeeded()
+
+        let launcherURL = islandSupportDirectory()
+            .appendingPathComponent("bin", isDirectory: true)
+            .appendingPathComponent(bridgeLauncherName)
+        guard FileManager.default.isExecutableFile(atPath: launcherURL.path) else {
+            return BridgeHealthStatus(
+                isHealthy: false,
+                message: AppLocalization.string("Bridge launcher 未安装或不可执行")
+            )
+        }
+
+        guard preferredBridgeBinaryURL() != nil else {
+            return BridgeHealthStatus(
+                isHealthy: false,
+                message: AppLocalization.string("AIHelperBridge 二进制缺失")
+            )
+        }
+
+        guard launcherContainsCurrentRuntimeEnvironment(launcherURL) else {
+            return BridgeHealthStatus(
+                isHealthy: false,
+                message: AppLocalization.string("Bridge launcher 需要重新安装以写入 App Store 沙箱路径")
+            )
+        }
+
+        let socketPath = BridgeRuntimePaths.socketPath
+        guard FileManager.default.fileExists(atPath: socketPath) else {
+            return BridgeHealthStatus(
+                isHealthy: false,
+                message: AppLocalization.string("Bridge 监听尚未启动，请保持 ai-helper 正在运行后重试")
+            )
+        }
+
+        guard runBridgeLauncherHealthCheck(launcherURL) else {
+            return BridgeHealthStatus(
+                isHealthy: false,
+                message: AppLocalization.string("Bridge launcher 自检失败，请重启 ai-helper 后重新安装 Hooks")
+            )
+        }
+
+        return BridgeHealthStatus(
+            isHealthy: true,
+            message: AppLocalization.string("Bridge 链路正常，Hooks 事件可转发到当前 App")
+        )
+    }
+
+    /// Check if this is the first launch and mark as installed
+    static func checkAndMarkFirstLaunch(
+        defaults: UserDefaults = .standard,
+        markPresentationOnboardingPending: (() -> Void)? = nil
+    ) -> Bool {
+
+        // Check if we've already recorded a version
+        if defaults.string(forKey: installedVersionDefaultsKey) != nil {
+            return false
+        }
+
+        // First launch - mark it
+        defaults.set(true, forKey: firstLaunchDefaultsKey)
+        if let markPresentationOnboardingPending {
+            markPresentationOnboardingPending()
+        } else {
+            defaults.set(true, forKey: AppSettingsDefaultKeys.presentationModeOnboardingPending)
+        }
+        return true
+    }
+
+    /// Update version metadata for tracking updates
+    private static func updateVersionMetadata() {
+        let defaults = UserDefaults.standard
+        let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+        let currentBuild = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+
+        let versionMetadata = VersionMetadata(
+            version: currentVersion,
+            build: currentBuild,
+            installedAt: ISO8601DateFormatter().string(from: Date()),
+            previousVersion: defaults.string(forKey: installedVersionDefaultsKey) ?? ""
+        )
+
+        defaults.set(currentVersion, forKey: installedVersionDefaultsKey)
+        persistValue(versionMetadata, defaults: defaults, key: versionMetadataDefaultsKey)
+    }
+
+    /// Get the installed version metadata
+    static func getVersionMetadata() -> [String: Any]? {
+        let defaults = UserDefaults.standard
+
+        if let metadata = decodeValue(VersionMetadata.self, from: defaults, key: versionMetadataDefaultsKey) {
+            return metadata.dictionaryValue
+        }
+
+        guard let legacyMetadata = defaults.dictionary(forKey: versionMetadataDefaultsKey) else {
+            return nil
+        }
+
+        guard let version = legacyMetadata["version"] as? String,
+              let build = legacyMetadata["build"] as? String,
+              let installedAt = legacyMetadata["installedAt"] as? String,
+              let previousVersion = legacyMetadata["previousVersion"] as? String else {
+            return legacyMetadata
+        }
+
+        let metadata = VersionMetadata(
+            version: version,
+            build: build,
+            installedAt: installedAt,
+            previousVersion: previousVersion
+        )
+        persistValue(metadata, defaults: defaults, key: versionMetadataDefaultsKey)
+        return metadata.dictionaryValue
+    }
+
+    /// Check if this is a fresh install (never installed before)
+    static func isFreshInstall() -> Bool {
+        return UserDefaults.standard.string(forKey: installedVersionDefaultsKey) == nil
+    }
+
+    /// Get the current installed version
+    static func getInstalledVersion() -> String? {
+        return UserDefaults.standard.string(forKey: installedVersionDefaultsKey)
+    }
+
+    static func install(_ profile: ManagedHookClientProfile) {
+        install(profile, persistPreference: true)
+    }
+
+    static func install(_ profile: ManagedHookClientProfile, selection: HookInstallSelection) {
+        if profile.supportsEventSelection {
+            saveSelection(selection, for: profile)
+        }
+        install(profile, persistPreference: true)
+    }
+
+    static func loadSelection(for profile: ManagedHookClientProfile) -> HookInstallSelection {
+        guard profile.supportsEventSelection else {
+            return HookInstallSelection.defaultSelection(for: profile)
+        }
+        guard let stored = UserDefaults.standard.dictionary(forKey: eventSelectionsDefaultsKey) as? [String: [String]],
+              let names = stored[profile.id] else {
+            return HookInstallSelection.defaultSelection(for: profile)
+        }
+        let validNames = Set(profile.events.map(\.name))
+        let filtered = Set(names).intersection(validNames)
+        guard !filtered.isEmpty else {
+            return HookInstallSelection.defaultSelection(for: profile)
+        }
+        return HookInstallSelection(enabledEventNames: filtered)
+    }
+
+    static func saveSelection(_ selection: HookInstallSelection, for profile: ManagedHookClientProfile) {
+        var stored = (UserDefaults.standard.dictionary(forKey: eventSelectionsDefaultsKey) as? [String: [String]]) ?? [:]
+        stored[profile.id] = Array(selection.enabledEventNames).sorted()
+        UserDefaults.standard.set(stored, forKey: eventSelectionsDefaultsKey)
+    }
+
+    private static func effectiveEvents(for profile: ManagedHookClientProfile) -> [HookInstallEventDescriptor] {
+        guard profile.supportsEventSelection else { return profile.events }
+        return loadSelection(for: profile).filteredEvents(for: profile)
+    }
+
+    static func createTemporarySettingsFile(for profileID: String) -> URL? {
+        guard let profile = ClientProfileRegistry.managedHookProfile(id: profileID) else {
+            return nil
+        }
+
+        installBridgeLauncherIfNeeded()
+
+        let directory = islandSupportDirectory()
+            .appendingPathComponent("tmp", isDirectory: true)
+            .appendingPathComponent("native-runtime-hooks", isDirectory: true)
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+
+        let fileURL = directory.appendingPathComponent("\(profile.id)-\(UUID().uuidString).json")
+        let command = bridgeCommand(source: profile.bridgeSource, extraArguments: profile.bridgeExtraArguments)
+        var hooks: [String: Any] = [:]
+        for event in effectiveEvents(for: profile) {
+            hooks[event.name] = makeHookEntries(command: command, event: event)
+        }
+        writeJSONObject(["hooks": hooks], to: fileURL)
+        return fileURL
+    }
+
+    static func removeTemporarySettingsFile(at url: URL?) {
+        guard let url else { return }
+        try? FileManager.default.removeItem(at: url)
+    }
+
+    static func reinstall(_ profile: ManagedHookClientProfile) {
+        uninstall(profile, persistPreference: false)
+        install(profile, persistPreference: true)
+    }
+
+    static func uninstall(_ profile: ManagedHookClientProfile) {
+        uninstall(profile, persistPreference: true)
+    }
+
+    /// Check if any managed hooks are currently installed.
+    static func isInstalled() -> Bool {
+        ClientProfileRegistry.managedHookProfiles.contains { isInstalled($0) }
+    }
+
+    static func isInstalled(_ profile: ManagedHookClientProfile) -> Bool {
+        switch profile.installationKind {
+        case .jsonHooks:
+            return profile.configurationURLs.contains { containsManagedHooks(at: $0, profile: profile) }
+        case .pluginFile:
+            return profile.configurationURLs.contains { containsManagedPlugin(at: $0, profile: profile) }
+                && isManagedPluginEnabled(profile)
+        case .pluginDirectory:
+            return profile.configurationURLs.contains { containsManagedPluginDirectory(at: $0, profile: profile) }
+        case .hookDirectory:
+            return profile.configurationURLs.contains { containsManagedHookDirectory(at: $0, profile: profile) }
+                && isInternalHookEnabled(profile)
+        case .tomlHooks:
+            return profile.configurationURLs.contains { containsManagedTOMLHooks(at: $0) }
+        }
+    }
+
+    /// Uninstall hooks for all managed targets.
+    static func uninstall() {
+        for profile in ClientProfileRegistry.managedHookProfiles {
+            uninstall(profile, persistPreference: false)
+        }
+        persistPreferredTargets(Set<String>())
+    }
+
+    private static func install(
+        _ profile: ManagedHookClientProfile,
+        persistPreference: Bool,
+        bypassAvailabilityCheck: Bool = false
+    ) {
+        if persistPreference {
+            var targets = preferredTargets()
+            targets.insert(profile.id)
+            persistPreferredTargets(targets)
+        }
+
+        guard bypassAvailabilityCheck || canManage(profile) else {
+            return
+        }
+
+        installBridgeLauncherIfNeeded()
+        switch profile.installationKind {
+        case .jsonHooks:
+            for url in installationTargets(for: profile) {
+                updateHooks(at: url, profile: profile)
+            }
+        case .pluginFile:
+            for url in installationTargets(for: profile) {
+                writeManagedPlugin(at: url, profile: profile)
+            }
+            setManagedPluginEnabled(true, for: profile)
+        case .pluginDirectory:
+            for url in installationTargets(for: profile) {
+                writeManagedPluginDirectory(at: url, profile: profile)
+            }
+        case .hookDirectory:
+            for url in installationTargets(for: profile) {
+                writeManagedHookDirectory(at: url, profile: profile)
+            }
+            setInternalHookEnabled(true, for: profile)
+        case .tomlHooks:
+            for url in installationTargets(for: profile) {
+                updateTOMLHooks(at: url, profile: profile)
+            }
+        }
+
+        if profile.id == "qwen-code-hooks" {
+            applyQwenAskUserQuestionCompatibilityPatchIfNeeded()
+        } else if profile.id == "codebuddy-cli-hooks" {
+            applyCodeBuddyCLIAskUserQuestionCompatibilityPatchIfNeeded()
+        }
+    }
+
+    private static func uninstall(_ profile: ManagedHookClientProfile, persistPreference: Bool) {
+        if persistPreference {
+            var targets = preferredTargets()
+            targets.remove(profile.id)
+            persistPreferredTargets(targets)
+        }
+
+        switch profile.installationKind {
+        case .jsonHooks:
+            for url in profile.configurationURLs {
+                removeManagedHooks(at: url, profile: profile)
+            }
+        case .pluginFile:
+            for url in profile.configurationURLs {
+                removeManagedPlugin(at: url, profile: profile)
+            }
+            setManagedPluginEnabled(false, for: profile)
+        case .pluginDirectory:
+            for url in profile.configurationURLs {
+                removeManagedPluginDirectory(at: url, profile: profile)
+            }
+        case .hookDirectory:
+            for url in profile.configurationURLs {
+                removeManagedHookDirectory(at: url, profile: profile)
+            }
+            setInternalHookEnabled(false, for: profile)
+        case .tomlHooks:
+            for url in profile.configurationURLs {
+                removeManagedTOMLHooks(at: url)
+            }
+        }
+    }
+
+    private static func canManage(_ profile: ManagedHookClientProfile) -> Bool {
+        if profile.id == "qoder-cli-hooks" {
+            return qoderCLIUsesClaudeCompatibleHooks()
+        }
+
+        return profile.alwaysVisibleInSettings
+            || ClientAppLocator.isInstalled(bundleIdentifiers: profile.localAppBundleIdentifiers)
+    }
+
+    static func qoderCLIHookRefreshStatus() -> QoderCLIHookRefreshStatus? {
+        guard let version = qoderCLIInstalledVersion(),
+              qoderCLIClaudeHooksSupported(version: version) else {
+            return nil
+        }
+
+        return QoderCLIHookRefreshStatus(
+            version: version,
+            minimumVersion: qoderCLIClaudeHooksMinimumVersion
+        )
+    }
+
+    private static func qoderCLIUsesClaudeCompatibleHooks() -> Bool {
+        qoderCLIHookRefreshStatus() != nil
+    }
+
+    static func qoderCLIClaudeHooksSupported(version: String) -> Bool {
+        compareSemanticVersions(version, qoderCLIClaudeHooksMinimumVersion) != .orderedAscending
+    }
+
+    private static func qoderCLIInstalledVersion() -> String? {
+        guard let executableURL = qoderCLIExecutableURL(),
+              FileManager.default.isExecutableFile(atPath: executableURL.path),
+              let output = runProcessOutput(executableURL.path, arguments: ["-v"]) else {
+            return nil
+        }
+
+        return qoderCLIVersion(from: output)
+    }
+
+    static func qoderCLIExecutableURL(
+        homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser
+    ) -> URL? {
+        homeDirectory.appendingPathComponent(qoderCLIExecutableRelativePath, isDirectory: false)
+    }
+
+    private static func runProcessOutput(
+        _ executable: String,
+        arguments: [String],
+        timeout: DispatchTimeInterval = .seconds(2)
+    ) -> String? {
+        let process = Process()
+        let stdout = Pipe()
+        let stderr = Pipe()
+        let finished = DispatchSemaphore(value: 0)
+        process.executableURL = URL(fileURLWithPath: executable)
+        process.arguments = arguments
+        process.standardOutput = stdout
+        process.standardError = stderr
+        process.terminationHandler = { _ in
+            finished.signal()
+        }
+
+        do {
+            try process.run()
+            guard finished.wait(timeout: .now() + timeout) == .success else {
+                if process.isRunning {
+                    process.terminate()
+                }
+                return nil
+            }
+            guard process.terminationStatus == 0 else { return nil }
+            let data = stdout.fileHandleForReading.readDataToEndOfFile()
+            let errorData = stderr.fileHandleForReading.readDataToEndOfFile()
+            return [
+                String(data: data, encoding: .utf8),
+                String(data: errorData, encoding: .utf8)
+            ]
+            .compactMap { $0 }
+            .joined(separator: "\n")
+        } catch {
+            return nil
+        }
+    }
+
+    static func qoderCLIVersion(from output: String) -> String? {
+        let pattern = #"(?<!\d)(\d+(?:\.\d+){1,3})(?:[-+][0-9A-Za-z.-]+)?"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else {
+            return nil
+        }
+        let range = NSRange(output.startIndex..., in: output)
+        guard let match = regex.firstMatch(in: output, range: range),
+              let versionRange = Range(match.range(at: 1), in: output) else {
+            return nil
+        }
+        return String(output[versionRange])
+    }
+
+    static func compareSemanticVersions(_ lhs: String, _ rhs: String) -> ComparisonResult {
+        let lhsComponents = numericVersionComponents(lhs)
+        let rhsComponents = numericVersionComponents(rhs)
+        let count = max(lhsComponents.count, rhsComponents.count)
+
+        for index in 0..<count {
+            let lhsValue = index < lhsComponents.count ? lhsComponents[index] : 0
+            let rhsValue = index < rhsComponents.count ? rhsComponents[index] : 0
+            if lhsValue < rhsValue { return .orderedAscending }
+            if lhsValue > rhsValue { return .orderedDescending }
+        }
+
+        return .orderedSame
+    }
+
+    private static func numericVersionComponents(_ version: String) -> [Int] {
+        version.split(separator: ".").map { component in
+            let numericPrefix = component.prefix { $0.isNumber }
+            return Int(numericPrefix) ?? 0
+        }
+    }
+
+    private static func preferredTargets() -> Set<String> {
+        guard let values = UserDefaults.standard.stringArray(forKey: preferredTargetsDefaultsKey) else {
+            return defaultPreferredTargets
+        }
+
+        var targets = Set(values.compactMap { value in
+            ClientProfileRegistry.managedHookProfile(id: value)?.id
+        })
+
+        if !UserDefaults.standard.bool(forKey: qoderMigrationDefaultsKey) {
+            if let qoderProfile = ClientProfileRegistry.managedHookProfile(id: "qoder-hooks"),
+               canManage(qoderProfile) {
+                targets.insert(qoderProfile.id)
+                persistPreferredTargets(targets)
+            }
+            UserDefaults.standard.set(true, forKey: qoderMigrationDefaultsKey)
+        }
+
+        if !UserDefaults.standard.bool(forKey: qoderWorkMigrationDefaultsKey) {
+            if let qoderWorkProfile = ClientProfileRegistry.managedHookProfile(id: "qoderwork-hooks"),
+               canManage(qoderWorkProfile) {
+                targets.insert(qoderWorkProfile.id)
+                persistPreferredTargets(targets)
+            }
+            UserDefaults.standard.set(true, forKey: qoderWorkMigrationDefaultsKey)
+        }
+
+        return targets.isEmpty ? [] : targets
+    }
+
+    private static func persistPreferredTargets(_ targets: Set<String>) {
+        let values = targets.sorted()
+        UserDefaults.standard.set(values, forKey: preferredTargetsDefaultsKey)
+    }
+
+    private static func installationTargets(for profile: ManagedHookClientProfile) -> [URL] {
+        let existingTargets = profile.configurationURLs.filter { url in
+            let fileManager = FileManager.default
+            return fileManager.fileExists(atPath: url.path)
+                || fileManager.fileExists(atPath: url.deletingLastPathComponent().path)
+        }
+
+        return existingTargets.isEmpty ? [profile.primaryConfigurationURL] : existingTargets
+    }
+
+    private static func isInternalHookEnabled(_ profile: ManagedHookClientProfile) -> Bool {
+        guard let url = profile.activationConfigurationURL,
+              let entryName = profile.activationEntryName,
+              let data = try? Data(contentsOf: url) else {
+            return false
+        }
+        return isInternalHookEnabled(existingData: data, entryName: entryName)
+    }
+
+    private static func isManagedPluginEnabled(_ profile: ManagedHookClientProfile) -> Bool {
+        managedPluginActivationConfigurationURLs(for: profile).contains { url in
+            guard let data = try? Data(contentsOf: url) else {
+                return false
+            }
+            return isManagedPluginEnabled(
+                existingData: data,
+                pluginURL: profile.primaryConfigurationURL
+            )
+        }
+    }
+
+    private static func setInternalHookEnabled(_ enabled: Bool, for profile: ManagedHookClientProfile, customConfigURL: URL? = nil) {
+        guard let entryName = profile.activationEntryName else {
+            return
+        }
+
+        let url = customConfigURL ?? profile.activationConfigurationURL
+        guard let url else {
+            return
+        }
+
+        let existingData = try? Data(contentsOf: url)
+        let data = updatedInternalHookConfigurationData(
+            existingData: existingData,
+            entryName: entryName,
+            installing: enabled
+        )
+        writeData(data, to: url)
+    }
+
+    private static func setManagedPluginEnabled(
+        _ enabled: Bool,
+        for profile: ManagedHookClientProfile,
+        customConfigURL: URL? = nil,
+        pluginURL: URL? = nil
+    ) {
+        let pluginURL = pluginURL ?? profile.primaryConfigurationURL
+        let urls = managedPluginActivationConfigurationURLs(
+            for: profile,
+            customConfigURL: customConfigURL
+        )
+        guard !urls.isEmpty else {
+            return
+        }
+
+        let targetURLs = enabled ? [urls[0]] : urls
+        for url in targetURLs {
+            let existingData = try? Data(contentsOf: url)
+            let data = updatedConfigurationData(
+                existingData: existingData,
+                profile: profile,
+                customCommand: "",
+                installing: enabled,
+                pluginURL: pluginURL
+            )
+            writeData(data, to: url)
+        }
+    }
+
+    private static func managedPluginActivationConfigurationURLs(
+        for profile: ManagedHookClientProfile,
+        customConfigURL: URL? = nil
+    ) -> [URL] {
+        guard let primaryURL = customConfigURL ?? profile.activationConfigurationURL else {
+            return []
+        }
+
+        guard profile.id == "opencode-hooks" else {
+            return [primaryURL]
+        }
+
+        // OpenCode 1.14 still reads legacy config.json, but current docs name opencode.json as the global config.
+        let legacyURL = primaryURL.deletingLastPathComponent().appendingPathComponent("config.json")
+        if legacyURL.standardizedFileURL == primaryURL.standardizedFileURL {
+            return [primaryURL]
+        }
+        return [primaryURL, legacyURL]
+    }
+
+    private static func removeLegacyTraeHooks() {
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        let legacyPaths = [
+            "Library/Application Support/Trae/User/settings.json",
+            "Library/Application Support/Trae CN/User/settings.json",
+            ".trae/settings.json"
+        ]
+
+        for path in legacyPaths {
+            let url = path
+                .split(separator: "/")
+                .reduce(home) { partialURL, component in
+                    partialURL.appendingPathComponent(String(component))
+                }
+            removeManagedHooks(at: url)
+        }
+    }
+
+    private static func removeManagedHooks(at url: URL, profile: ManagedHookClientProfile? = nil) {
+        guard let data = try? Data(contentsOf: url),
+              var json = HookConfigParser.parseJSONObject(from: data),
+              var hooks = json["hooks"] as? [String: Any] else {
+            return
+        }
+
+        for (event, value) in hooks {
+            if var entries = value as? [[String: Any]] {
+                entries.removeAll { entry in
+                    isIslandManagedHookEntry(entry, for: profile)
+                }
+
+                if entries.isEmpty {
+                    hooks.removeValue(forKey: event)
+                } else {
+                    hooks[event] = entries
+                }
+            }
+        }
+
+        if hooks.isEmpty {
+            json.removeValue(forKey: "hooks")
+        } else {
+            json["hooks"] = hooks
+        }
+
+        if isManagedStatusLine(json["statusLine"] as? [String: Any]) {
+            json.removeValue(forKey: "statusLine")
+        }
+        writeJSONObject(json, to: url)
+    }
+
+    private static func containsManagedTOMLHooks(at url: URL) -> Bool {
+        guard let content = try? String(contentsOf: url, encoding: .utf8) else {
+            return false
+        }
+        return TOMLHookConfigParser.containsManagedHooks(content)
+    }
+
+    private static func updateTOMLHooks(at url: URL, profile: ManagedHookClientProfile) {
+        let command = bridgeCommand(source: profile.bridgeSource, extraArguments: profile.bridgeExtraArguments)
+        let existingContent = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
+        let segments = TOMLHookConfigParser.parse(existingContent)
+        let newHooks = effectiveEvents(for: profile).map { event -> TOMLHookConfigParser.TOMLHookEntry in
+            let matcher = event.templates.first.map { template -> String in
+                switch template {
+                case .plain, .direct: return ""
+                case .matcher(let value): return value
+                }
+            } ?? ""
+            let timeout = event.timeout
+            return TOMLHookConfigParser.TOMLHookEntry(
+                event: event.name,
+                command: command,
+                matcher: matcher,
+                timeout: timeout
+            )
+        }
+        let updatedContent = TOMLHookConfigParser.rebuild(segments: segments, newHooks: newHooks)
+        try? updatedContent.write(to: url, atomically: true, encoding: .utf8)
+    }
+
+    private static func removeManagedTOMLHooks(at url: URL) {
+        guard let existingContent = try? String(contentsOf: url, encoding: .utf8) else {
+            return
+        }
+        let segments = TOMLHookConfigParser.parse(existingContent)
+        let updatedContent = TOMLHookConfigParser.rebuild(segments: segments, newHooks: [])
+        try? updatedContent.write(to: url, atomically: true, encoding: .utf8)
+    }
+
+    private static func installBridgeLauncherIfNeeded() {
+        let binDirectory = islandSupportDirectory()
+            .appendingPathComponent("bin", isDirectory: true)
+        let launcherURL = binDirectory.appendingPathComponent(bridgeLauncherName)
+
+        BridgeRuntimePaths.prepareRuntimeDirectory()
+        try? FileManager.default.createDirectory(
+            at: binDirectory,
+            withIntermediateDirectories: true
+        )
+
+        installBridgeBinaryIfNeeded(in: binDirectory)
+        installStatusLineScript(in: binDirectory)
+
+        let bundleBridge = (Bundle.main.executableURL?
+            .deletingLastPathComponent()
+            .appendingPathComponent(bridgeBinaryName)
+            .path) ?? ""
+        let legacyBundleBridge = (Bundle.main.executableURL?
+            .deletingLastPathComponent()
+            .appendingPathComponent(legacyBridgeBinaryName)
+            .path) ?? ""
+
+        let environmentExports = BridgeRuntimePaths.launcherEnvironment
+            .sorted { $0.key < $1.key }
+            .map { key, value in
+                "export \(key)=\(shellQuoted(value))"
+            }
+            .joined(separator: "\n")
+
+        let script = """
+        #!/bin/zsh
+        \(environmentExports)
+
+        SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+        candidates=(
+          "$SCRIPT_DIR/\(bridgeBinaryName)"
+          "$SCRIPT_DIR/\(legacyBridgeBinaryName)"
+          "\(bundleBridge)"
+          "\(legacyBundleBridge)"
+        )
+
+        for candidate in "${candidates[@]}"; do
+          if [ -n "$candidate" ] && [ -x "$candidate" ]; then
+            exec "$candidate" "$@"
+          fi
+        done
+
+        echo "\(bridgeBinaryName) binary not found" >&2
+        exit 127
+        """
+
+        if let existingData = try? Data(contentsOf: launcherURL),
+           existingData == Data(script.utf8) {
+            return
+        }
+
+        try? Data(script.utf8).write(to: launcherURL, options: .atomic)
+        try? FileManager.default.setAttributes(
+            [.posixPermissions: 0o755],
+            ofItemAtPath: launcherURL.path
+        )
+    }
+
+    private static func launcherContainsCurrentRuntimeEnvironment(_ launcherURL: URL) -> Bool {
+        guard let content = try? String(contentsOf: launcherURL, encoding: .utf8) else {
+            return false
+        }
+
+        return BridgeRuntimePaths.launcherEnvironment.allSatisfy { key, value in
+            content.contains("export \(key)=") && content.contains(shellQuoted(value))
+        }
+    }
+
+    private static func runBridgeLauncherHealthCheck(_ launcherURL: URL) -> Bool {
+        let process = Process()
+        process.executableURL = launcherURL
+        process.arguments = ["--mode", "health-check"]
+
+        let outputPipe = Pipe()
+        process.standardOutput = outputPipe
+        process.standardError = Pipe()
+
+        let finished = DispatchSemaphore(value: 0)
+        process.terminationHandler = { _ in
+            finished.signal()
+        }
+
+        do {
+            try process.run()
+        } catch {
+            return false
+        }
+
+        guard finished.wait(timeout: .now() + 2) == .success else {
+            process.terminate()
+            return false
+        }
+
+        let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
+        let output = String(decoding: outputData, as: UTF8.self)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return process.terminationStatus == 0 && output == "ok"
+    }
+
+    private static func installStatusLineScript(in binDirectory: URL) {
+        let scriptURL = binDirectory.appendingPathComponent(statusLineScriptName)
+        // island-statusline 是「包裹式」status line:
+        // 1) 无论如何都从 stdin 抠出 rate_limits 落盘,供菜单栏用量读取;
+        // 2) 若存在委托命令(sidecar 文件 island-statusline-delegate,通常是已有的 claude-hud
+        //    status line),把同一份 stdin 交给它输出,终端仍显示对方的富文本 HUD;
+        // 3) 否则回退到自身的极简 [model] x% context 输出。
+        let script = """
+        #!/bin/bash
+        input=$(cat)
+        _rl=$(echo "$input" | jq -c '.rate_limits // empty' 2>/dev/null)
+        [ -n "$_rl" ] && printf '%s\\n' "$_rl" > /tmp/island-rate-limits.json
+        _delegate="$HOME/.ai-helper/bin/island-statusline-delegate"
+        if [ -s "$_delegate" ]; then
+          printf '%s' "$input" | eval "$(cat "$_delegate")"
+        else
+          echo "$input" | jq -r 'if .model.display_name then "[\\(.model.display_name)] \\(.context_window.used_percentage // 0)% context" else empty end' 2>/dev/null
+        fi
+        """
+
+        try? Data(script.utf8).write(to: scriptURL, options: .atomic)
+        try? FileManager.default.setAttributes(
+            [.posixPermissions: 0o755],
+            ofItemAtPath: scriptURL.path
+        )
+    }
+
+    private static func installBridgeBinaryIfNeeded(in binDirectory: URL) {
+        guard let bundledBridgeURL = preferredBridgeBinaryURL() else {
+            return
+        }
+
+        let destinationURL = binDirectory.appendingPathComponent(bridgeBinaryName)
+        if FileManager.default.fileExists(atPath: destinationURL.path) {
+            let matchesExistingBinary =
+                (try? Data(contentsOf: bundledBridgeURL)) == (try? Data(contentsOf: destinationURL))
+            if matchesExistingBinary == true {
+                return
+            }
+
+            try? FileManager.default.removeItem(at: destinationURL)
+        }
+
+        try? FileManager.default.copyItem(at: bundledBridgeURL, to: destinationURL)
+        try? FileManager.default.setAttributes(
+            [.posixPermissions: 0o755],
+            ofItemAtPath: destinationURL.path
+        )
+    }
+
+    private static func preferredBridgeBinaryURL() -> URL? {
+        let candidates = [
+            Bundle.main.executableURL?
+                .deletingLastPathComponent()
+                .appendingPathComponent(bridgeBinaryName),
+            URL(fileURLWithPath: "/Users/ai-helper/Island/Prototype/.build/debug/\(bridgeBinaryName)")
+        ]
+        .compactMap { $0 }
+        .filter { FileManager.default.isReadableFile(atPath: $0.path) }
+
+        guard !candidates.isEmpty else {
+            return nil
+        }
+
+        return candidates.max { lhs, rhs in
+            let lhsDate = (try? lhs.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast
+            let rhsDate = (try? rhs.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast
+            return lhsDate < rhsDate
+        }
+    }
+
+    private static func applyQwenAskUserQuestionCompatibilityPatchIfNeeded() {
+        guard let cliURL = qwenCLIEntryPointURL(),
+              let source = try? String(contentsOf: cliURL, encoding: .utf8),
+              let patched = patchedQwenCLISourceIfNeeded(source),
+              patched != source else {
+            return
+        }
+
+        try? patched.write(to: cliURL, atomically: true, encoding: .utf8)
+    }
+
+    private static func qwenCLIEntryPointURL() -> URL? {
+        commandEntryPointURL(named: "qwen")
+    }
+
+    static func patchedQwenCLISourceIfNeeded(_ source: String) -> String? {
+        let marker = #"const hookAnswerPayload = confirmationDetails.type === "ask_user_question""#
+        if source.contains(marker) {
+            return source
+        }
+
+        let patterns: [(pattern: String, replacement: String)] = [
+            (
+                #"(\s+if \(hookResult\.updatedInput && typeof reqInfo\.args === "object"\) \{\s+this\.setArgsInternal\(reqInfo\.callId, hookResult\.updatedInput\);\s+\}\s+)await confirmationDetails\.onConfirm\(ToolConfirmationOutcome\.ProceedOnce\);"#,
+                """
+                $1const hookAnswerPayload = confirmationDetails.type === "ask_user_question" && hookResult.updatedInput && typeof hookResult.updatedInput === "object" && "answers" in hookResult.updatedInput ? { answers: hookResult.updatedInput.answers } : void 0;
+                $1await confirmationDetails.onConfirm(ToolConfirmationOutcome.ProceedOnce, hookAnswerPayload);
+                """
+            ),
+            (
+                #"(\s+if \(hookResult\.updatedInput\) \{\s+args2 = hookResult\.updatedInput;\s+invocation\.params = hookResult\.updatedInput;\s+\}\s+)await confirmationDetails\.onConfirm\(\s+ToolConfirmationOutcome\.ProceedOnce\s+\);"#,
+                """
+                $1const hookAnswerPayload = confirmationDetails.type === "ask_user_question" && hookResult.updatedInput && typeof hookResult.updatedInput === "object" && "answers" in hookResult.updatedInput ? { answers: hookResult.updatedInput.answers } : void 0;
+                $1await confirmationDetails.onConfirm(
+                $1  ToolConfirmationOutcome.ProceedOnce,
+                $1  hookAnswerPayload
+                $1);
+                """
+            )
+        ]
+
+        var patched = source
+        var didChange = false
+        for entry in patterns {
+            guard let regex = try? NSRegularExpression(pattern: entry.pattern) else {
+                continue
+            }
+            let range = NSRange(patched.startIndex..., in: patched)
+            let updated = regex.stringByReplacingMatches(in: patched, range: range, withTemplate: entry.replacement)
+            if updated != patched {
+                patched = updated
+                didChange = true
+            }
+        }
+
+        return didChange ? patched : nil
+    }
+
+    private static func applyCodeBuddyCLIAskUserQuestionCompatibilityPatchIfNeeded() {
+        for cliURL in codeBuddyCLIBundleURLs() {
+            guard let source = try? String(contentsOf: cliURL, encoding: .utf8),
+                  let patched = patchedCodeBuddyCLISourceIfNeeded(source),
+                  patched != source else {
+                continue
+            }
+
+            try? patched.write(to: cliURL, atomically: true, encoding: .utf8)
+        }
+    }
+
+    private static func codeBuddyCLIBundleURLs() -> [URL] {
+        guard let entryPointURL = commandEntryPointURL(named: "codebuddy") else {
+            return []
+        }
+
+        let packageURL = entryPointURL
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let distURL = packageURL.appendingPathComponent("dist", isDirectory: true)
+        return [
+            distURL.appendingPathComponent("codebuddy.js"),
+            distURL.appendingPathComponent("codebuddy-headless.js")
+        ].filter { FileManager.default.isWritableFile(atPath: $0.path) }
+    }
+
+    private static func commandEntryPointURL(named command: String) -> URL? {
+        let process = Process()
+        let stdout = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        process.arguments = ["which", command]
+        process.standardOutput = stdout
+        process.standardError = Pipe()
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+            guard process.terminationStatus == 0 else { return nil }
+            let data = stdout.fileHandleForReading.readDataToEndOfFile()
+            guard let path = String(data: data, encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+                !path.isEmpty else {
+                return nil
+            }
+            return URL(fileURLWithPath: path).resolvingSymlinksInPath()
+        } catch {
+            return nil
+        }
+    }
+
+    static func patchedCodeBuddyCLISourceIfNeeded(_ source: String) -> String? {
+        let marker = "[AIHelper CodeBuddy CLI AskUserQuestion compatibility]"
+        if source.contains(marker) {
+            return source
+        }
+
+        guard let containerAlias = codeBuddyContainerUtilAlias(in: source) else {
+            return nil
+        }
+
+        var patched = source
+        var didChange = false
+
+        let notificationNeedle = #"try{await this.hookManager.executeHooks(tV.HookEvent.NOTIFICATION,ec)}catch(ei){this.logger.error("Notification hook execution failed:",ei)}"#
+        if patched.contains(notificationNeedle) {
+            patched = patched.replacingOccurrences(
+                of: notificationNeedle,
+                with: #"try{return await this.hookManager.executeHooks(tV.HookEvent.NOTIFICATION,ec)}catch(ei){this.logger.error("Notification hook execution failed:",ei)}"#
+            )
+            didChange = true
+        }
+
+        let permissionNeedle = #"let eu=`needs your permission to use ${ea}`;try{await this.sessionHookManager.executeNotificationHooks(ei,eu,tV.NotificationType.PERMISSION_PROMPT)}catch(ei){this.consoleManager.error("Notification hook failed:",ei)}}"#
+        if patched.contains(permissionNeedle) {
+            let replacement = """
+            let eu=`needs your permission to use ${ea}`;try{
+            let eI=await this.sessionHookManager.executeNotificationHooks(ei,eu,tV.NotificationType.PERMISSION_PROMPT);
+            if("AskUserQuestion"===ea){
+            let eR=eI?.hookSpecificOutput?.updatedInput||eI?.hookSpecificOutput?.modifiedInput||eI?.updatedInput||eI?.modifiedInput||eI?.decision?.updatedInput||eI?.hookSpecificOutput?.decision?.updatedInput,eO=eR?.answers;
+            if(eO&&"object"==typeof eO){
+            let eP=new Map,eD="arguments"in em.rawItem?em.rawItem.arguments:void 0;
+            try{let ei="string"==typeof eD?JSON.parse(eD):eD;(Array.isArray(ei?.questions)?ei.questions:[]).forEach((ei,ea)=>{let el="string"==typeof ei?.question?ei.question:"";el&&(eP.set(el,el),"string"==typeof ei?.id&&ei.id&&eP.set(ei.id,el),eP.set(`q_${ea}`,el),eP.set(String(ea),el))})}catch(ei){this.logger.warn?.(`[HandleInterruptions] Failed to parse AskUserQuestion arguments from hook answer: ${ei instanceof Error?ei.message:String(ei)}`)}
+            let eN=Object.fromEntries(Object.entries(eO).map(([ei,ea])=>[eP.get(ei)||ei,Array.isArray(ea)?ea.join(", "):ea])),eM=em.rawItem.callId||em.rawItem.id;
+            try{\(containerAlias).ContainerUtil.get(el(88056).AskService).doneAsk(eN,eM),this.approve(em),this.logger.info?.(`[AIHelper CodeBuddy CLI AskUserQuestion compatibility] answered id=${eM||"none"}`)}catch(ei){this.logger.warn?.(`[HandleInterruptions] Failed to apply AskUserQuestion hook answer: ${ei instanceof Error?ei.message:String(ei)}`)}
+            }}
+            }catch(ei){this.consoleManager.error("Notification hook failed:",ei)}}
+            """
+            patched = patched.replacingOccurrences(of: permissionNeedle, with: replacement)
+            didChange = true
+        }
+
+        return didChange ? patched : nil
+    }
+
+    private static func codeBuddyContainerUtilAlias(in source: String) -> String? {
+        guard let permissionRange = source.range(of: #"needs your permission to use"#) else {
+            return nil
+        }
+        let prefix = String(source[..<permissionRange.lowerBound].suffix(200_000))
+        guard let regex = try? NSRegularExpression(pattern: #"(?:^|[,\s])([A-Za-z_$][A-Za-z0-9_$]*)=el\(80699\),"#) else {
+            return nil
+        }
+        let range = NSRange(prefix.startIndex..., in: prefix)
+        guard let match = regex.matches(in: prefix, range: range).last,
+              match.numberOfRanges > 1,
+              let aliasRange = Range(match.range(at: 1), in: prefix) else {
+            return nil
+        }
+        return String(prefix[aliasRange])
+    }
+
+    private static func normalizedHookEntries(
+        _ existingEntries: [[String: Any]]?,
+        preferred: [[String: Any]],
+        preferredFirst: Bool = false,
+        profile: ManagedHookClientProfile? = nil
+    ) -> [[String: Any]] {
+        let preservedEntries = (existingEntries ?? []).filter { !isIslandManagedHookEntry($0, for: profile) }
+        return preferredFirst ? preferred + preservedEntries : preservedEntries + preferred
+    }
+
+    private static func removingIslandManagedHooks(
+        from hooks: [String: Any],
+        profile: ManagedHookClientProfile? = nil
+    ) -> [String: Any] {
+        var updated = hooks
+        for (event, value) in hooks {
+            guard var entries = value as? [[String: Any]] else { continue }
+            entries.removeAll { isIslandManagedHookEntry($0, for: profile) }
+            if entries.isEmpty {
+                updated.removeValue(forKey: event)
+            } else {
+                updated[event] = entries
+            }
+        }
+        return updated
+    }
+
+    private static func updateHooks(at url: URL, profile: ManagedHookClientProfile) {
+        var json: [String: Any] = [:]
+        if let data = try? Data(contentsOf: url),
+           let existing = HookConfigParser.parseJSONObject(from: data) {
+            json = existing
+        }
+
+        let activeEvents = effectiveEvents(for: profile)
+
+        if profile.brand == .copilot {
+            // GitHub Copilot expects flat command entries and does not include the
+            // hook event name in stdin, so we bind the event explicitly here.
+            json["version"] = 1
+            var hooks = removingIslandManagedHooks(from: json["hooks"] as? [String: Any] ?? [:])
+            for event in activeEvents {
+                let command = bridgeCommand(
+                    source: profile.bridgeSource,
+                    extraArguments: profile.bridgeExtraArguments + ["--event", event.name]
+                )
+                let existingEvent = hooks[event.name] as? [[String: Any]]
+                hooks[event.name] = normalizedHookEntries(
+                    existingEvent,
+                    preferred: makeCopilotHookEntries(command: command, event: event)
+                )
+            }
+            json["hooks"] = hooks
+            writeJSONObject(json, to: url)
+            return
+        }
+
+        let command = bridgeCommand(source: profile.bridgeSource, extraArguments: profile.bridgeExtraArguments)
+        let preferredFirst = profile.id == "qoder-cli-hooks"
+            || profile.id == "codebuddy-cli-hooks"
+
+        var hooks = removingIslandManagedHooks(from: json["hooks"] as? [String: Any] ?? [:], profile: profile)
+        for event in activeEvents {
+            let existingEvent = hooks[event.name] as? [[String: Any]]
+            hooks[event.name] = normalizedHookEntries(
+                existingEvent,
+                preferred: makeHookEntries(command: command, event: event),
+                preferredFirst: preferredFirst,
+                profile: profile
+            )
+        }
+
+        json["hooks"] = hooks
+        if profile.id == "claude-hooks" {
+            json["statusLine"] = installedClaudeStatusLineConfiguration(
+                preserving: json["statusLine"] as? [String: Any]
+            )
+        }
+        writeJSONObject(json, to: url)
+    }
+
+    nonisolated static func installedClaudeStatusLineConfiguration(
+        preserving existingStatusLine: [String: Any]?
+    ) -> [String: Any] {
+        // 已有一个「非本插件托管」的 status line(典型是 claude-hud):把它的命令捕获为委托,
+        // 让 island-statusline 链式调用它——终端仍显示 claude-hud 的 HUD,同时 island-statusline
+        // 照常把 rate_limits 落盘给菜单栏用量。这样两者共存,不再是「有 claude-hud 就不接入用量」。
+        // 若已是本插件托管的脚本,保留之前捕获的委托不动(重装不丢链)。
+        if let existingStatusLine, !isManagedStatusLine(existingStatusLine),
+           let command = existingStatusLine["command"] as? String,
+           !command.isEmpty {
+            writeStatusLineDelegate(command)
+        }
+
+        return managedStatusLineConfiguration()
+    }
+
+    /// 委托 status line 命令的持久化位置(sidecar),被 island-statusline 脚本运行时读取。
+    private static func statusLineDelegateURL() -> URL {
+        islandSupportDirectory()
+            .appendingPathComponent("bin", isDirectory: true)
+            .appendingPathComponent("island-statusline-delegate")
+    }
+
+    /// 把已有的(非托管)status line 命令写入 sidecar,供 island-statusline 链式委托。
+    private static func writeStatusLineDelegate(_ command: String) {
+        let url = statusLineDelegateURL()
+        try? FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try? Data(command.utf8).write(to: url, options: .atomic)
+    }
+
+    private static func managedStatusLineConfiguration() -> [String: Any] {
+        [
+            "type": "command",
+            "command": statusLineCommand()
+        ]
+    }
+
+    private static func statusLineCommand() -> String {
+        islandSupportDirectory()
+            .appendingPathComponent("bin", isDirectory: true)
+            .appendingPathComponent(statusLineScriptName)
+            .path
+    }
+
+    private static func isManagedStatusLine(_ statusLine: [String: Any]?) -> Bool {
+        guard let command = statusLine?["command"] as? String else {
+            return false
+        }
+
+        return command == statusLineCommand()
+            || command.contains("/.ai-helper/bin/\(statusLineScriptName)")
+    }
+
+    private static func writeManagedPlugin(at url: URL, profile: ManagedHookClientProfile) {
+        let content = managedPluginSource(for: profile)
+        guard !content.isEmpty else { return }
+
+        try? FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+
+        try? Data(content.utf8).write(to: url, options: .atomic)
+    }
+
+    private static func removeManagedPlugin(at url: URL, profile: ManagedHookClientProfile) {
+        guard containsManagedPlugin(at: url, profile: profile) else {
+            return
+        }
+
+        try? FileManager.default.removeItem(at: url)
+    }
+
+    private static func containsManagedPlugin(at url: URL, profile: ManagedHookClientProfile) -> Bool {
+        guard let content = try? String(contentsOf: url, encoding: .utf8) else {
+            return false
+        }
+
+        return content.contains(managedMarker(for: profile))
+    }
+
+    private static func writeManagedPluginDirectory(at url: URL, profile: ManagedHookClientProfile) {
+        let files = managedPluginDirectoryFiles(for: profile)
+        guard !files.isEmpty else { return }
+
+        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        for (name, content) in files {
+            let fileURL = url.appendingPathComponent(name)
+            try? Data(content.utf8).write(to: fileURL, options: .atomic)
+        }
+    }
+
+    private static func removeManagedPluginDirectory(at url: URL, profile: ManagedHookClientProfile) {
+        guard containsManagedPluginDirectory(at: url, profile: profile) else {
+            return
+        }
+
+        try? FileManager.default.removeItem(at: url)
+    }
+
+    private static func containsManagedPluginDirectory(at url: URL, profile: ManagedHookClientProfile) -> Bool {
+        let fileManager = FileManager.default
+        guard fileManager.fileExists(atPath: url.path) else {
+            return false
+        }
+
+        let marker = managedMarker(for: profile)
+        let candidates = [
+            url.appendingPathComponent("plugin.yaml"),
+            url.appendingPathComponent("__init__.py"),
+            url.appendingPathComponent("index.ts")
+        ]
+
+        return candidates.contains { fileURL in
+            guard let content = try? String(contentsOf: fileURL, encoding: .utf8) else {
+                return false
+            }
+            return content.contains(marker)
+        }
+    }
+
+    private static func writeManagedHookDirectory(at url: URL, profile: ManagedHookClientProfile) {
+        let files = managedHookDirectoryFiles(for: profile)
+        guard !files.isEmpty else { return }
+
+        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        for (name, content) in files {
+            let fileURL = url.appendingPathComponent(name)
+            try? Data(content.utf8).write(to: fileURL, options: .atomic)
+        }
+    }
+
+    private static func removeManagedHookDirectory(at url: URL, profile: ManagedHookClientProfile) {
+        guard containsManagedHookDirectory(at: url, profile: profile) else {
+            return
+        }
+
+        try? FileManager.default.removeItem(at: url)
+    }
+
+    private static func containsManagedHookDirectory(at url: URL, profile: ManagedHookClientProfile) -> Bool {
+        let fileManager = FileManager.default
+        guard fileManager.fileExists(atPath: url.path) else {
+            return false
+        }
+
+        let marker = managedMarker(for: profile)
+        let candidates = [
+            url.appendingPathComponent("HOOK.md"),
+            url.appendingPathComponent("handler.ts")
+        ]
+
+        return candidates.contains { fileURL in
+            guard let content = try? String(contentsOf: fileURL, encoding: .utf8) else {
+                return false
+            }
+            return content.contains(marker)
+        }
+    }
+
+    private static func makeHookEntries(command: String, event: HookInstallEventDescriptor) -> [[String: Any]] {
+        var hookCommand: [String: Any] = [
+            "type": "command",
+            "command": command
+        ]
+        if let timeout = event.timeout {
+            hookCommand["timeout"] = timeout
+        }
+
+        return event.templates.map { template in
+            switch template {
+            case .plain:
+                return ["hooks": [hookCommand]]
+            case .matcher(let matcher):
+                return [
+                    "matcher": matcher,
+                    "hooks": [hookCommand]
+                ]
+            case .direct:
+                return hookCommand
+            }
+        }
+    }
+
+    private static func makeCopilotHookEntries(command: String, event: HookInstallEventDescriptor) -> [[String: Any]] {
+        var entry: [String: Any] = [
+            "type": "command",
+            "bash": command
+        ]
+        if let timeout = event.timeout {
+            entry["timeoutSec"] = timeout
+        }
+        return [entry]
+    }
+
+    private static func islandSupportDirectory() -> URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(supportDirectoryName, isDirectory: true)
+    }
+
+    private static func bridgeCommandArguments(for profile: ManagedHookClientProfile) -> [String] {
+        [
+            islandSupportDirectory()
+                .appendingPathComponent("bin", isDirectory: true)
+                .appendingPathComponent(bridgeLauncherName)
+                .path,
+            "--source",
+            profile.bridgeSource
+        ] + profile.bridgeExtraArguments
+    }
+
+    private static func bridgeCommand(source: String, extraArguments: [String] = []) -> String {
+        let launcherPath = islandSupportDirectory()
+            .appendingPathComponent("bin", isDirectory: true)
+            .appendingPathComponent(bridgeLauncherName)
+            .path
+        return ([launcherPath, "--source", source] + extraArguments)
+            .map(shellQuotedIfNeeded)
+            .joined(separator: " ")
+    }
+
+    private static func containsManagedHooks(at url: URL, profile: ManagedHookClientProfile? = nil) -> Bool {
+        guard let data = try? Data(contentsOf: url),
+              let json = HookConfigParser.parseJSONObject(from: data),
+              let hooks = json["hooks"] as? [String: Any] else {
+            return false
+        }
+
+        for (_, value) in hooks {
+            if let entries = value as? [[String: Any]] {
+                for entry in entries {
+                    if isIslandManagedHookEntry(entry, for: profile) {
+                        return true
+                    }
+                }
+            }
+        }
+        return false
+    }
+
+    private static func isIslandManagedHookEntry(
+        _ entry: [String: Any],
+        for profile: ManagedHookClientProfile? = nil
+    ) -> Bool {
+        if let command = hookCommandString(from: entry) {
+            return isIslandManagedHookCommand(command, for: profile)
+        }
+
+        if let nestedHooks = entry["hooks"] as? [[String: Any]] {
+            return nestedHooks.contains { hook in
+                guard let command = hookCommandString(from: hook) else { return false }
+                return isIslandManagedHookCommand(command, for: profile)
+            }
+        }
+
+        return false
+    }
+
+    private static func hookCommandString(from entry: [String: Any]) -> String? {
+        let candidates = [
+            entry["command"] as? String,
+            entry["bash"] as? String,
+            entry["powershell"] as? String
+        ]
+        return candidates.compactMap { command in
+            let trimmed = command?.trimmingCharacters(in: .whitespacesAndNewlines)
+            return (trimmed?.isEmpty == false) ? trimmed : nil
+        }.first
+    }
+
+    private static func isIslandManagedHookCommand(
+        _ command: String,
+        for profile: ManagedHookClientProfile? = nil
+    ) -> Bool {
+        let normalized = command.lowercased()
+        let isManaged = normalized.contains("/.ai-helper/bin/ai-helper-bridge")
+            || normalized.contains("/.ai-helper/bin/island-bridge")
+        guard isManaged, let profile else {
+            return isManaged
+        }
+
+        switch profile.id {
+        case "codebuddy-hooks":
+            return hookCommand(command, hasClientKind: "codebuddy")
+        case "codebuddy-cli-hooks":
+            return hookCommand(command, hasClientKind: "codebuddy-cli")
+        case "workbuddy-hooks":
+            return hookCommand(command, hasClientKind: "workbuddy")
+        case "qoder-hooks":
+            return hookCommand(command, hasClientKind: "qoder")
+        case "qoder-cli-hooks":
+            return hookCommand(command, hasClientKind: "qoder-cli")
+        case "qoderwork-hooks":
+            return hookCommand(command, hasClientKind: "qoderwork")
+        default:
+            return true
+        }
+    }
+
+    private static func hookCommand(_ command: String, hasClientKind clientKind: String) -> Bool {
+        let escapedKind = NSRegularExpression.escapedPattern(for: clientKind)
+        let pattern = #"(^|\s)--client-kind\s+(?:'\#(escapedKind)'|"\#(escapedKind)"|\#(escapedKind))(?=\s|$)"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
+            return false
+        }
+        let range = NSRange(command.startIndex..., in: command)
+        return regex.firstMatch(in: command, range: range) != nil
+    }
+
+    private static func managedMarker(for profile: ManagedHookClientProfile) -> String {
+        "ai-helper managed integration: \(profile.id)"
+    }
+
+    static func managedPluginSource(for profile: ManagedHookClientProfile) -> String {
+        guard profile.id == "opencode-hooks" else {
+            return ""
+        }
+
+        let argsData = (try? JSONSerialization.data(withJSONObject: bridgeCommandArguments(for: profile), options: []))
+            ?? Data("[]".utf8)
+        let argsJSON = String(data: argsData, encoding: .utf8) ?? "[]"
+        let marker = managedMarker(for: profile)
+
+        return """
+        // \(marker)
+        // Generated by ai-helper. Reinstall from Island settings if you need to refresh it.
+
+        const BRIDGE_ARGS = \(argsJSON);
+        const ENV_KEYS = [
+          "TERM_PROGRAM",
+          "ITERM_SESSION_ID",
+          "TERM_SESSION_ID",
+          "TMUX",
+          "TMUX_PANE",
+          "KITTY_WINDOW_ID",
+          "__CFBundleIdentifier",
+          "CONDUCTOR_WORKSPACE_NAME",
+          "CONDUCTOR_PORT",
+          "CURSOR_TRACE_ID",
+          "CMUX_WORKSPACE_ID",
+          "CMUX_SURFACE_ID",
+          "CMUX_SOCKET_PATH",
+          "WINDOWSERVER_DISPLAY_UUID"
+        ];
+
+        function isObject(value) {
+          return value !== null && typeof value === "object" && !Array.isArray(value);
+        }
+
+        function atPath(value, path) {
+          let current = value;
+          for (const key of path) {
+            if (!isObject(current) && !Array.isArray(current)) return undefined;
+            current = current?.[key];
+          }
+          return current;
+        }
+
+        function firstDefined(value, paths) {
+          for (const path of paths) {
+            const candidate = atPath(value, path);
+            if (candidate !== undefined && candidate !== null && candidate !== "") {
+              return candidate;
+            }
+          }
+          return undefined;
+        }
+
+        function firstString(value, keys, depth = 0) {
+          if (depth > 5 || value == null) return undefined;
+          if (typeof value === "string" && value.trim().length > 0) return value;
+          if (Array.isArray(value)) {
+            for (const entry of value) {
+              const found = firstString(entry, keys, depth + 1);
+              if (found) return found;
+            }
+            return undefined;
+          }
+          if (!isObject(value)) return undefined;
+
+          for (const key of keys) {
+            const candidate = value[key];
+            if (typeof candidate === "string" && candidate.trim().length > 0) {
+              return candidate;
+            }
+          }
+
+          for (const nested of Object.values(value)) {
+            const found = firstString(nested, keys, depth + 1);
+            if (found) return found;
+          }
+          return undefined;
+        }
+
+        function firstObject(value, keys, depth = 0) {
+          if (depth > 5 || value == null) return undefined;
+          if (Array.isArray(value)) {
+            for (const entry of value) {
+              const found = firstObject(entry, keys, depth + 1);
+              if (found) return found;
+            }
+            return undefined;
+          }
+          if (!isObject(value)) return undefined;
+
+          for (const key of keys) {
+            const candidate = value[key];
+            if (isObject(candidate) || Array.isArray(candidate)) {
+              return candidate;
+            }
+          }
+
+          for (const nested of Object.values(value)) {
+            const found = firstObject(nested, keys, depth + 1);
+            if (found) return found;
+          }
+          return undefined;
+        }
+
+        function stableString(value) {
+          if (value == null) return undefined;
+          if (typeof value === "string") {
+            const trimmed = value.trim();
+            return trimmed.length > 0 ? trimmed : undefined;
+          }
+          try {
+            return JSON.stringify(value);
+          } catch {
+            return undefined;
+          }
+        }
+
+        function capitalize(value) {
+          if (typeof value !== "string" || value.length === 0) return undefined;
+          return value.charAt(0).toUpperCase() + value.slice(1);
+        }
+
+        function collectBridgeEnv() {
+          const collected = {};
+          for (const key of ENV_KEYS) {
+            const value = process.env[key];
+            if (typeof value === "string" && value.length > 0) {
+              collected[key] = value;
+            }
+          }
+          return collected;
+        }
+
+        function detectTTY() {
+          try {
+            const { execSync } = require("child_process");
+            let walkPid = process.pid;
+            for (let index = 0; index < 8; index += 1) {
+              const info = execSync(`ps -o tty=,ppid= -p ${walkPid}`, { timeout: 1000 })
+                .toString()
+                .trim();
+              if (!info) break;
+              const parts = info.split(/\\s+/);
+              const tty = parts[0];
+              const ppid = Number.parseInt(parts[1] || "", 10);
+              if (tty && tty !== "??" && tty !== "?") {
+                return tty.startsWith("/dev/") ? tty : `/dev/${tty}`;
+              }
+              if (!Number.isFinite(ppid) || ppid <= 1) break;
+              walkPid = ppid;
+            }
+          } catch {
+            return undefined;
+          }
+          return undefined;
+        }
+
+        function makeBasePayload(sessionId, extra = {}) {
+          return {
+            session_id: sessionId,
+            _source: "opencode",
+            _env: collectBridgeEnv(),
+            _tty: detectedTTY,
+            pid: process.pid,
+            ...extra
+          };
+        }
+
+        function normalizeQuestions(questions) {
+          if (!Array.isArray(questions)) return [];
+          return questions.map((question) => ({
+            id: stableString(question?.id),
+            header: stableString(question?.header),
+            question: stableString(question?.question),
+            description: stableString(question?.description),
+            options: Array.isArray(question?.options)
+              ? question.options
+                  .map((option) => {
+                    if (typeof option === "string") return option;
+                    if (!isObject(option)) return undefined;
+                    const label = stableString(option.label);
+                    if (!label) return undefined;
+                    return {
+                      label,
+                      description: stableString(option.description)
+                    };
+                  })
+                  .filter(Boolean)
+              : [],
+            multiple: question?.multiple === true
+          })).filter((question) => question.question);
+        }
+
+        function questionAnswerArrays(questions, answers) {
+          if (!isObject(answers)) return [];
+          const mappedAnswers = questions
+            .map((question, index) => {
+              const lookupKeys = [
+                stableString(question.id),
+                stableString(question.question),
+                stableString(question.header),
+                String(index)
+              ].filter(Boolean);
+
+              const value = lookupKeys
+                .map((key) => answers[key])
+                .find((candidate) => candidate !== undefined && candidate !== null);
+              if (value === undefined || value === null) return [];
+
+              if (Array.isArray(value)) {
+                return value
+                  .map((entry) => stableString(entry))
+                  .filter(Boolean);
+              }
+
+              const normalized = stableString(value);
+              return normalized ? [normalized] : [];
+            })
+            .filter((entry) => entry.length > 0);
+
+          if (mappedAnswers.length > 0) return mappedAnswers;
+          return Object.values(answers)
+            .map((value) => {
+              if (Array.isArray(value)) {
+                return value
+                  .map((entry) => stableString(entry))
+                  .filter(Boolean);
+              }
+              const normalized = stableString(value);
+              return normalized ? [normalized] : [];
+            })
+            .filter((entry) => entry.length > 0);
+        }
+
+        function toolNameForPermission(permission) {
+          if (permission === "bash") return "Bash";
+          if (permission === "edit" || permission === "write") return "Write";
+          return capitalize(permission) ?? "Permission";
+        }
+
+        function permissionToolInput(properties) {
+          const patterns = Array.isArray(properties?.patterns)
+            ? properties.patterns.map((entry) => stableString(entry)).filter(Boolean)
+            : [];
+          const input = {};
+          if (patterns.length > 0) {
+            input.patterns = patterns;
+          }
+          if (isObject(properties?.metadata)) {
+            input.metadata = properties.metadata;
+          }
+          if (properties?.permission === "bash" && patterns.length > 0) {
+            input.command = patterns.join(" && ");
+          }
+          if ((properties?.permission === "edit" || properties?.permission === "write") && patterns.length > 0) {
+            input.file_path = patterns[0];
+          }
+          return Object.keys(input).length > 0 ? input : undefined;
+        }
+
+        function mapEvent(event) {
+          const type = event?.type;
+          const properties = isObject(event?.properties) ? event.properties : {};
+          if (typeof type !== "string" || type.length === 0) return undefined;
+
+          if (type === "session.created" && isObject(properties.info) && stableString(properties.info.id)) {
+            const rawSessionID = stableString(properties.info.id);
+            const cwd = stableString(properties.info.directory);
+            const sessionId = `opencode-${rawSessionID}`;
+            const session = getSession(rawSessionID);
+            session.cwd = cwd;
+            return makeBasePayload(sessionId, {
+              hook_event_name: "SessionStart",
+              cwd
+            });
+          }
+
+          if (type === "session.deleted" && isObject(properties.info) && stableString(properties.info.id)) {
+            const rawSessionID = stableString(properties.info.id);
+            sessions.delete(rawSessionID);
+            messageRoles.forEach((value, key) => {
+              if (value?.sessionID === rawSessionID) {
+                messageRoles.delete(key);
+              }
+            });
+            return makeBasePayload(`opencode-${rawSessionID}`, {
+              hook_event_name: "SessionEnd"
+            });
+          }
+
+          if (type === "session.updated" && isObject(properties.info) && stableString(properties.info.id)) {
+            const rawSessionID = stableString(properties.info.id);
+            const session = getSession(rawSessionID);
+            const cwd = stableString(properties.info.directory) ?? session.cwd;
+            if (cwd) session.cwd = cwd;
+            const title = stableString(properties.info.title);
+            if (title && !title.startsWith("New session")) {
+              session.pendingTitle = title;
+            }
+            if (properties.info.time?.archived) {
+              sessions.delete(rawSessionID);
+              return makeBasePayload(`opencode-${rawSessionID}`, {
+                hook_event_name: "SessionEnd",
+                cwd
+              });
+            }
+            return undefined;
+          }
+
+          if (type === "session.status" && stableString(properties.sessionID)) {
+            const rawSessionID = stableString(properties.sessionID);
+            const session = getSession(rawSessionID);
+            if (properties.status?.type === "idle") {
+              const payload = makeBasePayload(`opencode-${rawSessionID}`, {
+                hook_event_name: "Stop",
+                cwd: session.cwd,
+                last_assistant_message: session.lastAssistantText || undefined,
+                session_title: session.pendingTitle || undefined
+              });
+              session.pendingTitle = undefined;
+              return payload;
+            }
+            return undefined;
+          }
+
+          if (type === "message.updated" && isObject(properties.info) && stableString(properties.info.id) && stableString(properties.info.sessionID)) {
+            messageRoles.set(stableString(properties.info.id), {
+              role: stableString(properties.info.role),
+              sessionID: stableString(properties.info.sessionID)
+            });
+            if (messageRoles.size > 200) {
+              messageRoles.delete(messageRoles.keys().next().value);
+            }
+            return undefined;
+          }
+
+          if (type === "message.part.updated" && isObject(properties.part) && stableString(properties.part.sessionID)) {
+            const rawSessionID = stableString(properties.part.sessionID);
+            const session = getSession(rawSessionID);
+            const sessionId = `opencode-${rawSessionID}`;
+
+            if (properties.part.type === "text" && stableString(properties.part.messageID)) {
+              const meta = messageRoles.get(stableString(properties.part.messageID));
+              if (!meta) return undefined;
+
+              const text = stableString(properties.part.text);
+              if (!text) return undefined;
+
+              if (meta.role === "user") {
+                session.lastUserText = text;
+                return makeBasePayload(sessionId, {
+                  hook_event_name: "UserPromptSubmit",
+                  cwd: session.cwd,
+                  prompt: text
+                });
+              }
+
+              if (meta.role === "assistant") {
+                session.lastAssistantText = text;
+              }
+              return undefined;
+            }
+
+            if (properties.part.type === "tool") {
+              const toolName = capitalize(stableString(properties.part.tool)) ?? "Tool";
+              const toolInput = properties.part.state?.input;
+              const state = stableString(properties.part.state?.status);
+              if (state === "running" || state === "pending") {
+                return makeBasePayload(sessionId, {
+                  hook_event_name: "PreToolUse",
+                  cwd: session.cwd,
+                  tool_name: toolName,
+                  tool_input: isObject(toolInput) || Array.isArray(toolInput) ? toolInput : undefined
+                });
+              }
+              if (state === "completed" || state === "error") {
+                return makeBasePayload(sessionId, {
+                  hook_event_name: "PostToolUse",
+                  cwd: session.cwd,
+                  tool_name: toolName,
+                  tool_input: isObject(toolInput) || Array.isArray(toolInput) ? toolInput : undefined
+                });
+              }
+            }
+          }
+
+          if (type === "permission.asked" && stableString(properties.id) && stableString(properties.sessionID)) {
+            const rawSessionID = stableString(properties.sessionID);
+            const session = getSession(rawSessionID);
+            return makeBasePayload(`opencode-${rawSessionID}`, {
+              hook_event_name: "PermissionRequest",
+              cwd: session.cwd,
+              tool_name: toolNameForPermission(properties.permission),
+              tool_input: permissionToolInput(properties),
+              _opencode_request_id: stableString(properties.id)
+            });
+          }
+
+          if (type === "permission.replied" && stableString(properties.sessionID)) {
+            const rawSessionID = stableString(properties.sessionID);
+            const session = getSession(rawSessionID);
+            return makeBasePayload(`opencode-${rawSessionID}`, {
+              hook_event_name: "PostToolUse",
+              cwd: session.cwd,
+              tool_name: toolNameForPermission(properties.permission)
+            });
+          }
+
+          if (type === "question.asked" && stableString(properties.id) && stableString(properties.sessionID)) {
+            const rawSessionID = stableString(properties.sessionID);
+            const session = getSession(rawSessionID);
+            return makeBasePayload(`opencode-${rawSessionID}`, {
+              hook_event_name: "PreToolUse",
+              cwd: session.cwd,
+              tool_name: "AskUserQuestion",
+              tool_input: { questions: normalizeQuestions(properties.questions) },
+              _opencode_request_id: stableString(properties.id)
+            });
+          }
+
+          if ((type === "question.replied" || type === "question.rejected") && stableString(properties.sessionID)) {
+            const rawSessionID = stableString(properties.sessionID);
+            const session = getSession(rawSessionID);
+            return makeBasePayload(`opencode-${rawSessionID}`, {
+              hook_event_name: "PostToolUse",
+              cwd: session.cwd,
+              tool_name: "AskUserQuestion"
+            });
+          }
+
+          return undefined;
+        }
+
+        async function runBridge(payload, captureResponse = false) {
+          const env = { ...(globalThis.process?.env ?? {}) };
+          if (isObject(payload?._env)) {
+            Object.assign(env, payload._env);
+          }
+          if (typeof payload?._tty === "string" && payload._tty.length > 0) {
+            env.TTY = payload._tty;
+          }
+
+          try {
+            const subprocess = Bun.spawn(BRIDGE_ARGS, {
+              stdin: new Response(JSON.stringify(payload)),
+              stdout: captureResponse ? "pipe" : "ignore",
+              stderr: "ignore",
+              env
+            });
+
+            const exitCode = await subprocess.exited;
+            if (!captureResponse || exitCode !== 0 || !subprocess.stdout) {
+              return null;
+            }
+
+            const stdout = (await new Response(subprocess.stdout).text()).trim();
+            if (!stdout) return null;
+            try {
+              return JSON.parse(stdout);
+            } catch {
+              return null;
+            }
+          } catch {
+            // OpenCode hooks should never fail because Island is unavailable.
+            return null;
+          }
+        }
+
+        const detectedTTY = detectTTY();
+        const messageRoles = new Map();
+        const sessions = new Map();
+
+        function getSession(sessionID) {
+          if (!sessions.has(sessionID)) {
+            sessions.set(sessionID, {
+              cwd: undefined,
+              lastUserText: "",
+              lastAssistantText: "",
+              pendingTitle: undefined
+            });
+          }
+          return sessions.get(sessionID);
+        }
+
+        export const server = async ({ client, serverUrl }) => {
+          const internalFetch = client?._client?.getConfig?.()?.fetch ?? globalThis.fetch ?? null;
+          const serverPort = Number.parseInt(serverUrl?.port || "", 10) || 4096;
+
+          return {
+          name: "ai-helper",
+          description: "Forward OpenCode hook events to ai-helper.",
+          event: async ({ event }) => {
+            const payload = mapEvent(event);
+            if (!payload) return;
+
+            const requestId = stableString(payload._opencode_request_id);
+            const questions = payload.tool_input?.questions;
+
+            if (
+              payload.hook_event_name === "PreToolUse"
+                && payload.tool_name === "AskUserQuestion"
+                && requestId
+                && internalFetch
+            ) {
+              const response = await runBridge(payload, true);
+              const answers = response?.hookSpecificOutput?.decision?.updatedInput?.answers
+                ?? response?.hookSpecificOutput?.updatedInput?.answers;
+              const answerArray = questionAnswerArrays(Array.isArray(questions) ? questions : [], answers);
+              if (answerArray.length === 0) return;
+
+              try {
+                await internalFetch(new Request(`http://localhost:${serverPort}/question/${requestId}/reply`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ answers: answerArray })
+                }));
+              } catch {
+                // Ignore OpenCode reply failures so hooks never crash the session.
+              }
+              return;
+            }
+
+            if (payload.hook_event_name === "PermissionRequest" && requestId && internalFetch) {
+              const response = await runBridge(payload, true);
+              const behavior = stableString(response?.hookSpecificOutput?.decision?.behavior)
+                ?? stableString(response?.hookSpecificOutput?.permissionDecision);
+              const reason = stableString(response?.hookSpecificOutput?.decision?.message)
+                ?? stableString(response?.hookSpecificOutput?.decision?.reason)
+                ?? stableString(response?.hookSpecificOutput?.permissionDecisionReason);
+              if (!behavior) return;
+
+              const reply = behavior === "allow"
+                ? "once"
+                : behavior === "allow_for_session" || behavior === "always"
+                  ? "always"
+                  : "reject";
+
+              try {
+                await internalFetch(new Request(`http://localhost:${serverPort}/permission/${requestId}/reply`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ reply, message: reason })
+                }));
+              } catch {
+                // Ignore OpenCode reply failures so hooks never crash the session.
+              }
+              return;
+            }
+
+            await runBridge(payload, false);
+          },
+          "shell.env": async (_input, output) => {
+            for (const key of ENV_KEYS) {
+              const value = process.env[key];
+              if (typeof value === "string" && value.length > 0) {
+                output.env[key] = value;
+              }
+            }
+            if (detectedTTY) {
+              output.env.TTY = detectedTTY;
+            }
+          }
+        };
+
+        };
+
+        export default server;
+        """
+    }
+
+    static func managedPluginDirectoryFiles(for profile: ManagedHookClientProfile) -> [String: String] {
+        if profile.id == "pi-hooks" {
+            return ["index.ts": managedPiExtensionSource(for: profile)]
+        }
+
+        guard profile.id == "hermes-hooks" else {
+            return [:]
+        }
+
+        let argsData = (try? JSONSerialization.data(withJSONObject: bridgeCommandArguments(for: profile), options: []))
+            ?? Data("[]".utf8)
+        let argsJSON = String(data: argsData, encoding: .utf8) ?? "[]"
+        let marker = managedMarker(for: profile)
+
+        let pluginYAML = """
+        # \(marker)
+        name: ping_island
+        version: 1.0.0
+        description: Forward Hermes Agent plugin hooks to ai-helper
+        provides_hooks:
+          - on_session_start
+          - pre_llm_call
+          - pre_tool_call
+          - post_tool_call
+          - post_llm_call
+          - on_session_end
+          - on_session_finalize
+          - on_session_reset
+        """
+
+        let initPy = """
+        # \(marker)
+        \"\"\"ai-helper Hermes plugin.
+
+        Generated by ai-helper. Reinstall from Island settings if you need to refresh it.
+        \"\"\"
+
+        from __future__ import annotations
+
+        import json
+        import os
+        import subprocess
+        import threading
+
+        BRIDGE_ARGS = json.loads(r'''\(argsJSON)''')
+        ENV_KEYS = [
+            "TERM_PROGRAM",
+            "ITERM_SESSION_ID",
+            "TERM_SESSION_ID",
+            "TMUX",
+            "TMUX_PANE",
+            "KITTY_WINDOW_ID",
+            "__CFBundleIdentifier",
+            "CONDUCTOR_WORKSPACE_NAME",
+            "CONDUCTOR_PORT",
+            "CURSOR_TRACE_ID",
+            "CMUX_WORKSPACE_ID",
+            "CMUX_SURFACE_ID",
+            "CMUX_SOCKET_PATH",
+            "WINDOWSERVER_DISPLAY_UUID",
+        ]
+        _SESSION_STATE = {}
+
+
+        def _stable_text(value):
+            if value is None:
+                return None
+            if isinstance(value, str):
+                stripped = value.strip()
+                return stripped or None
+            try:
+                return json.dumps(value, ensure_ascii=False)
+            except Exception:
+                return None
+
+
+        def _payload_session_id(raw_value):
+            normalized = _stable_text(raw_value)
+            if not normalized:
+                return None
+            return normalized if normalized.startswith("hermes-") else f"hermes-{normalized}"
+
+
+        def _collect_env():
+            collected = {}
+            for key in ENV_KEYS:
+                value = os.environ.get(key)
+                if value:
+                    collected[key] = value
+            return collected
+
+
+        def _detect_tty():
+            for fd in (0, 1, 2):
+                try:
+                    value = os.ttyname(fd)
+                except OSError:
+                    continue
+                if value:
+                    return value
+            return os.environ.get("TTY")
+
+
+        def _state_for(session_id):
+            if session_id not in _SESSION_STATE:
+                _SESSION_STATE[session_id] = {
+                    "cwd": None,
+                    "last_user": None,
+                    "last_assistant": None,
+                    "did_emit_start": False,
+                }
+            return _SESSION_STATE[session_id]
+
+
+        def _resolve_session_id(*candidates, **kwargs):
+            for candidate in candidates:
+                resolved = _payload_session_id(candidate)
+                if resolved:
+                    return resolved
+            for key in ("session_id", "task_id", "conversation_id"):
+                resolved = _payload_session_id(kwargs.get(key))
+                if resolved:
+                    return resolved
+            return None
+
+
+        def _resolve_cwd(kwargs):
+            for key in ("cwd", "working_directory", "directory"):
+                resolved = _stable_text(kwargs.get(key))
+                if resolved:
+                    return resolved
+            try:
+                return os.getcwd()
+            except OSError:
+                return None
+
+
+        def _extract_user_message(kwargs):
+            direct = _stable_text(kwargs.get("user_message"))
+            if direct:
+                return direct
+
+            # Hermes and other runtimes may pass user input under different keys.
+            for key in ("prompt", "input", "query", "text", "content"):
+                candidate = _stable_text(kwargs.get(key))
+                if candidate:
+                    return candidate
+
+            history = kwargs.get("messages")
+            if not isinstance(history, list):
+                history = kwargs.get("conversation_history")
+            if isinstance(history, list):
+                for entry in reversed(history):
+                    if not isinstance(entry, dict):
+                        continue
+                    role = _stable_text(entry.get("role"))
+                    if role != "user":
+                        continue
+                    content = entry.get("content")
+                    if isinstance(content, str):
+                        return _stable_text(content)
+                    if isinstance(content, list):
+                        for item in content:
+                            if isinstance(item, dict) and item.get("type") == "text":
+                                text = _stable_text(item.get("text"))
+                                if text:
+                                    return text
+            return None
+
+
+        def _extract_assistant_message(kwargs):
+            direct = _stable_text(kwargs.get("assistant_response"))
+            if direct:
+                return direct
+
+            response = kwargs.get("response")
+            if isinstance(response, str):
+                normalized = _stable_text(response)
+                if normalized:
+                    return normalized
+            if isinstance(response, dict):
+                for key in ("content", "text", "response", "message"):
+                    normalized = _stable_text(response.get(key))
+                    if normalized:
+                        return normalized
+            return None
+
+
+        def _parse_tool_result(result):
+            if isinstance(result, str):
+                try:
+                    parsed = json.loads(result)
+                except Exception:
+                    return None, None
+                if isinstance(parsed, dict):
+                    return parsed, _stable_text(parsed.get("error"))
+                return None, None
+            if isinstance(result, dict):
+                return result, _stable_text(result.get("error"))
+            return None, None
+
+
+        def _bridge_payload(session_id, **payload):
+            state = _state_for(session_id)
+            cwd = payload.pop("cwd", None) or state.get("cwd")
+            if cwd:
+                state["cwd"] = cwd
+            return {
+                "session_id": session_id,
+                "_env": _collect_env(),
+                "_tty": _detect_tty(),
+                "cwd": cwd,
+                **payload,
+            }
+
+
+        def _spawn_bridge(payload):
+            env = os.environ.copy()
+            bridged_env = payload.pop("_env", None)
+            tty = payload.pop("_tty", None)
+            if isinstance(bridged_env, dict):
+                env.update({key: value for key, value in bridged_env.items() if isinstance(value, str) and value})
+            if tty and not env.get("TTY"):
+                env["TTY"] = tty
+
+            try:
+                process = subprocess.Popen(
+                    BRIDGE_ARGS,
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    text=True,
+                    env=env,
+                    start_new_session=True,
+                )
+                if process.stdin:
+                    process.stdin.write(json.dumps(payload, ensure_ascii=False))
+                    process.stdin.close()
+            except Exception:
+                return
+
+
+        def _emit(payload):
+            threading.Thread(target=_spawn_bridge, args=(payload,), daemon=True).start()
+
+
+        def _emit_session_start(session_id, platform=None, model=None, message=None, cwd=None):
+            state = _state_for(session_id)
+            if state.get("did_emit_start"):
+                return
+
+            _emit(
+                _bridge_payload(
+                    session_id,
+                    hook_event_name="SessionStart",
+                    platform=_stable_text(platform),
+                    model=_stable_text(model),
+                    message=_stable_text(message),
+                    cwd=cwd,
+                )
+            )
+            state["did_emit_start"] = True
+
+
+        def _on_session_start(session_id=None, platform=None, model=None, **kwargs):
+            resolved_id = _resolve_session_id(session_id, **kwargs)
+            if not resolved_id:
+                return
+            _emit_session_start(
+                resolved_id,
+                platform=platform,
+                model=model,
+                message=_extract_user_message(kwargs),
+                cwd=_resolve_cwd(kwargs),
+            )
+
+
+        def _on_pre_llm_call(session_id=None, user_message=None, **kwargs):
+            resolved_id = _resolve_session_id(session_id, kwargs.get("task_id"), **kwargs)
+            if not resolved_id:
+                return None
+
+            prompt = _stable_text(user_message) or _extract_user_message(kwargs)
+            cwd = _resolve_cwd(kwargs)
+
+            try:
+                _emit_session_start(
+                    resolved_id,
+                    platform=kwargs.get("platform"),
+                    model=kwargs.get("model"),
+                    message=prompt,
+                    cwd=cwd,
+                )
+            except Exception:
+                pass
+
+            if prompt:
+                _state_for(resolved_id)["last_user"] = prompt
+
+            # Always emit UserPromptSubmit so Island tracks the session turn,
+            # even when the user message cannot be extracted.
+            try:
+                _emit(
+                    _bridge_payload(
+                        resolved_id,
+                        hook_event_name="UserPromptSubmit",
+                        prompt=prompt or _state_for(resolved_id).get("last_user"),
+                        cwd=cwd,
+                    )
+                )
+            except Exception:
+                pass
+            return None
+
+
+        def _on_pre_tool_call(tool_name=None, args=None, task_id=None, **kwargs):
+            resolved_id = _resolve_session_id(task_id, kwargs.get("session_id"), **kwargs)
+            if not resolved_id:
+                return
+            payload = _bridge_payload(
+                resolved_id,
+                hook_event_name="PreToolUse",
+                tool_name=_stable_text(tool_name) or "Tool",
+                tool_input=args if isinstance(args, dict) else None,
+                cwd=_resolve_cwd(kwargs),
+            )
+            _emit(payload)
+
+
+        def _on_post_tool_call(tool_name=None, args=None, result=None, task_id=None, **kwargs):
+            resolved_id = _resolve_session_id(task_id, kwargs.get("session_id"), **kwargs)
+            if not resolved_id:
+                return
+
+            parsed_result, error_text = _parse_tool_result(result)
+            payload = _bridge_payload(
+                resolved_id,
+                hook_event_name="PostToolUseFailure" if error_text else "PostToolUse",
+                tool_name=_stable_text(tool_name) or "Tool",
+                tool_input=args if isinstance(args, dict) else None,
+                tool_result=parsed_result,
+                error=error_text,
+                cwd=_resolve_cwd(kwargs),
+            )
+            _emit(payload)
+
+
+        def _on_post_llm_call(session_id=None, assistant_response=None, **kwargs):
+            resolved_id = _resolve_session_id(session_id, kwargs.get("task_id"), **kwargs)
+            if not resolved_id:
+                return
+            reply = _stable_text(assistant_response) or _extract_assistant_message(kwargs)
+            if reply:
+                _state_for(resolved_id)["last_assistant"] = reply
+                _emit(
+                    _bridge_payload(
+                        resolved_id,
+                        hook_event_name="Notification",
+                        notification_type="assistant_message",
+                        message=reply,
+                        platform=_stable_text(kwargs.get("platform")),
+                        model=_stable_text(kwargs.get("model")),
+                        cwd=_resolve_cwd(kwargs),
+                    )
+                )
+
+
+        def _on_session_end(session_id=None, completed=None, interrupted=None, platform=None, model=None, **kwargs):
+            resolved_id = _resolve_session_id(session_id, kwargs.get("task_id"), **kwargs)
+            if not resolved_id:
+                return
+
+            state = _state_for(resolved_id)
+            assistant = state.get("last_assistant") or _extract_assistant_message(kwargs)
+            payload = _bridge_payload(
+                resolved_id,
+                hook_event_name="Stop",
+                last_assistant_message=assistant,
+                platform=_stable_text(platform),
+                model=_stable_text(model),
+                completed=bool(completed),
+                interrupted=bool(interrupted),
+                cwd=_resolve_cwd(kwargs),
+            )
+            _emit(payload)
+
+        def _on_session_finalize(session_id=None, platform=None, model=None, **kwargs):
+            resolved_id = _resolve_session_id(session_id, kwargs.get("task_id"), **kwargs)
+            if not resolved_id:
+                return
+
+            state = _state_for(resolved_id)
+            assistant = state.get("last_assistant") or _extract_assistant_message(kwargs)
+            payload = _bridge_payload(
+                resolved_id,
+                hook_event_name="SessionEnd",
+                last_assistant_message=assistant,
+                platform=_stable_text(platform),
+                model=_stable_text(model),
+                completed=True,
+                interrupted=False,
+                cwd=_resolve_cwd(kwargs),
+            )
+            _emit(payload)
+            _SESSION_STATE.pop(resolved_id, None)
+
+
+        def _on_session_reset(session_id=None, platform=None, model=None, **kwargs):
+            resolved_id = _resolve_session_id(session_id, kwargs.get("task_id"), **kwargs)
+            if not resolved_id:
+                return
+            _emit_session_start(
+                resolved_id,
+                platform=platform,
+                model=model,
+                message=_extract_user_message(kwargs),
+                cwd=_resolve_cwd(kwargs),
+            )
+
+
+        def register(ctx):
+            ctx.register_hook("on_session_start", _on_session_start)
+            ctx.register_hook("pre_llm_call", _on_pre_llm_call)
+            ctx.register_hook("pre_tool_call", _on_pre_tool_call)
+            ctx.register_hook("post_tool_call", _on_post_tool_call)
+            ctx.register_hook("post_llm_call", _on_post_llm_call)
+            ctx.register_hook("on_session_end", _on_session_end)
+            ctx.register_hook("on_session_finalize", _on_session_finalize)
+            ctx.register_hook("on_session_reset", _on_session_reset)
+        """
+
+        return [
+            "plugin.yaml": pluginYAML,
+            "__init__.py": initPy,
+        ]
+    }
+
+    private static func managedPiExtensionSource(for profile: ManagedHookClientProfile) -> String {
+        let argsData = (try? JSONSerialization.data(withJSONObject: bridgeCommandArguments(for: profile), options: []))
+            ?? Data("[]".utf8)
+        let argsJSON = String(data: argsData, encoding: .utf8) ?? "[]"
+        let marker = managedMarker(for: profile)
+
+        return """
+        // \(marker)
+        // Generated by ai-helper. Reinstall from Island settings if you need to refresh it.
+
+        import { spawn, execFileSync } from "node:child_process";
+        import type { AssistantMessage } from "@earendil-works/pi-ai";
+        import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+
+        const BRIDGE_ARGS = \(argsJSON);
+        const ENV_KEYS = [
+          "TERM_PROGRAM",
+          "ITERM_SESSION_ID",
+          "TERM_SESSION_ID",
+          "TMUX",
+          "TMUX_PANE",
+          "KITTY_WINDOW_ID",
+          "WEZTERM_PANE",
+          "KAKU_PANE_ID",
+          "ZELLIJ_PANE_ID",
+          "ZELLIJ_SESSION_NAME",
+          "CMUX_WORKSPACE_ID",
+          "CMUX_SURFACE_ID",
+          "CMUX_SOCKET_PATH",
+          "__CFBundleIdentifier",
+          "VSCODE_CWD",
+          "VSCODE_IPC_HOOK_CLI",
+          "CURSOR_TRACE_ID",
+          "SSH_CONNECTION",
+          "SSH_CLIENT",
+          "SSH_TTY",
+          "HOSTNAME",
+        ];
+
+        const DANGEROUS_BASH_PATTERNS = [
+          /\\brm\\s+(-rf?|--recursive)/i,
+          /\\bsudo\\b/i,
+          /\\b(chmod|chown)\\b.*777/i,
+        ];
+
+        function isObject(value: unknown): value is Record<string, unknown> {
+          return !!value && typeof value === "object" && !Array.isArray(value);
+        }
+
+        function collectEnv(): Record<string, string> {
+          const env: Record<string, string> = {};
+          for (const key of ENV_KEYS) {
+            const value = process.env[key];
+            if (typeof value === "string" && value.length > 0) {
+              env[key] = value;
+            }
+          }
+          return env;
+        }
+
+        function detectTTY(): string | undefined {
+          try {
+            let pid = process.pid;
+            for (let index = 0; index < 8; index += 1) {
+              const output = execFileSync("ps", ["-o", "tty=,ppid=", "-p", String(pid)], {
+                timeout: 1000,
+              }).toString().trim();
+              const [tty, ppid] = output.split(/\\s+/);
+              if (tty && tty !== "??" && tty !== "?") {
+                return tty.startsWith("/dev/") ? tty : `/dev/${tty}`;
+              }
+              const next = Number.parseInt(ppid ?? "0", 10);
+              if (!next || next <= 1) break;
+              pid = next;
+            }
+          } catch {
+            return undefined;
+          }
+          return undefined;
+        }
+
+        function displayToolName(name: string): string {
+          return name.charAt(0).toUpperCase() + name.slice(1);
+        }
+
+        function extractLastAssistantText(messages: readonly unknown[]): string | undefined {
+          const assistants = messages.filter(
+            (message): message is AssistantMessage =>
+              isObject(message) && message.role === "assistant",
+          );
+          const last = assistants.at(-1);
+          if (!last || !Array.isArray(last.content)) return undefined;
+          const text = last.content
+            .filter((part): part is { type: "text"; text: string } =>
+              isObject(part) && part.type === "text" && typeof part.text === "string",
+            )
+            .map((part) => part.text)
+            .join("")
+            .trim();
+          return text.length > 0 ? text : undefined;
+        }
+
+        function buildToolInput(event: { toolName: string; input: Record<string, unknown> }): Record<string, unknown> {
+          const input: Record<string, unknown> = { ...event.input };
+          if (event.toolName === "bash" && typeof input.command === "string") {
+            input.patterns = [input.command];
+          }
+          if ((event.toolName === "edit" || event.toolName === "write") && typeof input.path === "string") {
+            input.file_path = input.path;
+          }
+          return input;
+        }
+
+        function isDangerousBash(event: { toolName: string; input: Record<string, unknown> }): boolean {
+          if (event.toolName !== "bash" || typeof event.input.command !== "string") return false;
+          return DANGEROUS_BASH_PATTERNS.some((pattern) => pattern.test(event.input.command as string));
+        }
+
+        function basePayload(
+          sessionId: string,
+          cwd: string,
+          tty: string | undefined,
+          extra: Record<string, unknown>,
+        ): Record<string, unknown> {
+          return {
+            session_id: `pi-${sessionId}`,
+            cwd,
+            _source: "claude",
+            _ppid: process.pid,
+            _env: collectEnv(),
+            _tty: tty,
+            ...extra,
+          };
+        }
+
+        function runBridge(
+          payload: Record<string, unknown>,
+          captureResponse: boolean,
+        ): Promise<Record<string, unknown> | null> {
+          return new Promise((resolve) => {
+            const [command, ...args] = BRIDGE_ARGS;
+            if (typeof command !== "string" || command.length === 0) {
+              resolve(null);
+              return;
+            }
+
+            try {
+              const env = { ...process.env };
+              if (isObject(payload._env)) {
+                Object.assign(env, payload._env);
+              }
+              if (typeof payload._tty === "string" && payload._tty.length > 0) {
+                env.TTY = payload._tty;
+              }
+
+              const child = spawn(command, args, {
+                stdio: ["pipe", captureResponse ? "pipe" : "ignore", "ignore"],
+                env,
+              });
+              let stdout = "";
+              child.stdout?.setEncoding("utf8");
+              child.stdout?.on("data", (chunk) => {
+                stdout += chunk;
+              });
+              child.on("error", () => resolve(null));
+              child.on("close", (code) => {
+                if (!captureResponse || code !== 0 || stdout.trim().length === 0) {
+                  resolve(null);
+                  return;
+                }
+                try {
+                  resolve(JSON.parse(stdout.trim()) as Record<string, unknown>);
+                } catch {
+                  resolve(null);
+                }
+              });
+              child.stdin.end(JSON.stringify(payload));
+            } catch {
+              resolve(null);
+            }
+          });
+        }
+
+        function deniedByIsland(response: Record<string, unknown> | null): boolean {
+          const hookSpecificOutput = isObject(response?.hookSpecificOutput)
+            ? response.hookSpecificOutput
+            : undefined;
+          const decision = isObject(hookSpecificOutput?.decision)
+            ? hookSpecificOutput.decision
+            : undefined;
+          const behavior = typeof decision?.behavior === "string" ? decision.behavior : undefined;
+          const permissionDecision = typeof hookSpecificOutput?.permissionDecision === "string"
+            ? hookSpecificOutput.permissionDecision
+            : undefined;
+          return behavior === "deny" || permissionDecision === "deny";
+        }
+
+        export default function aiHelperPiExtension(pi: ExtensionAPI) {
+          const tty = detectTTY();
+          const pendingPermissionSessions = new Set<string>();
+
+          pi.on("session_start", async (_event, ctx) => {
+            const sessionId = ctx.sessionManager.getSessionId();
+            const sessionName = pi.getSessionName();
+            await runBridge(basePayload(sessionId, ctx.cwd, tty, {
+              hook_event_name: "SessionStart",
+              ...(sessionName ? { session_title: sessionName } : {}),
+            }), false);
+          });
+
+          pi.on("session_shutdown", async (_event, ctx) => {
+            const sessionId = ctx.sessionManager.getSessionId();
+            await runBridge(basePayload(sessionId, ctx.cwd, tty, {
+              hook_event_name: "SessionEnd",
+            }), false);
+          });
+
+          pi.on("before_agent_start", async (event, ctx) => {
+            const sessionId = ctx.sessionManager.getSessionId();
+            if (pendingPermissionSessions.has(`pi-${sessionId}`)) return;
+            await runBridge(basePayload(sessionId, ctx.cwd, tty, {
+              hook_event_name: "UserPromptSubmit",
+              prompt: event.prompt ?? "",
+            }), false);
+          });
+
+          pi.on("tool_call", async (event, ctx) => {
+            const sessionId = ctx.sessionManager.getSessionId();
+            const bridgedSessionId = `pi-${sessionId}`;
+            const toolName = displayToolName(event.toolName);
+            const toolInput = buildToolInput(event);
+
+            if (isDangerousBash(event)) {
+              pendingPermissionSessions.add(bridgedSessionId);
+              try {
+                const response = await runBridge(basePayload(sessionId, ctx.cwd, tty, {
+                  hook_event_name: "PermissionRequest",
+                  tool_name: toolName,
+                  tool_input: toolInput,
+                  _pi_tool_call_id: event.toolCallId,
+                }), true);
+                if (deniedByIsland(response)) {
+                  return { block: true, reason: "Blocked by ai-helper" };
+                }
+              } finally {
+                pendingPermissionSessions.delete(bridgedSessionId);
+              }
+            }
+
+            await runBridge(basePayload(sessionId, ctx.cwd, tty, {
+              hook_event_name: "PreToolUse",
+              tool_name: toolName,
+              tool_input: toolInput,
+              _pi_tool_call_id: event.toolCallId,
+            }), false);
+            return undefined;
+          });
+
+          pi.on("tool_result", async (event, ctx) => {
+            const sessionId = ctx.sessionManager.getSessionId();
+            if (pendingPermissionSessions.has(`pi-${sessionId}`)) return;
+            await runBridge(basePayload(sessionId, ctx.cwd, tty, {
+              hook_event_name: "PostToolUse",
+              tool_name: displayToolName(event.toolName),
+              tool_input: event.input,
+              is_error: event.isError,
+              _pi_tool_call_id: event.toolCallId,
+            }), false);
+          });
+
+          pi.on("agent_end", async (event, ctx) => {
+            const sessionId = ctx.sessionManager.getSessionId();
+            if (pendingPermissionSessions.has(`pi-${sessionId}`)) return;
+            const sessionName = pi.getSessionName();
+            await runBridge(basePayload(sessionId, ctx.cwd, tty, {
+              hook_event_name: "Stop",
+              last_assistant_message: extractLastAssistantText(event.messages),
+              ...(sessionName ? { session_title: sessionName } : {}),
+            }), false);
+          });
+
+          pi.on("session_before_compact", async (_event, ctx) => {
+            const sessionId = ctx.sessionManager.getSessionId();
+            await runBridge(basePayload(sessionId, ctx.cwd, tty, {
+              hook_event_name: "PreCompact",
+            }), false);
+          });
+
+          pi.on("session_compact", async (_event, ctx) => {
+            const sessionId = ctx.sessionManager.getSessionId();
+            await runBridge(basePayload(sessionId, ctx.cwd, tty, {
+              hook_event_name: "PostCompact",
+            }), false);
+          });
+        }
+        """
+    }
+
+    static func managedHookDirectoryFiles(
+        for profile: ManagedHookClientProfile,
+        bridgeArguments: [String]? = nil,
+        bridgeEnvironment: [String: String] = [:]
+    ) -> [String: String] {
+        guard profile.id == "openclaw-hooks" else {
+            return [:]
+        }
+
+        let resolvedBridgeArguments = bridgeArguments ?? bridgeCommandArguments(for: profile)
+        let argsData = (try? JSONSerialization.data(withJSONObject: resolvedBridgeArguments, options: []))
+            ?? Data("[]".utf8)
+        let argsJSON = String(data: argsData, encoding: .utf8) ?? "[]"
+        let environmentData = (try? JSONSerialization.data(withJSONObject: bridgeEnvironment, options: [.sortedKeys]))
+            ?? Data("{}".utf8)
+        let environmentJSON = String(data: environmentData, encoding: .utf8) ?? "{}"
+        let eventList = ["command", "message", "session"]
+        let eventsData = (try? JSONSerialization.data(withJSONObject: eventList, options: []))
+            ?? Data("[]".utf8)
+        let eventsJSON = String(data: eventsData, encoding: .utf8) ?? "[]"
+        let marker = managedMarker(for: profile)
+        let hookName = profile.activationEntryName ?? profile.primaryConfigurationURL.lastPathComponent
+
+        let hookMD = """
+        ---
+        name: \(hookName)
+        description: "Forward OpenClaw internal hook events to ai-helper"
+        metadata:
+          { "openclaw": { "events": \(eventsJSON) } }
+        ---
+
+        <!-- \(marker) -->
+
+        # ai-helper OpenClaw Hook
+
+        Generated by ai-helper. Reinstall from Island settings if you need to refresh it.
+        """
+
+        let handlerTS = """
+        // \(marker)
+        // Generated by ai-helper. Reinstall from Island settings if you need to refresh it.
+
+        const BRIDGE_ARGS = \(argsJSON);
+        const BRIDGE_ENV = \(environmentJSON);
+
+        function stableString(value) {
+          if (value == null) return undefined;
+          if (typeof value === "string") {
+            const trimmed = value.trim();
+            return trimmed.length > 0 ? trimmed : undefined;
+          }
+          try {
+            return JSON.stringify(value);
+          } catch {
+            return undefined;
+          }
+        }
+
+        function firstDefined(...values) {
+          for (const value of values) {
+            if (value !== undefined && value !== null && value !== "") {
+              return value;
+            }
+          }
+          return undefined;
+        }
+
+        function summarizeContent(content) {
+          if (typeof content === "string") return content;
+          if (Array.isArray(content)) {
+            const parts = content
+              .map((entry) => summarizeContent(entry))
+              .filter(Boolean);
+            return parts.length > 0 ? parts.join("\\n") : undefined;
+          }
+          if (content && typeof content === "object") {
+            return firstDefined(
+              summarizeContent(content.text),
+              summarizeContent(content.body),
+              summarizeContent(content.message),
+              stableString(content)
+            );
+          }
+          return undefined;
+        }
+
+        function statusFor(event) {
+          const key = `${event?.type ?? ""}:${event?.action ?? ""}`;
+          switch (key) {
+            case "command:new":
+            case "command:reset":
+            case "message:received":
+              return "thinking";
+            case "message:sent":
+              return "waitingForInput";
+            case "command:stop":
+              return "completed";
+            case "session:compact:before":
+              return "compacting";
+            case "session:compact:after":
+            case "session:patch":
+              return "active";
+            default:
+              return "active";
+          }
+        }
+
+        function titleFor(event) {
+          return firstDefined(
+            event?.context?.sessionEntry?.title,
+            event?.context?.sessionEntry?.name,
+            event?.context?.patch?.title,
+            "OpenClaw"
+          );
+        }
+
+        function previewFor(event) {
+          return firstDefined(
+            summarizeContent(event?.context?.content),
+            summarizeContent(event?.context?.bodyForAgent),
+            summarizeContent(event?.context?.transcript),
+            summarizeContent(event?.context?.patch),
+            event?.context?.commandSource,
+            `${event?.type ?? "event"}:${event?.action ?? "unknown"}`
+          );
+        }
+
+        function buildPayload(event) {
+          const rawSessionId = firstDefined(
+            event?.context?.sessionEntry?.id,
+            event?.context?.sessionEntry?.sessionID,
+            event?.context?.sessionEntry?.sessionId,
+            event?.context?.patch?.sessionID,
+            event?.context?.patch?.sessionId,
+            event?.sessionKey,
+            event?.sessionID,
+            event?.sessionId,
+            event?.context?.sessionKey,
+            event?.context?.sessionID,
+            event?.context?.sessionId
+          );
+          const sessionId = stableString(rawSessionId);
+          if (!sessionId) {
+            return {
+              payload: undefined,
+              skipReason: "missing_session_id",
+              rawSessionId: stableString(rawSessionId)
+            };
+          }
+
+          const payload = {
+            event: `${event?.type ?? "unknown"}:${event?.action ?? "unknown"}`,
+            session_id: sessionId,
+            session_file_path: `${process.env.HOME ?? ""}/.openclaw/agents/main/sessions/${sessionId}.jsonl`,
+            cwd: firstDefined(
+              event?.context?.workspaceDir,
+              event?.context?.workspace?.dir,
+              event?.context?.directory,
+              event?.context?.sessionEntry?.workspaceDir,
+              event?.context?.sessionEntry?.directory,
+              event?.context?.cfg?.workspace?.dir
+            ),
+            status: statusFor(event),
+            title: titleFor(event),
+            message: previewFor(event),
+            client_kind: "openclaw",
+            client_name: "OpenClaw",
+            client_origin: "gateway",
+            client_originator: "OpenClaw",
+            thread_source: "openclaw-hooks"
+          };
+
+          return {
+            payload: Object.fromEntries(
+              Object.entries(payload).filter(([, value]) => value !== undefined && value !== null && value !== "")
+            ),
+            skipReason: undefined,
+            rawSessionId: stableString(rawSessionId)
+          };
+        }
+
+        async function forwardViaNode(payload) {
+          const { spawn } = await import("node:child_process");
+          const env = { ...(process?.env ?? {}), ...BRIDGE_ENV };
+          return await new Promise((resolve, reject) => {
+            const child = spawn(BRIDGE_ARGS[0], BRIDGE_ARGS.slice(1), {
+              stdio: ["pipe", "ignore", "ignore"],
+              env
+            });
+            child.once("error", reject);
+            child.once("close", (code, signal) => {
+              resolve({ code, signal });
+            });
+            child.stdin.on("error", () => {});
+            child.stdin.write(JSON.stringify(payload));
+            child.stdin.end();
+          });
+        }
+
+        const handler = async (event) => {
+          const { payload } = buildPayload(event);
+          if (!payload) return;
+
+          try {
+            const env = { ...(globalThis.process?.env ?? {}), ...BRIDGE_ENV };
+            if (typeof Bun !== "undefined" && typeof Bun.spawn === "function") {
+              const subprocess = Bun.spawn(BRIDGE_ARGS, {
+                stdin: new Response(JSON.stringify(payload)),
+                stdout: "ignore",
+                stderr: "ignore",
+                env
+              });
+              void subprocess.exited.catch(() => {});
+              return;
+            }
+
+            await forwardViaNode(payload);
+          } catch {
+            // OpenClaw hooks should never fail because ai-helper is unavailable.
+          }
+        };
+
+        export default handler;
+        """
+
+        return [
+            "HOOK.md": hookMD,
+            "handler.ts": handlerTS
+        ]
+    }
+
+    // MARK: - Custom Hook Installations
+
+    private static let customInstallationsDefaultsKey = "HookInstaller.customInstallations.v1"
+
+    struct CustomHookInstallation: Codable, Identifiable, Equatable {
+        let id: String
+        let profileID: String
+        let customPath: String
+        let installedAt: Date
+
+        var customURL: URL {
+            URL(fileURLWithPath: customPath)
+        }
+
+        var profileTitle: String {
+            ClientProfileRegistry.managedHookProfile(id: profileID)?.title ?? profileID
+        }
+    }
+
+    static func customInstallations() -> [CustomHookInstallation] {
+        guard let data = UserDefaults.standard.data(forKey: customInstallationsDefaultsKey),
+              let installations = try? JSONDecoder().decode([CustomHookInstallation].self, from: data) else {
+            return []
+        }
+        return installations
+    }
+
+    static func installCustom(profileID: String, directoryPath: String) {
+        guard let profile = ClientProfileRegistry.managedHookProfile(id: profileID) else {
+            return
+        }
+
+        let directoryURL = URL(fileURLWithPath: directoryPath)
+        let url = customInstallationURL(for: profile, baseDirectory: directoryURL)
+        let activationConfigURL = customActivationConfigurationURL(for: profile, baseDirectory: directoryURL)
+
+        installBridgeLauncherIfNeeded()
+        switch profile.installationKind {
+        case .jsonHooks:
+            updateHooks(at: url, profile: profile)
+        case .pluginFile:
+            writeManagedPlugin(at: url, profile: profile)
+            setManagedPluginEnabled(true, for: profile, customConfigURL: activationConfigURL, pluginURL: url)
+        case .pluginDirectory:
+            writeManagedPluginDirectory(at: url, profile: profile)
+        case .hookDirectory:
+            writeManagedHookDirectory(at: url, profile: profile)
+            setInternalHookEnabled(true, for: profile, customConfigURL: activationConfigURL)
+        case .tomlHooks:
+            updateTOMLHooks(at: url, profile: profile)
+        }
+
+        let installation = CustomHookInstallation(
+            id: UUID().uuidString,
+            profileID: profileID,
+            customPath: url.path,
+            installedAt: Date()
+        )
+        var existing = customInstallations()
+        existing.append(installation)
+        persistCustomInstallations(existing)
+    }
+
+    static func uninstallCustom(id: String) {
+        var installations = customInstallations()
+        guard let index = installations.firstIndex(where: { $0.id == id }) else {
+            return
+        }
+
+        let installation = installations[index]
+        let url = installation.customURL
+
+        if let profile = ClientProfileRegistry.managedHookProfile(id: installation.profileID) {
+            let activationConfigURL = customActivationConfigurationURL(for: profile, installedURL: url)
+            switch profile.installationKind {
+            case .jsonHooks:
+                removeManagedHooks(at: url)
+            case .pluginFile:
+                removeManagedPlugin(at: url, profile: profile)
+                setManagedPluginEnabled(false, for: profile, customConfigURL: activationConfigURL, pluginURL: url)
+            case .pluginDirectory:
+                removeManagedPluginDirectory(at: url, profile: profile)
+            case .hookDirectory:
+                removeManagedHookDirectory(at: url, profile: profile)
+                setInternalHookEnabled(false, for: profile, customConfigURL: activationConfigURL)
+            case .tomlHooks:
+                removeManagedTOMLHooks(at: url)
+            }
+        }
+
+        installations.remove(at: index)
+        persistCustomInstallations(installations)
+    }
+
+    static func isCustomInstalled(_ installation: CustomHookInstallation) -> Bool {
+        guard let profile = ClientProfileRegistry.managedHookProfile(id: installation.profileID) else {
+            return false
+        }
+        let url = installation.customURL
+        switch profile.installationKind {
+        case .jsonHooks:
+            return containsManagedHooks(at: url)
+        case .pluginFile:
+            return containsManagedPlugin(at: url, profile: profile)
+        case .pluginDirectory:
+            return containsManagedPluginDirectory(at: url, profile: profile)
+        case .hookDirectory:
+            let activationConfigURL = customActivationConfigurationURL(for: profile, installedURL: url)
+            return containsManagedHookDirectory(at: url, profile: profile)
+                && isInternalHookEnabled(at: activationConfigURL, for: profile)
+        case .tomlHooks:
+            return containsManagedTOMLHooks(at: url)
+        }
+    }
+
+    private static func persistCustomInstallations(_ installations: [CustomHookInstallation]) {
+        guard let data = try? JSONEncoder().encode(installations) else {
+            return
+        }
+        UserDefaults.standard.set(data, forKey: customInstallationsDefaultsKey)
+    }
+
+    // MARK: - JSON Utilities
+
+    nonisolated static func remoteBridgeBinaryURL() -> URL? {
+        preferredBridgeBinaryURL()
+    }
+
+    nonisolated static func managedBridgeCommand(
+        source: String,
+        extraArguments: [String],
+        launcherPath: String,
+        socketPath: String?
+    ) -> String {
+        var components: [String] = []
+        if let socketPath, !socketPath.isEmpty {
+            components.append("ISLAND_SOCKET_PATH=\(shellQuoted(socketPath))")
+        }
+        components.append(shellQuoted(launcherPath))
+        components.append("--source")
+        components.append(source)
+        components.append(contentsOf: extraArguments.map(shellQuoted))
+        return components.joined(separator: " ")
+    }
+
+    nonisolated static func updatedInternalHookConfigurationData(
+        existingData: Data?,
+        entryName: String,
+        installing: Bool
+    ) -> Data {
+        var json: [String: Any] = [:]
+        if let existingData,
+           let existing = HookConfigParser.parseJSONObject(from: existingData) {
+            json = existing
+        }
+
+        var hooks = json["hooks"] as? [String: Any] ?? [:]
+        var internalHooks = hooks["internal"] as? [String: Any] ?? [:]
+        var entries = internalHooks["entries"] as? [String: Any] ?? [:]
+        var entry = entries[entryName] as? [String: Any] ?? [:]
+
+        entry["enabled"] = installing
+        entries[entryName] = entry
+
+        if installing {
+            internalHooks["enabled"] = true
+        }
+
+        internalHooks["entries"] = entries
+        hooks["internal"] = internalHooks
+        json["hooks"] = hooks
+
+        return (try? JSONSerialization.data(
+            withJSONObject: json,
+            options: [.prettyPrinted, .sortedKeys]
+        )) ?? Data("{}".utf8)
+    }
+
+    nonisolated static func isInternalHookEnabled(
+        existingData: Data?,
+        entryName: String
+    ) -> Bool {
+        guard let existingData,
+              let json = HookConfigParser.parseJSONObject(from: existingData),
+              let hooks = json["hooks"] as? [String: Any],
+              let internalHooks = hooks["internal"] as? [String: Any],
+              let entries = internalHooks["entries"] as? [String: Any],
+              let entry = entries[entryName] as? [String: Any],
+              let enabled = entry["enabled"] as? Bool else {
+            return false
+        }
+
+        return enabled
+    }
+
+    nonisolated static func updatedConfigurationData(
+        existingData: Data?,
+        profile: ManagedHookClientProfile,
+        customCommand: String,
+        installing: Bool,
+        removingCommandPrefixes: [String] = [],
+        pluginURL: URL? = nil
+    ) -> Data {
+        var json: [String: Any] = [:]
+        if let existingData,
+           let existing = HookConfigParser.parseJSONObject(from: existingData) {
+            json = existing
+        }
+
+        switch profile.installationKind {
+        case .jsonHooks:
+            var hooks = json["hooks"] as? [String: Any] ?? [:]
+            if installing {
+                hooks = removingIslandManagedHooks(from: hooks, profile: profile)
+                let preferredFirst = profile.id == "qoder-cli-hooks"
+                    || profile.id == "codebuddy-cli-hooks"
+                for event in profile.events {
+                    let existingEvent = sanitizedHookEntries(
+                        hooks[event.name] as? [[String: Any]],
+                        removingCommandPrefixes: removingCommandPrefixes
+                    )
+                    hooks[event.name] = normalizedHookEntries(
+                        existingEvent,
+                        preferred: makeHookEntries(command: customCommand, event: event),
+                        preferredFirst: preferredFirst,
+                        profile: profile
+                    )
+                }
+            } else {
+                for (event, value) in hooks {
+                    guard var entries = value as? [[String: Any]] else { continue }
+                    entries.removeAll { entry in
+                        isIslandManagedHookEntry(entry, for: profile)
+                    }
+                    if entries.isEmpty {
+                        hooks.removeValue(forKey: event)
+                    } else {
+                        hooks[event] = entries
+                    }
+                }
+            }
+
+            if hooks.isEmpty {
+                json.removeValue(forKey: "hooks")
+            } else {
+                json["hooks"] = hooks
+            }
+
+        case .pluginFile:
+            let targetPluginURL = pluginURL ?? profile.primaryConfigurationURL
+            let pluginSpecifier = targetPluginURL.absoluteURL.absoluteString
+            let pluginPath = targetPluginURL.path
+            let existingPlugins = json["plugin"] as? [Any] ?? []
+            let filteredPlugins = existingPlugins.filter { entry in
+                !pluginEntry(entry, matches: pluginSpecifier, pluginPath: pluginPath)
+            }
+
+            if installing {
+                json["plugin"] = filteredPlugins + [pluginSpecifier]
+            } else if filteredPlugins.isEmpty {
+                json.removeValue(forKey: "plugin")
+            } else {
+                json["plugin"] = filteredPlugins
+            }
+        case .pluginDirectory, .hookDirectory:
+            break
+        case .tomlHooks:
+            break
+        }
+
+        let data = (try? JSONSerialization.data(
+            withJSONObject: json,
+            options: [.prettyPrinted, .sortedKeys]
+        )) ?? Data("{}".utf8)
+        return data
+    }
+
+    private static func sanitizedHookEntries(
+        _ entries: [[String: Any]]?,
+        removingCommandPrefixes: [String]
+    ) -> [[String: Any]]? {
+        guard !removingCommandPrefixes.isEmpty else { return entries }
+        return entries?.filter { entry in
+            !entryContainsCommand(entry, withPrefixes: removingCommandPrefixes)
+        }
+    }
+
+    private static func entryContainsCommand(
+        _ entry: [String: Any],
+        withPrefixes prefixes: [String]
+    ) -> Bool {
+        if let command = hookCommandString(from: entry) {
+            return prefixes.contains { command.hasPrefix($0) }
+        }
+
+        if let nestedHooks = entry["hooks"] as? [[String: Any]] {
+            return nestedHooks.contains { hook in
+                guard let command = hookCommandString(from: hook) else { return false }
+                return prefixes.contains { command.hasPrefix($0) }
+            }
+        }
+
+        return false
+    }
+
+    private static func writeJSONObject(_ json: [String: Any], to url: URL) {
+        try? FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+
+        if let data = try? JSONSerialization.data(
+            withJSONObject: json,
+            options: [.prettyPrinted, .sortedKeys]
+        ) {
+            try? data.write(to: url)
+        }
+    }
+
+    private static func writeData(_ data: Data, to url: URL) {
+        try? FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try? data.write(to: url, options: .atomic)
+    }
+
+    private static func customInstallationURL(for profile: ManagedHookClientProfile, baseDirectory: URL) -> URL {
+        switch profile.installationKind {
+        case .jsonHooks, .pluginFile:
+            return baseDirectory.appendingPathComponent(profile.primaryConfigurationURL.lastPathComponent)
+        case .tomlHooks:
+            return baseDirectory.appendingPathComponent(profile.primaryConfigurationURL.lastPathComponent)
+        case .pluginDirectory:
+            if baseDirectory.lastPathComponent == ".hermes" {
+                return baseDirectory
+                    .appendingPathComponent("plugins", isDirectory: true)
+                    .appendingPathComponent(profile.primaryConfigurationURL.lastPathComponent, isDirectory: true)
+            }
+            if baseDirectory.lastPathComponent == "plugins" {
+                return baseDirectory.appendingPathComponent(profile.primaryConfigurationURL.lastPathComponent, isDirectory: true)
+            }
+            return baseDirectory.appendingPathComponent(profile.primaryConfigurationURL.lastPathComponent, isDirectory: true)
+        case .hookDirectory:
+            let selectedName = baseDirectory.lastPathComponent
+            if selectedName == ".openclaw" || FileManager.default.fileExists(atPath: baseDirectory.appendingPathComponent("openclaw.json").path) {
+                return baseDirectory
+                    .appendingPathComponent("hooks", isDirectory: true)
+                    .appendingPathComponent(profile.primaryConfigurationURL.lastPathComponent, isDirectory: true)
+            }
+            if selectedName == "hooks" {
+                return baseDirectory.appendingPathComponent(profile.primaryConfigurationURL.lastPathComponent, isDirectory: true)
+            }
+            return baseDirectory.appendingPathComponent(profile.primaryConfigurationURL.lastPathComponent, isDirectory: true)
+        }
+    }
+
+    private static func customActivationConfigurationURL(for profile: ManagedHookClientProfile, baseDirectory: URL) -> URL? {
+        switch profile.installationKind {
+        case .pluginFile:
+            if baseDirectory.lastPathComponent == "plugins" {
+                return baseDirectory.deletingLastPathComponent().appendingPathComponent("opencode.json")
+            }
+            return baseDirectory.appendingPathComponent("opencode.json")
+        case .jsonHooks, .pluginDirectory, .tomlHooks:
+            return nil
+        case .hookDirectory:
+            break
+        }
+
+        let selectedName = baseDirectory.lastPathComponent
+        if selectedName == ".openclaw" || FileManager.default.fileExists(atPath: baseDirectory.appendingPathComponent("openclaw.json").path) {
+            return baseDirectory.appendingPathComponent("openclaw.json")
+        }
+        if selectedName == "hooks" {
+            return baseDirectory.deletingLastPathComponent().appendingPathComponent("openclaw.json")
+        }
+        return profile.activationConfigurationURL
+    }
+
+    private static func customActivationConfigurationURL(for profile: ManagedHookClientProfile, installedURL: URL) -> URL? {
+        switch profile.installationKind {
+        case .pluginFile:
+            return installedURL.deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("opencode.json")
+        case .jsonHooks, .pluginDirectory, .tomlHooks:
+            return nil
+        case .hookDirectory:
+            break
+        }
+        let parent = installedURL.deletingLastPathComponent()
+        if parent.lastPathComponent == "hooks" {
+            return parent.deletingLastPathComponent().appendingPathComponent("openclaw.json")
+        }
+        return profile.activationConfigurationURL
+    }
+
+    private static func isInternalHookEnabled(at url: URL?, for profile: ManagedHookClientProfile) -> Bool {
+        guard let url,
+              let entryName = profile.activationEntryName,
+              let data = try? Data(contentsOf: url) else {
+            return false
+        }
+        return isInternalHookEnabled(existingData: data, entryName: entryName)
+    }
+
+    private nonisolated static func shellQuoted(_ string: String) -> String {
+        "'" + string.replacingOccurrences(of: "'", with: "'\"'\"'") + "'"
+    }
+
+    private nonisolated static func shellQuotedIfNeeded(_ string: String) -> String {
+        let safeCharacters = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_+-=.,/:@%")
+        if string.rangeOfCharacter(from: safeCharacters.inverted) == nil {
+            return string
+        }
+        return shellQuoted(string)
+    }
+
+    nonisolated static func isManagedPluginEnabled(existingData: Data?, pluginURL: URL) -> Bool {
+        guard let existingData,
+              let json = HookConfigParser.parseJSONObject(from: existingData),
+              let plugins = json["plugin"] as? [Any] else {
+            return false
+        }
+
+        let pluginSpecifier = pluginURL.absoluteURL.absoluteString
+        let pluginPath = pluginURL.path
+        return plugins.contains { pluginEntry($0, matches: pluginSpecifier, pluginPath: pluginPath) }
+    }
+
+    private static func pluginEntry(_ entry: Any, matches pluginSpecifier: String, pluginPath: String) -> Bool {
+        if let string = entry as? String {
+            return normalizedPluginLocation(string) == normalizedPluginLocation(pluginSpecifier)
+                || normalizedPluginLocation(string) == normalizedPluginLocation(pluginPath)
+        }
+
+        if let pair = entry as? [Any],
+           let string = pair.first as? String {
+            return normalizedPluginLocation(string) == normalizedPluginLocation(pluginSpecifier)
+                || normalizedPluginLocation(string) == normalizedPluginLocation(pluginPath)
+        }
+
+        return false
+    }
+
+    private static func normalizedPluginLocation(_ value: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let url = URL(string: trimmed), url.isFileURL {
+            return url.standardizedFileURL.path
+        }
+        return URL(fileURLWithPath: trimmed).standardizedFileURL.path
+    }
+}
