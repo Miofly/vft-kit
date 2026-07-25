@@ -43,6 +43,24 @@ final class SessionAttentionSoundEvaluatorTests: XCTestCase {
         )
     }
 
+    func testResolvedQuestionStopsContributingBeforeBannerFires() {
+        var session = makeSession(
+            autoApprovePermissions: false,
+            phase: .waitingForInput,
+            intervention: makeQuestionIntervention()
+        )
+        XCTAssertTrue(
+            SessionAttentionSoundEvaluator.shouldContributeToAttentionSoundEdge(session)
+        )
+
+        session.phase = .processing
+        session.intervention = nil
+
+        XCTAssertFalse(
+            SessionAttentionSoundEvaluator.shouldContributeToAttentionSoundEdge(session)
+        )
+    }
+
     func testTerminalRoutedPromptContributesWithoutIslandIntervention() {
         var session = makeSession(
             autoApprovePermissions: false,
