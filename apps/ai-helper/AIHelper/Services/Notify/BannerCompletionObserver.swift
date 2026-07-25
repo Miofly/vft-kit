@@ -59,6 +59,7 @@ final class BannerCompletionObserver {
     private var prevEndedIds = Set<String>()
     private var prevAttentionIds = Set<String>()
     private var recentBannerKeys: [String: Date] = [:]
+    private var attentionNotificationWorkItems: [String: DispatchWorkItem] = [:]
 
     /// 追踪进入 ended 状态的时间戳，用于延迟通知确保对话真正静止
     private var endedTimestamps: [String: Date] = [:]
@@ -67,6 +68,8 @@ final class BannerCompletionObserver {
 
     /// 对话结束后的静默期（秒），只有在这个时间内没有新活动才触发通知
     private let endedQuietPeriod: TimeInterval = 5.0
+    /// 过滤同一瞬间已经被 PostToolUse 解决的问题/审批。
+    private let attentionQuietPeriod: TimeInterval = 0.5
 
     init(sessionMonitor: SessionMonitor) {
         self.sessionMonitor = sessionMonitor
@@ -85,6 +88,8 @@ final class BannerCompletionObserver {
     func stop() {
         cancellable = nil
         primed = false
+        attentionNotificationWorkItems.values.forEach { $0.cancel() }
+        attentionNotificationWorkItems.removeAll()
     }
 
     // MARK: - 检测
@@ -105,6 +110,11 @@ final class BannerCompletionObserver {
 
     private func handle(_ instances: [SessionState]) {
         let snap = snapshot(instances)
+
+        for (stableId, workItem) in attentionNotificationWorkItems where !snap.attention.contains(stableId) {
+            workItem.cancel()
+        }
+        attentionNotificationWorkItems = attentionNotificationWorkItems.filter { snap.attention.contains($0.key) }
 
         // 首帧只建基线,避免把历史状态全补弹一遍
         if !primed {
@@ -143,9 +153,12 @@ final class BannerCompletionObserver {
         }
         endedNotificationWorkItems = endedNotificationWorkItems.filter { currentEndedIds.contains($0.key) }
 
-        if !newAttention.isEmpty, BannerEvent.attention.isEnabled {
-            fire(.attention, sessions: instances.filter { newAttention.contains($0.stableId) })
-        } else if !suppressLowPriority {
+        if BannerEvent.attention.isEnabled {
+            for stableId in newAttention {
+                scheduleAttentionNotification(for: stableId)
+            }
+        }
+        if !suppressLowPriority {
             for (stableId, endedAt) in endedTimestamps where now.timeIntervalSince(endedAt) >= endedQuietPeriod {
                 fireEndedIfStillQuiet(stableId: stableId, endedAt: endedAt)
             }
@@ -160,6 +173,30 @@ final class BannerCompletionObserver {
     }
 
     // MARK: - 呈现
+
+    private func scheduleAttentionNotification(for stableId: String) {
+        attentionNotificationWorkItems[stableId]?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            Task { @MainActor [weak self] in
+                self?.attentionNotificationWorkItems[stableId] = nil
+                self?.fireAttentionIfStillNeeded(stableId: stableId)
+            }
+        }
+        attentionNotificationWorkItems[stableId] = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + attentionQuietPeriod, execute: workItem)
+    }
+
+    private func fireAttentionIfStillNeeded(stableId: String) {
+        guard !AppSettings.areReminderNotificationsSuppressed else { return }
+        guard BannerEvent.attention.isEnabled else { return }
+        guard let session = sessionMonitor.instances.first(where: {
+            $0.stableId == stableId
+                && SessionAttentionSoundEvaluator.shouldContributeToAttentionSoundEdge($0)
+        }) else {
+            return
+        }
+        fire(.attention, sessions: [session])
+    }
 
     private func scheduleEndedNotification(for stableId: String, endedAt: Date) {
         endedNotificationWorkItems[stableId]?.cancel()
