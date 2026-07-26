@@ -148,6 +148,13 @@ claudemd_has_anysearch(){
   [ -f "$f" ] || return 1
   grep -Eiq 'anysearch' "$f"
 }
+# 全局 ~/.claude/CLAUDE.md 是否含「CodeGraph 自动初始化」规范
+# codegraph CLI 已装时必需：进入新项目若没有 .codegraph 目录，自动建索引，充分利用代码知识图谱。
+claudemd_has_codegraph_auto_init(){
+  local f="$HOME/.claude/CLAUDE.md"
+  [ -f "$f" ] || return 1
+  grep -Eiq 'codegraph.*自动|\.codegraph.*自动建立|自动.*codegraph.*索引|codegraph.*新项目' "$f"
+}
 # 全局 ~/.claude/CLAUDE.md 是否含「context7 官方文档优先」调用场景规范
 # 仅在 context7 已装时才核对：装了文档 MCP 却没告诉 CC 何时查，容易继续凭旧记忆答库/框架/API 用法。
 claudemd_has_context7(){
@@ -242,6 +249,12 @@ claudemd_has_chinese               && ok "全局规范含「始终中文回复�
 claudemd_has_shortlink             && ok "全局规范含「代码位置用可点短链」"    || bad "代码短链规范" $'printf \'\\n- **引用代码位置一律用 markdown 可点短链**：IDEA 插件里裸文件名点不动会报 Cannot open file，须写成 [短名:行](绝对路径:行)。\\n\' >> ~/.claude/CLAUDE.md'
 claudemd_has_compact               && ok "全局规范含「压缩取舍规则」"          || bad "压缩取舍规范" $'printf \'\\n## 上下文压缩（compact）取舍规则\\n做上下文压缩/生成摘要时，保留决策和状态，丢掉噪音：必留①架构决策及理由②改过的文件及改动③阻塞报错④进行中的工作与下一步⑤验证状态⑥失败过的方案及原因⑦待办与回滚；可丢冗长工具输出(留结论)、无关探索、死胡同中间步骤、已入 git 的文件内容。\\n\' >> ~/.claude/CLAUDE.md'
 claudemd_has_proxy                 && ok "全局规范含「外网操作代理兜底」"      || bad "代理兜底规范" $'printf \'\\n## 外网操作走代理兜底（连不通或慢得反常就切代理）\\n**触发信号**：任何境外资源访问（GitHub/raw.githubusercontent/googleapis 等域、brew bottle、npm/pip/cargo 下载、kaggle 上传下载、curl 探测、WebFetch）出现①TLS 握手后被 RST／连接超时／SSL 报错，或②下载速率慢得反常（几 KB/s、卡住不动）——两者任一都视作被墙干扰，别归因于「网络就是慢」在直连路径反复重试。\\n**先探到可用代理，端口和协议都别写死**（因代理软件/机器而异）：优先复用已设的 $https_proxy/$http_proxy/$all_proxy；没有则依次探常见本地端口、每个端口 http 与 socks5h 都试，取第一个通的（含 scheme）——`for p in 7890 7897 10809 1087 7891 10808 1080; do for s in http socks5h; do curl -fsm2 -x $s://127.0.0.1:$p https://www.gstatic.com/generate_204 >/dev/null 2>&1 && { echo $s://127.0.0.1:$p; break 2; }; done; done`（7890=clash/mihomo 混合口、7897=clash verge rev、10809/10808=v2rayN http/socks、7891=clash socks、1080/1087=ss 等；http 混合口优先命中，socks 口兜底）。都不通说明没开代理，如实告知用户别硬试。\\n**切法按工具选**（下文 $PROXY=探到的地址，形如 http://127.0.0.1:7890 或 socks5h://127.0.0.1:7891，curl/git/环境变量三种都认这两种 scheme）：`curl` 加 `-x $PROXY`；`git` 加 `-c http.proxy=$PROXY`；`brew`/`npm`/`pip`/`kaggle`/`gh` 等吃环境变量的用 `https_proxy=$PROXY http_proxy=$PROXY <命令>`；`WebFetch`/`ctx_fetch`/`Playwright` 无法传代理就直接弃用、改用 `curl -x` 或 `git -c http.proxy` 完成同样抓取。\\n**为什么**：Node 的 fetch/undici（WebFetch 等工具底层）默认不认系统代理与 HTTP_PROXY 环境变量，所以「系统装了代理」不等于「工具会走代理」，必须显式把代理传给每条命令；国内裸直连 GitHub 等域常被 GFW 干扰、成功率很低，走本地代理才稳。**优先命令级/环境变量级代理、不强依赖 TUN 或系统全局代理**——命令级更精准、零系统改动、可随时回退，也不影响其它进程。\\n\' >> ~/.claude/CLAUDE.md'
+# CodeGraph 自动初始化规范：条件必需——仅当 codegraph CLI 已装时才要求（装了却不自动初始化 = 退回慢速搜索）。
+if has_cmd codegraph; then
+  claudemd_has_codegraph_auto_init && ok "全局规范含「CodeGraph 自动初始化」" || bad "CodeGraph 自动初始化规范" $'printf \'\\n## CodeGraph 自动初始化\\n\\n进入新项目时，若发现项目根目录（通过 git 仓库判断或当前工作目录）下没有 `.codegraph/` 目录，自动执行 `codegraph init` 建立代码知识图谱索引。好处：\\n- 从一开始就能用 `codegraph_explore` MCP 工具或 `codegraph explore "<query>"` shell 命令，一次返回相关符号的完整源码 + 调用链\\n- 避免退回到低效的 grep + Read 循环\\n- 动态派发（接口实现、虚函数）的调用路径 grep 跟不动，CodeGraph 能追踪\\n\\n**什么时候建**：识别到这是一个代码项目（有 package.json / pom.xml / Cargo.toml / go.mod 等或明显的源码目录结构）且没有 `.codegraph/` 时，立即初始化。对于非代码目录（纯文档 / 配置仓库 / 个人笔记），跳过。\\n\\n**怎么建**：在项目根目录运行 `codegraph init`（会自动识别语言、扫描源码、建立索引）。索引进 `.codegraph/` 目录（已在 .gitignore 模板中，不入版本控制）。对于大型仓库（10 万+ 行），首次索引可能需要几秒到几十秒；增量更新很快。\\n\\n**注意事项**：\\n- 初始化前先确认是在项目根目录（git 根目录或主 build 文件所在目录），不要在子目录建索引\\n- 如果项目已有 `.codegraph/` 但索引陈旧（代码大改过），用 `codegraph update` 增量更新或 `codegraph init --force` 重建\\n- 非代码项目不要强制建索引（浪费时间且无收益）\\n\' >> ~/.claude/CLAUDE.md'
+else
+  ok "CodeGraph 自动初始化规范（codegraph 未装，无需配置）"
+fi
 # context7 调用场景规范：条件必需——仅当 context7 插件已装时才要求（装了不告诉 CC 何时查文档 = 仍可能凭旧记忆回答）。
 if plugin_installed context7; then
   claudemd_has_context7           && ok "全局规范含「context7 官方文档优先」" || bad "context7 调用规范" $'printf \'\\n## 库/框架/SDK/API 用法优先查 context7\\n涉及库、框架、SDK、API、CLI 或云服务的用法、配置、版本迁移、报错排查、接入步骤时，优先用 context7 查询当前官方文档与示例；没有匹配文档或 context7 不可用时再回退内置知识或网页搜索。\\n\' >> ~/.claude/CLAUDE.md'
