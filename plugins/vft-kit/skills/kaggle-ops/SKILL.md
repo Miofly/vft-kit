@@ -174,3 +174,64 @@ A: 1) 检查 `kernel-metadata.json` 格式;2) 确认 slug 符合 Kaggle 命名�
 
 **Q: 多账号场景如何避免 token 串用?**
 A: 每次操作前明确 export KAGGLE_USERNAME/KAGGLE_KEY,覆盖环境;或用 `--account` 参数让脚本自动切换。
+
+## GPU 验证（高级功能）
+
+### 为什么需要 GPU 验证？
+
+**问题**:
+- Token 能鉴权 ≠ 能使用 GPU
+- `gpu_remaining_seconds=30h` 只是配额元数据
+- Kaggle GPU 需要手机验证，未验证账号返回配额但实际不能用
+
+**解决方案**: 推送最小测试 kernel，真实检测 `torch.cuda.is_available()`
+
+### 工具
+
+#### 1. probe-gpu.mjs
+
+探测账号 GPU 真实可用性
+
+```bash
+# 测试单个账号
+node scripts/probe-gpu.mjs --env=local --user=username
+
+# 测试前10个账号
+node scripts/probe-gpu.mjs --env=local --limit=10 --concurrency=3
+
+# 测试全量账号
+node scripts/probe-gpu.mjs --env=local --concurrency=5
+```
+
+**参数**:
+- `--env=local/dev` - 数据库环境
+- `--limit=N` - 只测试前 N 个账号
+- `--concurrency=N` - 并发数（建议 3-5）
+- `--user=xxx` - 只测试指定账号
+
+#### 2. mark-gpu-verified.mjs
+
+根据探测报告回写 DB 的 gpu_verified 字段
+
+```bash
+# Dry-run
+node scripts/mark-gpu-verified.mjs --env=local
+
+# 真实回写
+node scripts/mark-gpu-verified.mjs --env=local --apply
+```
+
+### 完整工作流
+
+```bash
+# 第1步：探测 GPU
+node scripts/probe-gpu.mjs --env=local --concurrency=5
+
+# 第2步：查看报告
+cat gpu-probe-report.json
+
+# 第3步：回写 DB
+node scripts/mark-gpu-verified.mjs --env=local --apply
+```
+
+**详细文档**: 参见 `scripts/README-GPU-VERIFICATION.md`
