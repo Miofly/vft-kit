@@ -1,0 +1,16 @@
+{
+  "_comment": "Kaggle credentials 配置模板。复制到你的项目并填入真实值。",
+  "username": "your-kaggle-username",
+  "api_token": "KGAT_your-api-token-here",
+  "default_account": "default",
+  "accounts": {
+    "default": {
+      "username": "your-username",
+      "api_token": "KGAT_xxx"
+    },
+    "backup": {
+      "username": "another-username",
+      "api_token": "KGAT_yyy"
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "_comment": "Cloudflare API token 配置模板。复制到你的项目并填入真实值。",
+  "api_token": "your-cloudflare-api-token-here",
+  "known_zones": {
+    "example.com": "your-zone-id-32-chars",
+    "another.com": "another-zone-id"
+  },
+  "default_profile": "default"
+}

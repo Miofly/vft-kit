@@ -1,0 +1,40 @@
+{
+  "endpoint": "${MODELSCOPE_ENDPOINT:-https://modelscope.cn}",
+  "api_key": "${MODELSCOPE_API_KEY}",
+  "default_owner": "your-username",
+  "default_hardware": "platform/2v-cpu-16g-mem",
+  "default_visibility": "private",
+  "default_sdk_type": "docker",
+
+  "_comment": "Config template. Copy to a location of your choice and fill in your token. The skill resolves the token by: 1) $MODELSCOPE_API_KEY env var, 2) git remote, 3) this file.",
+
+  "_optional_keys": "Everything below is optional; omit what you do not use. See SKILL.md → 'Optional config'.",
+
+  "quick_access": {
+    "myapp": { "full_name": "your-username/my-app", "type": "docker" }
+  },
+
+  "defaults": {
+    "auto_push_on_deploy": true,
+    "check_logs_after_deploy": true,
+    "save_logs_to": "~/Downloads"
+  },
+
+  "workflows": {
+    "deploy": {
+      "steps": ["validate_config", "sync_code", "deploy", "check_logs"]
+    }
+  },
+
+  "failover": {
+    "_comment": "Optional hot-standby group. See SKILL.md → 'Failover groups'.",
+    "members": [
+      { "role": "primary", "full_name": "owner-a/repo-a", "upstream": "https://a.example" },
+      { "role": "backup",  "full_name": "owner-b/repo-b", "upstream": "https://b.example" }
+    ],
+    "active_probe": {
+      "url": "https://router.example/health",
+      "active_field": "upstream"
+    }
+  }
+}
