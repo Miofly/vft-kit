@@ -85,6 +85,7 @@ Codex 入口在 `plugins/vft-kit/.codex-plugin/plugin.json`，skill 目录仍是
 | `vue-sfc-split` | 拆分过大的 Vue SFC，规避文件路由 / 自动导入的坑 |
 | `git-auto-push` | 绕过 git hooks 提交（husky 卡住时的逃生通道） |
 | `office-doc-rewrite` | 改 Office 文档（xlsx/doc/docx）文字但保留图片/样式/布局——拿模板换内容（zip 层改文字，非整体重存） |
+| `cloudflare-ops` | 通用 Cloudflare API 封装：zones / DNS / 缓存规则 / purge / zone 设置 / ruleset（redirect/transform/origin/waf 等）/ 通用透传，多 profile，零依赖 |
 
 #### fe-auto-test 的依赖
 

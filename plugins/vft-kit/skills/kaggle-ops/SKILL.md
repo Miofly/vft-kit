@@ -186,52 +186,140 @@ A: 每次操作前明确 export KAGGLE_USERNAME/KAGGLE_KEY,覆盖环境;或用 `
 
 **解决方案**: 推送最小测试 kernel，真实检测 `torch.cuda.is_available()`
 
-### 工具
+---
+
+### 工具说明
 
 #### 1. probe-gpu.mjs
 
-探测账号 GPU 真实可用性
+**功能**: 探测账号 GPU 真实可用性
+
+**输入方式**（3 种）:
 
 ```bash
-# 测试单个账号
-node scripts/probe-gpu.mjs --env=local --user=username
+# 方式1：JSON 文件（推荐）
+node scripts/probe-gpu.mjs --accounts accounts.json
 
-# 测试前10个账号
-node scripts/probe-gpu.mjs --env=local --limit=10 --concurrency=3
+# accounts.json 格式：
+# [
+#   {"username": "user1", "token": "KGAT_xxx"},
+#   {"username": "user2", "token": "KGAT_yyy"}
+# ]
 
-# 测试全量账号
-node scripts/probe-gpu.mjs --env=local --concurrency=5
+# 方式2：单个账号
+node scripts/probe-gpu.mjs --username user1 --token KGAT_xxx
+
+# 方式3：环境变量
+export KAGGLE_USERNAME=user1
+export KAGGLE_API_TOKEN=KGAT_xxx
+node scripts/probe-gpu.mjs
 ```
 
 **参数**:
-- `--env=local/dev` - 数据库环境
+- `--accounts <file>` - JSON 账号列表文件
+- `--username <name>` - 单个账号用户名
+- `--token <token>` - 单个账号 token
 - `--limit=N` - 只测试前 N 个账号
 - `--concurrency=N` - 并发数（建议 3-5）
-- `--user=xxx` - 只测试指定账号
+- `--accelerator <type>` - 指定 GPU 型号（默认 NvidiaTeslaT4）
+
+**输出**:
+- `gpu-probe-report.json` - 完整探测结果
+- `gpu-probe-report.csv` - CSV 格式
+
+---
 
 #### 2. mark-gpu-verified.mjs
 
-根据探测报告回写 DB 的 gpu_verified 字段
+**功能**: 解析 probe 报告，生成结构化结果文件
+
+**用法**:
 
 ```bash
-# Dry-run
-node scripts/mark-gpu-verified.mjs --env=local
+# 解析报告
+node scripts/mark-gpu-verified.mjs --report gpu-probe-report.json
 
-# 真实回写
-node scripts/mark-gpu-verified.mjs --env=local --apply
+# 指定输出文件
+node scripts/mark-gpu-verified.mjs --report gpu-probe-report.json --output result.json
 ```
+
+**输出**: `gpu-verified-result.json` - 分类后的账号列表（可用/不可用）
+
+---
 
 ### 完整工作流
 
 ```bash
-# 第1步：探测 GPU
-node scripts/probe-gpu.mjs --env=local --concurrency=5
+# 第1步：准备账号文件
+cat > accounts.json << EOF
+[
+  {"username": "user1", "token": "KGAT_xxx"},
+  {"username": "user2", "token": "KGAT_yyy"}
+]
+EOF
 
-# 第2步：查看报告
-cat gpu-probe-report.json
+# 第2步：探测 GPU
+node scripts/probe-gpu.mjs --accounts accounts.json --concurrency=5
 
-# 第3步：回写 DB
-node scripts/mark-gpu-verified.mjs --env=local --apply
+# 第3步：解析结果
+node scripts/mark-gpu-verified.mjs --report gpu-probe-report.json
+
+# 第4步：使用结果（由调用方决定）
+# - 回写数据库
+# - 更新 CSV
+# - 发送通知
+# - 同步到配置系统
 ```
 
-**详细文档**: 参见 `scripts/README-GPU-VERIFICATION.md`
+---
+
+### 账号来源集成
+
+#### 场景1：从数据库读取
+
+```bash
+# 私有脚本：从 DB 导出账号
+mysql ... -e "SELECT username, access_token as token FROM accounts" > accounts.json
+
+# 调用公共工具
+node scripts/probe-gpu.mjs --accounts accounts.json
+
+# 私有脚本：回写结果
+node private/write-to-db.mjs --input gpu-verified-result.json
+```
+
+#### 场景2：从 CSV 读取
+
+```bash
+# 私有脚本：CSV 转 JSON
+node private/csv-to-json.mjs accounts.csv > accounts.json
+
+# 调用公共工具
+node scripts/probe-gpu.mjs --accounts accounts.json
+
+# 私有脚本：JSON 转 CSV
+node private/json-to-csv.mjs gpu-verified-result.json > verified.csv
+```
+
+---
+
+### 架构分层
+
+```
+┌─────────────────────────────────────┐
+│  私有层（业务逻辑）                 │
+│  - 从 DB/CSV/Config 读取账号        │
+│  - 调用公共工具                      │
+│  - 回写结果到 DB/CSV/其他系统       │
+└──────────────┬──────────────────────┘
+               │
+┌──────────────▼──────────────────────┐
+│  公共层（纯工具）                   │
+│  - probe-gpu.mjs                    │
+│  - mark-gpu-verified.mjs            │
+│  - 输入：JSON                        │
+│  - 输出：JSON                        │
+└─────────────────────────────────────┘
+```
+
+**关键原则**: 公共工具不知道账号来自哪里、结果去向哪里。分层清晰，可复用性强。
