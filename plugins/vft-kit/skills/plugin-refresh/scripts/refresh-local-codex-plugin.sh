@@ -108,7 +108,8 @@ if ! codex plugin add "${PLUGIN}@${MARKETPLACE}" 2>&1 | tail -8; then
   exit 1
 fi
 
-cache_ver_dir="$(find "$cache_root" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort | head -1 || true)"
+# 多版本残留时取语义版本最新的目录（sort|head -1 会挑到字典序最小的旧版误报）
+cache_ver_dir="$(find "$cache_root" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort -V | tail -1 || true)"
 if [[ -z "$cache_ver_dir" ]]; then
   echo "✗ cache 目录为空: ${cache_root}（add 可能未真正落盘）" >&2
   exit 1

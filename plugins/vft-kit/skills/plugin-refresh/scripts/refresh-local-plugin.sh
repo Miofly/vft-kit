@@ -111,7 +111,8 @@ fi
 
 # ---- 3. 校验 cache 与源 SKILL.md 数量一致 ----
 cache_root="$HOME/.claude/plugins/cache/${MARKETPLACE}/${PLUGIN}"
-cache_ver_dir="$(ls -1 "$cache_root" 2>/dev/null | head -1 || true)"
+# 多版本残留时取语义版本最新的目录（旧版 install 可能没清，head -1 会挑到字典序最小的旧版误报）
+cache_ver_dir="$(ls -1 "$cache_root" 2>/dev/null | sort -V | tail -1 || true)"
 if [[ -z "$cache_ver_dir" ]]; then
   echo "⚠ cache 目录为空: ${cache_root}（install 可能未真正落盘）" >&2
   exit 1
