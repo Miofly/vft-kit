@@ -1,9 +1,21 @@
 ---
 name: plugin-refresh
-description: 刷新 Claude Code / Codex 插件，把 marketplace 远端 / 本地源目录的最新内容（skill / hook / agent / SKILL.md 正文）落到本机 cache 并生效。Claude Code 走 `claude plugin uninstall + install` 重建 `~/.claude/plugins/cache/`；Codex 走 `codex plugin remove + add` 重建 `~/.codex/plugins/cache/`。用户说"刷新插件"、"插件更新"、"拉最新 skill"、"plugin update"、"marketplace update"、"插件缓存不一致"、"插件装回来"、"重新安装插件"、"同步最新 skill 到本机"、"为啥新 skill 还没出现"、"为啥改了 SKILL.md 没生效"、"为啥 codex/cc 看到的还是旧 skill"、"刷 cache"等场景时触发。**核心认知**：插件详情/列表可能实时读源目录，但注入给 LLM 的 SKILL.md **正文**读的是 cache 拷贝——两者可以不一致，所以改完源必须刷 cache 再重启会话。**安全红线**：绝不能把 cache 目录做成指向源目录的软链（一种流行的"免刷新"偷懒做法）——plugin install/remove 写操作可能穿透软链改写源码，实测导致源目录里的文件被静默增删。
+description: 刷新 Claude Code / Codex 插件，把 marketplace 远端 / 本地源目录的最新内容（skill / hook / agent / SKILL.md 正文）落到本机 cache 并生效。Claude Code 走 `claude plugin uninstall + install` 重建 `~/.claude/plugins/cache/`；Codex 走 `codex plugin remove + add` 重建 `~/.codex/plugins/cache/`。用户说"刷新插件"、"插件更新"、"拉最新 skill"、"plugin update"、"marketplace update"、"插件缓存不一致"、"插件装回来"、"重新安装插件"、"同步最新 skill 到本机"、"为啥新 skill 还没出现"、"为啥改了 SKILL.md 没生效"、"为啥 codex/cc 看到的还是旧 skill"、"刷 cache"等场景时触发。**默认行为**：执行此 skill 时，自动检查本地目录插件（`Source: Directory`）数量，若少于 10 个则直接全部刷新，不询问用户。**核心认知**：插件详情/列表可能实时读源目录，但注入给 LLM 的 SKILL.md **正文**读的是 cache 拷贝——两者可以不一致，所以改完源必须刷 cache 再重启会话。**安全红线**：绝不能把 cache 目录做成指向源目录的软链（一种流行的"免刷新"偷懒做法）——plugin install/remove 写操作可能穿透软链改写源码，实测导致源目录里的文件被静默增删。
 ---
 
 # Claude Code / Codex 插件刷新
+
+## 默认行为（自动执行）
+
+**执行此 skill 时，自动刷新所有本地目录插件，无需用户确认。**
+
+流程：
+1. 查询 `claude plugin marketplace list` 获取所有本地目录插件（`Source: Directory`）
+2. 若本地插件数量 < 10 个，直接全部刷新
+3. 若 ≥ 10 个，列出清单让用户选择（极少见场景）
+4. 刷新完成后提示用户重启会话
+
+**vft-kit 插件永远包含在刷新范围内**（因为此 skill 就在 vft-kit 中）。
 
 ## 关键认知（必读）
 
@@ -59,17 +71,24 @@ claude plugin marketplace list
 - `Source: Directory (/abs/path)` —— **本地目录插件**
 - `Source: GitHub (org/repo)` / `Source: HTTP (...)` —— **远端 marketplace 插件**
 
-### 用户说"全部 / 都刷 / 全刷"时
+### 默认刷新流程
+
+**用户执行此 skill 时不带任何参数，自动执行全量刷新：**
+
+1. 查询本地目录插件列表（`Source: Directory`）
+2. 少于 10 个：直接全部刷新，不询问
+3. 大于等于 10 个：列出清单让用户选择（罕见）
+4. vft-kit 永远在刷新范围内
 
 统计本地目录插件（`Source: Directory`）数量：**少于 10 个直接全部刷新，不要问刷新哪个**。逐个跑封装脚本即可。只有本地插件 ≥ 10 个时才回列表让用户挑。远端 marketplace 插件不在"全刷本地"范围内，除非用户明确要求连远端一起刷。
 
 本地目录插件直接跑封装脚本（幂等）：
 
 ```bash
-bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/plugin-refresh/scripts/refresh-local-plugin.sh" -p <plugin-name>
+bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/plugins/vft-kit/skills/plugin-refresh/scripts/refresh-local-plugin.sh" -p <plugin-name>
 
 # marketplace 名与 plugin 名不同时
-bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/plugin-refresh/scripts/refresh-local-plugin.sh" -p <plugin> -m <marketplace>
+bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/plugins/vft-kit/skills/plugin-refresh/scripts/refresh-local-plugin.sh" -p <plugin> -m <marketplace>
 ```
 
 脚本做的事：
@@ -102,10 +121,10 @@ codex plugin list
 本地目录插件直接跑 Codex 封装脚本（幂等）：
 
 ```bash
-bash "${VFT_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}}/skills/plugin-refresh/scripts/refresh-local-codex-plugin.sh" -p <plugin-name>
+bash "${VFT_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}}/plugins/vft-kit/skills/plugin-refresh/scripts/refresh-local-codex-plugin.sh" -p <plugin-name>
 
 # marketplace 名与 plugin 名不同时
-bash "${VFT_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}}/skills/plugin-refresh/scripts/refresh-local-codex-plugin.sh" -p <plugin> -m <marketplace>
+bash "${VFT_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}}/plugins/vft-kit/skills/plugin-refresh/scripts/refresh-local-codex-plugin.sh" -p <plugin> -m <marketplace>
 ```
 
 脚本做的事：
@@ -121,7 +140,7 @@ bash "${VFT_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}}/skills/p
 例如刷新本地 `vft-kit`：
 
 ```bash
-bash "${VFT_PLUGIN_ROOT:-$HOME/Documents/code/wfly/bolierplate/project/vft-kit/plugins/vft-kit}/skills/plugin-refresh/scripts/refresh-local-codex-plugin.sh" -p vft-kit
+bash "${VFT_PLUGIN_ROOT:-$HOME/Documents/code/wfly/bolierplate/project/vft-kit}/plugins/vft-kit/skills/plugin-refresh/scripts/refresh-local-codex-plugin.sh" -p vft-kit
 ```
 
 ## 远端 marketplace 插件
