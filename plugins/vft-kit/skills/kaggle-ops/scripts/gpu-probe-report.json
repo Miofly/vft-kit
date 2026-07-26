@@ -1,0 +1,686 @@
+{
+  "accelerator": null,
+  "at": "2026-07-26T13:02:47.387Z",
+  "results": [
+    {
+      "username": "jacelljamble",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": false,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": ""
+    },
+    {
+      "username": "abdelrahmanatef5172",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": true,
+      "gpu": "Tesla P100-PCIE-16GB",
+      "cap": "6.0",
+      "count": 1,
+      "note": ""
+    },
+    {
+      "username": "aishwarya2060",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": false,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": ""
+    },
+    {
+      "username": "arvindhbabuv",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": true,
+      "gpu": "Tesla P100-PCIE-16GB",
+      "cap": "6.0",
+      "count": 1,
+      "note": ""
+    },
+    {
+      "username": "asdsaasda",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": false,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": ""
+    },
+    {
+      "username": "bonshallangthasa",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": false,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": ""
+    },
+    {
+      "username": "Scribedpengenius",
+      "push": "fail",
+      "status": "?",
+      "cuda": null,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": "Authentication required to call the Kaggle API."
+    },
+    {
+      "username": "CHIRANJEET121",
+      "push": "fail",
+      "status": "?",
+      "cuda": null,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": "Authentication required to call the Kaggle API."
+    },
+    {
+      "username": "cid007",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": true,
+      "gpu": "Tesla P100-PCIE-16GB",
+      "cap": "6.0",
+      "count": 1,
+      "note": ""
+    },
+    {
+      "username": "amannindra",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": true,
+      "gpu": "Tesla P100-PCIE-16GB",
+      "cap": "6.0",
+      "count": 1,
+      "note": ""
+    },
+    {
+      "username": "gabrielgomez9889",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": false,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": ""
+    },
+    {
+      "username": "gharsallahislem",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": false,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": ""
+    },
+    {
+      "username": "gharsallahislem",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": false,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": ""
+    },
+    {
+      "username": "harshil456",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": false,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": ""
+    },
+    {
+      "username": "imanebenzegunine",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": true,
+      "gpu": "Tesla P100-PCIE-16GB",
+      "cap": "6.0",
+      "count": 1,
+      "note": ""
+    },
+    {
+      "username": "kullanici_adiniz",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": true,
+      "gpu": "Tesla P100-PCIE-16GB",
+      "cap": "6.0",
+      "count": 1,
+      "note": ""
+    },
+    {
+      "username": "Loldeluis",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": false,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": ""
+    },
+    {
+      "username": "maryemelhouche",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": false,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": ""
+    },
+    {
+      "username": "mohharidy",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": false,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": ""
+    },
+    {
+      "username": "mikoajkurtyka",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": true,
+      "gpu": "Tesla P100-PCIE-16GB",
+      "cap": "6.0",
+      "count": 1,
+      "note": ""
+    },
+    {
+      "username": "nileshb1",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": false,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": ""
+    },
+    {
+      "username": "nity05",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": false,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": ""
+    },
+    {
+      "username": "rashmikabandara",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": true,
+      "gpu": "Tesla P100-PCIE-16GB",
+      "cap": "6.0",
+      "count": 1,
+      "note": ""
+    },
+    {
+      "username": "rishabhsurana0456",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": true,
+      "gpu": "Tesla P100-PCIE-16GB",
+      "cap": "6.0",
+      "count": 1,
+      "note": ""
+    },
+    {
+      "username": "kanushigupta ",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": false,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": ""
+    },
+    {
+      "username": "your_username",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": false,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": ""
+    },
+    {
+      "username": "shouqiangwu",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": false,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": ""
+    },
+    {
+      "username": "sumanyuashtaputre",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": false,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": ""
+    },
+    {
+      "username": "TGajewski09",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": false,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": ""
+    },
+    {
+      "username": "test",
+      "push": "fail",
+      "status": "?",
+      "cuda": null,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": "Authentication required to call the Kaggle API."
+    },
+    {
+      "username": "jaoukaggle",
+      "push": "fail",
+      "status": "?",
+      "cuda": null,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": "Authentication required to call the Kaggle API."
+    },
+    {
+      "username": "akritisingh01",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": true,
+      "gpu": "Tesla P100-PCIE-16GB",
+      "cap": "6.0",
+      "count": 1,
+      "note": ""
+    },
+    {
+      "username": "anamoniz",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": false,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": ""
+    },
+    {
+      "username": "andreeatomescu",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": true,
+      "gpu": "Tesla P100-PCIE-16GB",
+      "cap": "6.0",
+      "count": 1,
+      "note": ""
+    },
+    {
+      "username": "NoelCampbell1",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": false,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": ""
+    },
+    {
+      "username": "alice",
+      "push": "fail",
+      "status": "?",
+      "cuda": null,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": "Authentication required to call the Kaggle API."
+    },
+    {
+      "username": "aliounekane",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": true,
+      "gpu": "Tesla P100-PCIE-16GB",
+      "cap": "6.0",
+      "count": 1,
+      "note": ""
+    },
+    {
+      "username": "bunnyreddyr",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": true,
+      "gpu": "Tesla P100-PCIE-16GB",
+      "cap": "6.0",
+      "count": 1,
+      "note": ""
+    },
+    {
+      "username": "carolinaspsilva",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": true,
+      "gpu": "Tesla P100-PCIE-16GB",
+      "cap": "6.0",
+      "count": 1,
+      "note": ""
+    },
+    {
+      "username": "rickyma1028",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": false,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": ""
+    },
+    {
+      "username": "chandradrawing",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": false,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": ""
+    },
+    {
+      "username": "oncell",
+      "push": "ok?",
+      "status": "TIMEOUT",
+      "cuda": null,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": "拉日志失败:Command failed: kaggle kernels output on"
+    },
+    {
+      "username": "microhum",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": true,
+      "gpu": "Tesla P100-PCIE-16GB",
+      "cap": "6.0",
+      "count": 1,
+      "note": ""
+    },
+    {
+      "username": "moonberry53",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": true,
+      "gpu": "Tesla P100-PCIE-16GB",
+      "cap": "6.0",
+      "count": 1,
+      "note": ""
+    },
+    {
+      "username": "james praise",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": false,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": ""
+    },
+    {
+      "username": "karan1208",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": false,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": ""
+    },
+    {
+      "username": "abhishek2fth",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": true,
+      "gpu": "Tesla P100-PCIE-16GB",
+      "cap": "6.0",
+      "count": 1,
+      "note": ""
+    },
+    {
+      "username": "RobertStudyDev",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": false,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": ""
+    },
+    {
+      "username": "santoshshrestha2037",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": true,
+      "gpu": "Tesla P100-PCIE-16GB",
+      "cap": "6.0",
+      "count": 1,
+      "note": ""
+    },
+    {
+      "username": "Sanjopp2025",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": false,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": ""
+    },
+    {
+      "username": "kartheektelikepalli",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": false,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": ""
+    },
+    {
+      "username": "_",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": true,
+      "gpu": "Tesla P100-PCIE-16GB",
+      "cap": "6.0",
+      "count": 1,
+      "note": ""
+    },
+    {
+      "username": "phalatlorratthanan",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": false,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": ""
+    },
+    {
+      "username": "shivamansari",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": null,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": "拉日志失败:Command failed: kaggle kernels output sh"
+    },
+    {
+      "username": "shivamansari",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": true,
+      "gpu": "Tesla P100-PCIE-16GB",
+      "cap": "6.0",
+      "count": 1,
+      "note": ""
+    },
+    {
+      "username": "shivamansari",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": true,
+      "gpu": "Tesla P100-PCIE-16GB",
+      "cap": "6.0",
+      "count": 1,
+      "note": ""
+    },
+    {
+      "username": "shivamansari",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": true,
+      "gpu": "Tesla P100-PCIE-16GB",
+      "cap": "6.0",
+      "count": 1,
+      "note": ""
+    },
+    {
+      "username": "shivamansari",
+      "push": "fail",
+      "status": "?",
+      "cuda": null,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": "urllib3.exceptions.SSLError: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in"
+    },
+    {
+      "username": "shivamansari",
+      "push": "fail",
+      "status": "?",
+      "cuda": null,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": "urllib3.exceptions.SSLError: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in"
+    },
+    {
+      "username": "shivamansari",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": true,
+      "gpu": "Tesla P100-PCIE-16GB",
+      "cap": "6.0",
+      "count": 1,
+      "note": ""
+    },
+    {
+      "username": "shivamansari",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": true,
+      "gpu": "Tesla P100-PCIE-16GB",
+      "cap": "6.0",
+      "count": 1,
+      "note": ""
+    },
+    {
+      "username": "udayavahinip2482463",
+      "push": "fail",
+      "status": "?",
+      "cuda": null,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": "urllib3.exceptions.SSLError: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in"
+    },
+    {
+      "username": "zenianouphal",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": false,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": ""
+    },
+    {
+      "username": "vinayak23597",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": false,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": ""
+    },
+    {
+      "username": "luciofeest",
+      "push": "fail",
+      "status": "?",
+      "cuda": null,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": "Authentication required to call the Kaggle API."
+    },
+    {
+      "username": "yalon5",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": false,
+      "gpu": "",
+      "cap": "",
+      "count": 0,
+      "note": ""
+    },
+    {
+      "username": "k221030116",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": true,
+      "gpu": "Tesla P100-PCIE-16GB",
+      "cap": "6.0",
+      "count": 1,
+      "note": ""
+    },
+    {
+      "username": "tanishk05",
+      "push": "ok",
+      "status": "COMPLETE",
+      "cuda": true,
+      "gpu": "Tesla P100-PCIE-16GB",
+      "cap": "6.0",
+      "count": 1,
+      "note": ""
+    }
+  ]
+}

@@ -135,6 +135,14 @@ claudemd_has_proxy(){
   [ -f "$f" ] || return 1
   grep -Eiq '代理兜底|走代理重试|外网.*代理|127\.0\.0\.1:78|http\.proxy|https_proxy' "$f"
 }
+# 全局 ~/.claude/CLAUDE.md 是否含「多 Agent 并行执行」规范
+# 见 SKILL.md：任务含多个互相独立的子项时主动起多个 subagent 并行执行、别串行干等。
+# 关键字用通用语义词、中英兼容（subagent / 并行 agent / 扇出 / fan-out / 并行执行）。
+claudemd_has_parallel_agents(){
+  local f="$HOME/.claude/CLAUDE.md"
+  [ -f "$f" ] || return 1
+  grep -Eiq '并行.*[Aa]gent|多.*[Aa]gent|多个 subagent|subagent 并行|扇出|fan-?out|并行执行' "$f"
+}
 # skill 是否已安装（~/.claude/skills/<name> 目录存在，或作为同名插件装了）
 # anysearch 主要走手动装到 ~/.claude/skills/anysearch，marketplace 装则落为插件，两种都认。
 skill_installed(){
@@ -249,6 +257,7 @@ claudemd_has_chinese               && ok "全局规范含「始终中文回复�
 claudemd_has_shortlink             && ok "全局规范含「代码位置用可点短链」"    || bad "代码短链规范" $'printf \'\\n- **引用代码位置一律用 markdown 可点短链**：IDEA 插件里裸文件名点不动会报 Cannot open file，须写成 [短名:行](绝对路径:行)。\\n\' >> ~/.claude/CLAUDE.md'
 claudemd_has_compact               && ok "全局规范含「压缩取舍规则」"          || bad "压缩取舍规范" $'printf \'\\n## 上下文压缩（compact）取舍规则\\n做上下文压缩/生成摘要时，保留决策和状态，丢掉噪音：必留①架构决策及理由②改过的文件及改动③阻塞报错④进行中的工作与下一步⑤验证状态⑥失败过的方案及原因⑦待办与回滚；可丢冗长工具输出(留结论)、无关探索、死胡同中间步骤、已入 git 的文件内容。\\n\' >> ~/.claude/CLAUDE.md'
 claudemd_has_proxy                 && ok "全局规范含「外网操作代理兜底」"      || bad "代理兜底规范" $'printf \'\\n## 外网操作走代理兜底（连不通或慢得反常就切代理）\\n**触发信号**：任何境外资源访问（GitHub/raw.githubusercontent/googleapis 等域、brew bottle、npm/pip/cargo 下载、kaggle 上传下载、curl 探测、WebFetch）出现①TLS 握手后被 RST／连接超时／SSL 报错，或②下载速率慢得反常（几 KB/s、卡住不动）——两者任一都视作被墙干扰，别归因于「网络就是慢」在直连路径反复重试。\\n**先探到可用代理，端口和协议都别写死**（因代理软件/机器而异）：优先复用已设的 $https_proxy/$http_proxy/$all_proxy；没有则依次探常见本地端口、每个端口 http 与 socks5h 都试，取第一个通的（含 scheme）——`for p in 7890 7897 10809 1087 7891 10808 1080; do for s in http socks5h; do curl -fsm2 -x $s://127.0.0.1:$p https://www.gstatic.com/generate_204 >/dev/null 2>&1 && { echo $s://127.0.0.1:$p; break 2; }; done; done`（7890=clash/mihomo 混合口、7897=clash verge rev、10809/10808=v2rayN http/socks、7891=clash socks、1080/1087=ss 等；http 混合口优先命中，socks 口兜底）。都不通说明没开代理，如实告知用户别硬试。\\n**切法按工具选**（下文 $PROXY=探到的地址，形如 http://127.0.0.1:7890 或 socks5h://127.0.0.1:7891，curl/git/环境变量三种都认这两种 scheme）：`curl` 加 `-x $PROXY`；`git` 加 `-c http.proxy=$PROXY`；`brew`/`npm`/`pip`/`kaggle`/`gh` 等吃环境变量的用 `https_proxy=$PROXY http_proxy=$PROXY <命令>`；`WebFetch`/`ctx_fetch`/`Playwright` 无法传代理就直接弃用、改用 `curl -x` 或 `git -c http.proxy` 完成同样抓取。\\n**为什么**：Node 的 fetch/undici（WebFetch 等工具底层）默认不认系统代理与 HTTP_PROXY 环境变量，所以「系统装了代理」不等于「工具会走代理」，必须显式把代理传给每条命令；国内裸直连 GitHub 等域常被 GFW 干扰、成功率很低，走本地代理才稳。**优先命令级/环境变量级代理、不强依赖 TUN 或系统全局代理**——命令级更精准、零系统改动、可随时回退，也不影响其它进程。\\n\' >> ~/.claude/CLAUDE.md'
+claudemd_has_parallel_agents       && ok "全局规范含「多 Agent 并行执行」"      || bad "多 Agent 并行规范" $'printf \'\\n## 多 Agent 并行执行（能扇出就别串行干等）\\n**核心**：任务可拆成多个互相独立的子项时，主动起多个 subagent 并行跑，别一个人从头到尾串行——串行慢、还占满主上下文。判据：子项之间无先后依赖（A 不吃 B 的输出）就并行；有依赖的串起来。\\n**典型该并行的场景**：①要读/改一批文件、跑一批测试、查一批独立问题（多目标探查）②大范围代码调研、跨多个子系统/模块摸底③需要多个独立视角（多方案对比、交叉验证、对抗式复核）④迁移/审计/批量整改（每个站点一个 agent）。凡是「同一动作重复施加到 N 个独立对象」都优先扇出。\\n**怎么做**：一条消息里同时发多个 Agent 调用（独立任务并发跑，别一个个等）；用探查/调研类 subagent（Explore/general-purpose）承接搜索与读文件，把结论收回主线程，主上下文只留结论不吞文件内容。有 Workflow/子代理编排工具时用它编排「扇出→各自干→汇总」。\\n**为什么**：串行会把本可并发几分钟跑完的事拖成十几分钟，且大量原始文件内容涌进主上下文挤占推理预算；并行 + 子代理承接既快又省 token（子代理各自上下文独立，主线程只收精炼结论）。\\n**别过度**：单个明确的小任务（改一个函数、查一个已知文件）直接自己干，别为并行而并行——扇出本身有启动开销，只在「多个独立子项」时才划算。\\n\' >> ~/.claude/CLAUDE.md'
 # CodeGraph 自动初始化规范：条件必需——仅当 codegraph CLI 已装时才要求（装了却不自动初始化 = 退回慢速搜索）。
 if has_cmd codegraph; then
   claudemd_has_codegraph_auto_init && ok "全局规范含「CodeGraph 自动初始化」" || bad "CodeGraph 自动初始化规范" $'printf \'\\n## CodeGraph 自动初始化\\n\\n进入新项目时，若发现项目根目录（通过 git 仓库判断或当前工作目录）下没有 `.codegraph/` 目录，自动执行 `codegraph init` 建立代码知识图谱索引。好处：\\n- 从一开始就能用 `codegraph_explore` MCP 工具或 `codegraph explore "<query>"` shell 命令，一次返回相关符号的完整源码 + 调用链\\n- 避免退回到低效的 grep + Read 循环\\n- 动态派发（接口实现、虚函数）的调用路径 grep 跟不动，CodeGraph 能追踪\\n\\n**什么时候建**：识别到这是一个代码项目（有 package.json / pom.xml / Cargo.toml / go.mod 等或明显的源码目录结构）且没有 `.codegraph/` 时，立即初始化。对于非代码目录（纯文档 / 配置仓库 / 个人笔记），跳过。\\n\\n**怎么建**：在项目根目录运行 `codegraph init`（会自动识别语言、扫描源码、建立索引）。索引进 `.codegraph/` 目录（已在 .gitignore 模板中，不入版本控制）。对于大型仓库（10 万+ 行），首次索引可能需要几秒到几十秒；增量更新很快。\\n\\n**注意事项**：\\n- 初始化前先确认是在项目根目录（git 根目录或主 build 文件所在目录），不要在子目录建索引\\n- 如果项目已有 `.codegraph/` 但索引陈旧（代码大改过），用 `codegraph update` 增量更新或 `codegraph init --force` 重建\\n- 非代码项目不要强制建索引（浪费时间且无收益）\\n\' >> ~/.claude/CLAUDE.md'

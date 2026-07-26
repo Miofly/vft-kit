@@ -190,9 +190,11 @@ A: 每次操作前明确 export KAGGLE_USERNAME/KAGGLE_KEY,覆盖环境;或用 `
 
 ### 工具说明
 
-#### 1. probe-gpu.mjs
+#### 1. probe-gpu.mjs（单进程版）
 
-**功能**: 探测账号 GPU 真实可用性
+**功能**: 探测账号 GPU 真实可用性（自定义并发池）
+
+**适用场景**: Node.js 环境、命令行脚本
 
 **输入方式**（3 种）:
 
@@ -226,6 +228,67 @@ node scripts/probe-gpu.mjs
 **输出**:
 - `gpu-probe-report.json` - 完整探测结果
 - `gpu-probe-report.csv` - CSV 格式
+
+---
+
+#### 1.1 probe-gpu-agent.mjs（Agent 并发版）⭐
+
+**功能**: 使用 Claude Code Agent 并发探测（推荐用于 Claude Code 环境）
+
+**适用场景**: Claude Code 会话中、需要快速并发探测大量账号
+
+**优势**:
+- ⚡ **更快**: Agent 真正并发执行，充分利用多核
+- 🔒 **隔离**: 每个 Agent 独立进程，互不干扰
+- 📊 **可视**: Claude Code 中可实时看到每个 Agent 的进度
+
+**快速开始**:
+
+```bash
+# 1. 准备账号文件 accounts.json
+# [
+#   {"username": "user1", "token": "KGAT_xxx"},
+#   {"username": "user2", "token": "KGAT_yyy"}
+# ]
+
+# 2. 生成 Agent 任务
+node scripts/probe-gpu-agent.mjs --accounts accounts.json --concurrency 8
+
+# 3. 复制脚本输出的 Agent 代码到 Claude Code 执行
+# （会输出类似下面的代码）
+# const results = await Promise.all([
+#   agent('探测账号 user1 GPU', { label: '账号1' }),
+#   agent('探测账号 user2 GPU', { label: '账号2' })
+# ]);
+
+# 4. 收集结果
+node scripts/collect-probe-results.mjs --dir .tmp-probe-accounts --output gpu-probe-report
+
+# 5. 清理临时文件
+rm -rf .tmp-probe-accounts
+```
+
+**工作流程**:
+1. `probe-gpu-agent.mjs` 为每个账号创建临时文件，输出 Agent 调用代码
+2. 在 Claude Code 中运行 Agent 并发任务（每个 Agent 调用 `probe-gpu-worker.mjs`）
+3. `collect-probe-results.mjs` 收集所有结果，生成汇总报告
+
+**性能对比**（10 个账号，每个 3 分钟）:
+- 顺序执行: 30 分钟
+- probe-gpu.mjs (并发=5): 6 分钟
+- **probe-gpu-agent.mjs: 3-4 分钟** ⚡
+
+**与 probe-gpu.mjs 的区别**:
+
+| 特性 | probe-gpu.mjs | probe-gpu-agent.mjs |
+|------|---------------|---------------------|
+| 并发方式 | 自定义并发池（单进程） | Agent 多进程并发 |
+| 适用环境 | 任何 Node.js 环境 | Claude Code 环境 |
+| 速度 | 快 | 更快（真正并行） |
+| 隔离性 | 共享进程 | 完全隔离 |
+| 推荐场景 | 命令行、CI/CD | Claude Code 会话 |
+
+**详细文档**: 参见 `README-AGENT-PROBE.md`
 
 ---
 
