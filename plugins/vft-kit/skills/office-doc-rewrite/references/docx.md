@@ -43,10 +43,10 @@ for tc in doc.element.body.iter(qn('w:tc')):
 ## 完整流程
 
 ```bash
-eval "$(bash scripts/setup-env.sh)"
+eval "$(bash "<skill-dir>/scripts/setup-env.sh")"
 # 先 dump 看结构(用 python-docx 打印段落 + 表格单元格文字)
 # 写规则 JSON: [["旧文本","新文本"], ...] 按顺序子串替换
-$OFFICE_PY scripts/docx_swap.py in.docx out.docx rules.json
+$OFFICE_PY "<skill-dir>/scripts/docx_swap.py" in.docx out.docx rules.json
 ```
 
 规则用**子串替换**,所以从长到短排列避免嵌套误替换（先替换长的完整句,再替换短的词）。

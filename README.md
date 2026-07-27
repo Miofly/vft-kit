@@ -22,7 +22,7 @@ codex plugin add vft-kit@vft-kit
 
 Codex 入口在 `plugins/vft-kit/.codex-plugin/plugin.json`，skill 目录仍是 `plugins/vft-kit/skills/`。
 
-跨平台兼容规则见 `plugins/vft-kit/docs/codex-compat.md`。新增或维护 skill 时，命令示例优先使用 `VFT_PLUGIN_ROOT`，并兼容 `CLAUDE_PLUGIN_ROOT` / `CODEX_PLUGIN_ROOT`。
+新增或修改非平台专属能力时，必须遵循 `plugins/vft-kit/docs/codex-compat.md`。
 
 ### ai-helper（macOS）
 

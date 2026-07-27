@@ -19,7 +19,7 @@ description: 用 Playwright 浏览器工具或内置 Node 脚本验证前端页�
 
 1. **依赖可能没装**：本 skill 依赖 playwright / lighthouse。**别假定它们在**——闭环第 0 步会自动检查并补装（见下）。
 2. **dev 端口不固定**：Vite 端口被占会自动 +1（5173→5174…），所以**禁止硬编码端口**，必须先跑探测脚本拿实际端口。
-3. **产物统一落中央目录**（`$FE_TEST_OUTPUT_DIR`，未设则 `$HOME/.claude/playwright`）：`--output-dir` 已把 **snapshot/console 这类自动命名产物**写到这里，不落项目。**但 `browser_take_screenshot` 例外**——它的相对 filename 是相对 MCP 进程 cwd（`$HOME`）解析的，会落到家目录而非中央目录，所以截图必须传**绝对路径**（见第 6 步）。清理脚本默认清中央目录，不要去项目根找截图。**本机若把 MCP 的 `--output-dir` 指到了别处，务必让 `FE_TEST_OUTPUT_DIR` 与之一致**，否则截图落一处、清理扫另一处。
+3. **产物统一落中央目录**（`$FE_TEST_OUTPUT_DIR`，未设则 `$HOME/.cache/vft-kit/fe-auto-test`）：`--output-dir` 已把 **snapshot/console 这类自动命名产物**写到这里，不落项目。**但 `browser_take_screenshot` 例外**——它的相对 filename 是相对 MCP 进程 cwd（`$HOME`）解析的，会落到家目录而非中央目录，所以截图必须传**绝对路径**（见第 6 步）。清理脚本默认清中央目录，不要去项目根找截图。**本机若把 MCP 的 `--output-dir` 指到了别处，务必让 `FE_TEST_OUTPUT_DIR` 与之一致**，否则截图落一处、清理扫另一处。
 
 ## 两条路：MCP 路径 vs 脚本路径
 
@@ -134,7 +134,7 @@ python3 "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skill
 
 **缓存 / 压缩 / 资源拆解（这块是"详细报告"的关键，必跑）**
 7. `analyze_resources`（`device:"mobile"`）→ 拿全量资源清单。**注意两个坑**：
-   - **输出会撑爆 token**（常 70k+ 字符，报 `exceeds maximum allowed tokens` 并落盘）。**不要去 Read 它**，错误信息里会给落盘路径。
+   - **输出会撑爆 token**（常 70k+ 字符，报 `exceeds maximum allowed tokens` 并落盘）。**不要整份读取它**，错误信息里会给落盘路径。
    - **它根本不返回缓存 TTL / 压缩状态**（实测字段只有 filename/type/sizeKB/mimeType/url）。缓存与压缩真值只能自己发请求测。
 8. 把上一步的落盘路径喂给 bundled 脚本，一步出「资源拆解 + 缓存压缩实测」：
    ```bash
@@ -155,8 +155,8 @@ python3 "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skill
 ### 6. 截图调试（命名规范 + 落点）
 
 - `browser_take_screenshot`，**filename 必须传中央目录的绝对路径**（`~` 不会被展开，要写成真实展开后的路径），文件名统一 `test-{功能描述}.png`：
-  - ✅ `/Users/<你>/.claude/playwright/test-three-scene.png`
-  - ❌ `~/.claude/playwright/test-three-scene.png`（波浪号 MCP 不展开，会创建一个名为 `~` 的目录）
+  - ✅ `/Users/<你>/.cache/vft-kit/fe-auto-test/test-three-scene.png`
+  - ❌ `~/.cache/vft-kit/fe-auto-test/test-three-scene.png`（波浪号 MCP 不展开，会创建一个名为 `~` 的目录）
   - ❌ `test-three-scene.png`（相对名）、`screenshot1.png`、`all-rendered-final.png`
 - **为什么必须绝对路径**：`--output-dir` 只管 snapshot/console 这类自动命名产物；`browser_take_screenshot` 的**相对 filename 是相对 MCP 进程 cwd（即 `$HOME`）解析**，会落到家目录而不是中央目录，第 7 步清理脚本（只扫中央目录）就清不到、还污染家目录。传绝对路径一步到位。
 - 规范前缀 `test-` 是为了第 7 步清理脚本能精确识别。
@@ -167,7 +167,7 @@ python3 "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skill
 bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/fe-auto-test/scripts/cleanup-screenshots.sh"
 ```
 
-默认清中央目录（`$FE_TEST_OUTPUT_DIR`，未设则 `$HOME/.claude/playwright`）里的 `test-*` / `page-*` 截图；只删命名规范内的截图，不递归、不 rm -rf。
+默认清中央目录（`$FE_TEST_OUTPUT_DIR`，未设则 `$HOME/.cache/vft-kit/fe-auto-test`）里的 `test-*` / `page-*` 截图；只删命名规范内的截图，不递归、不 rm -rf。
 
 > **截图目录必须和 playwright MCP 的 `--output-dir` 是同一个**。若本机把 `--output-dir` 指到了别处（如某个中央资料目录），要么把 `FE_TEST_OUTPUT_DIR` 设成同一路径，要么第 6 步截图时就传那个目录的绝对路径——否则截图落 A、清理扫 B，永远清不掉。
 

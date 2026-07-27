@@ -863,14 +863,14 @@ final class DetachedIslandWindowControllerTests: XCTestCase {
         wait(for: [bubblePresented], timeout: 1.0)
     }
 
-    func testCompletedSessionDoesNotAutoOpenCompletionBubbleInFloatingMode() {
+    func testCompletedSessionAutoOpensCompletionBubbleInFloatingMode() {
         let originalAutoOpenCompletionPanel = AppSettings.autoOpenCompletionPanel
         AppSettings.autoOpenCompletionPanel = true
         defer { AppSettings.autoOpenCompletionPanel = originalAutoOpenCompletionPanel }
 
         let viewModel = makeViewModel()
         let sessionMonitor = makeSessionMonitor()
-        sessionMonitor.instances = [makeSession(id: "active", phase: .processing)]
+        sessionMonitor.instances = [makeSession(id: "completed", phase: .processing)]
 
         let controller = DetachedIslandWindowController(
             viewModel: viewModel,
@@ -884,15 +884,15 @@ final class DetachedIslandWindowControllerTests: XCTestCase {
         let completed = makeCompletedSession(id: "completed")
         controller.applySessionSnapshotForTesting([completed])
 
-        let bubbleStayedHidden = expectation(description: "completion bubble stays hidden")
+        let bubblePresented = expectation(description: "completion bubble auto-opens")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            XCTAssertNil(controller.currentActiveCompletionNotificationForTesting)
-            XCTAssertEqual(controller.renderedBubbleStateForTesting, .hidden)
-            XCTAssertFalse(controller.isBubbleVisibleForTesting)
-            bubbleStayedHidden.fulfill()
+            XCTAssertEqual(controller.currentActiveCompletionNotificationForTesting?.kind, .completed)
+            XCTAssertEqual(controller.renderedBubbleStateForTesting, .hoverPreview)
+            XCTAssertTrue(controller.isBubbleVisibleForTesting)
+            bubblePresented.fulfill()
         }
 
-        wait(for: [bubbleStayedHidden], timeout: 1.0)
+        wait(for: [bubblePresented], timeout: 1.0)
     }
 
     func testCodexCompletionBubbleDoesNotAutoOpenWhileClaudeSessionIsActive() {
@@ -998,7 +998,7 @@ final class DetachedIslandWindowControllerTests: XCTestCase {
         wait(for: [suppressed], timeout: 1.0)
     }
 
-    func testCodexCompletionDoesNotAutoOpenAfterThreadRefresh() {
+    func testCodexCompletionDoesNotReopenAfterThreadRefresh() {
         let originalAutoOpenCompletionPanel = AppSettings.autoOpenCompletionPanel
         AppSettings.autoOpenCompletionPanel = true
         defer { AppSettings.autoOpenCompletionPanel = originalAutoOpenCompletionPanel }
@@ -1023,22 +1023,25 @@ final class DetachedIslandWindowControllerTests: XCTestCase {
         controller.present(atPetAnchor: CGPoint(x: 1200, y: 220))
         controller.applySessionSnapshotForTesting([codexCompleted])
 
-        let staysHidden = expectation(description: "codex completion stays hidden")
+        let firstCompletionPresented = expectation(description: "codex completion is presented")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            XCTAssertNil(controller.currentActiveCompletionNotificationForTesting)
-            XCTAssertEqual(controller.renderedBubbleStateForTesting, .hidden)
-            XCTAssertFalse(controller.isBubbleVisibleForTesting)
-            staysHidden.fulfill()
+            XCTAssertEqual(controller.currentActiveCompletionNotificationForTesting?.kind, .completed)
+            XCTAssertEqual(controller.renderedBubbleStateForTesting, .hoverPreview)
+            XCTAssertTrue(controller.isBubbleVisibleForTesting)
+            firstCompletionPresented.fulfill()
         }
 
-        wait(for: [staysHidden], timeout: 1.0)
+        wait(for: [firstCompletionPresented], timeout: 1.0)
 
-        controller.applySessionSnapshotForTesting([
-            makeCodexCompletedSession(id: sessionId, phase: .processing, lastActivity: activityAt)
-        ])
-        controller.applySessionSnapshotForTesting([
-            makeCodexCompletedSession(id: sessionId, lastActivity: activityAt)
-        ])
+        let firstCompletionDismissed = expectation(description: "codex completion auto-dismisses")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            XCTAssertNil(controller.currentActiveCompletionNotificationForTesting)
+            XCTAssertEqual(controller.renderedBubbleStateForTesting, .hidden)
+            firstCompletionDismissed.fulfill()
+        }
+        wait(for: [firstCompletionDismissed], timeout: 1.0)
+
+        controller.applySessionSnapshotForTesting([codexCompleted])
 
         let notReopened = expectation(description: "dismissed codex completion stays dismissed")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
@@ -1051,7 +1054,7 @@ final class DetachedIslandWindowControllerTests: XCTestCase {
         wait(for: [notReopened], timeout: 1.0)
     }
 
-    func testCodexCompletionDoesNotAutoOpenForLaterActivity() {
+    func testCodexCompletionAutoOpensAgainForLaterActivity() {
         let originalAutoOpenCompletionPanel = AppSettings.autoOpenCompletionPanel
         AppSettings.autoOpenCompletionPanel = true
         defer { AppSettings.autoOpenCompletionPanel = originalAutoOpenCompletionPanel }
@@ -1078,15 +1081,21 @@ final class DetachedIslandWindowControllerTests: XCTestCase {
             makeCodexCompletedSession(id: sessionId, lastActivity: firstActivityAt)
         ])
 
-        let firstCompletionHidden = expectation(description: "first codex completion stays hidden")
+        let firstCompletionPresented = expectation(description: "first codex completion is presented")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            XCTAssertNil(controller.currentActiveCompletionNotificationForTesting)
-            XCTAssertEqual(controller.renderedBubbleStateForTesting, .hidden)
-            XCTAssertFalse(controller.isBubbleVisibleForTesting)
-            firstCompletionHidden.fulfill()
+            XCTAssertEqual(controller.currentActiveCompletionNotificationForTesting?.kind, .completed)
+            XCTAssertTrue(controller.isBubbleVisibleForTesting)
+            firstCompletionPresented.fulfill()
         }
 
-        wait(for: [firstCompletionHidden], timeout: 1.0)
+        wait(for: [firstCompletionPresented], timeout: 1.0)
+
+        let firstCompletionDismissed = expectation(description: "first codex completion auto-dismisses")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            XCTAssertNil(controller.currentActiveCompletionNotificationForTesting)
+            firstCompletionDismissed.fulfill()
+        }
+        wait(for: [firstCompletionDismissed], timeout: 1.0)
 
         controller.applySessionSnapshotForTesting([
             makeCodexCompletedSession(id: sessionId, phase: .processing, lastActivity: laterActivityAt)
@@ -1095,15 +1104,15 @@ final class DetachedIslandWindowControllerTests: XCTestCase {
             makeCodexCompletedSession(id: sessionId, lastActivity: laterActivityAt)
         ])
 
-        let laterCompletionHidden = expectation(description: "later codex completion stays hidden")
+        let laterCompletionPresented = expectation(description: "later codex completion is presented")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            XCTAssertNil(controller.currentActiveCompletionNotificationForTesting)
-            XCTAssertEqual(controller.renderedBubbleStateForTesting, .hidden)
-            XCTAssertFalse(controller.isBubbleVisibleForTesting)
-            laterCompletionHidden.fulfill()
+            XCTAssertEqual(controller.currentActiveCompletionNotificationForTesting?.kind, .completed)
+            XCTAssertEqual(controller.renderedBubbleStateForTesting, .hoverPreview)
+            XCTAssertTrue(controller.isBubbleVisibleForTesting)
+            laterCompletionPresented.fulfill()
         }
 
-        wait(for: [laterCompletionHidden], timeout: 1.0)
+        wait(for: [laterCompletionPresented], timeout: 1.0)
     }
 
     func testQoderCLIEndedSessionAutoOpensCompletionBubbleAfterWaitingForInput() {
@@ -1215,7 +1224,7 @@ final class DetachedIslandWindowControllerTests: XCTestCase {
 
         let viewModel = makeViewModel()
         let sessionMonitor = makeSessionMonitor()
-        sessionMonitor.instances = [makeSession(id: "active", phase: .processing)]
+        sessionMonitor.instances = [makeSession(id: "completed", phase: .processing)]
 
         let controller = DetachedIslandWindowController(
             viewModel: viewModel,

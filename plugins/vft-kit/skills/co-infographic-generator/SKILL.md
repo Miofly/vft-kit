@@ -75,7 +75,7 @@ node <skill>/scripts/render.mjs <input.html> <output.png> [--scale 3] [--no-inst
 浏览器实在找不到时（罕见），下载一次：`npx --prefix ~/.cache/vft-kit/render puppeteer browsers install chrome`。
 
 ### 4. 自检并交付
-渲染脚本已自动检查内容溢出（有告警就按提示调宽 `#shot` 重渲）。剩下的用 Read 工具看一眼生成的 PNG 确认：
+渲染脚本已自动检查内容溢出（有告警就按提示调宽 `#shot` 重渲）。剩下的用当前宿主的图片查看能力（Claude Code `Read` / Codex `view_image`）检查生成的 PNG：
 - 中文无缺字/方块、无错字；
 - 风格与同文档其它图一致。
 

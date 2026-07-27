@@ -33,7 +33,7 @@ enum NotificationEvent: String, CaseIterable, Identifiable {
         case .attentionRequired:
             return "等待审批、回答问题或其他需要你接手的时刻。"
         case .taskCompleted:
-            return "收到真正的 SessionEnd 后播放。"
+            return "一轮回答完成并等待你继续时播放。"
         case .taskError:
             return "工具或子代理执行失败。"
         case .resourceLimit:
