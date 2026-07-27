@@ -11,38 +11,12 @@ import AppKit
 
 enum UsageMenuBarCodexPresenter {
     nonisolated static func headlineWindow(in snapshot: CodexUsageSnapshot?) -> CodexUsageWindow? {
-        guard let snapshot, !snapshot.isEmpty else { return nil }
-        return snapshot.windows.first {
-            UsageSummaryPresenter.isSevenDayWindowLabel($0.label)
-        } ?? detailWindows(in: snapshot).last
+        detailWindows(in: snapshot).first
     }
 
     nonisolated static func detailWindows(in snapshot: CodexUsageSnapshot?) -> [CodexUsageWindow] {
-        guard let snapshot else { return [] }
-        return snapshot.windows.sorted { lhs, rhs in
-            if lhs.windowMinutes == rhs.windowMinutes {
-                return lhs.key < rhs.key
-            }
-            return lhs.windowMinutes < rhs.windowMinutes
-        }
-    }
-
-    nonisolated static func compactTokenCount(_ count: Int) -> String {
-        let value = max(0, count)
-        if value >= 1_000_000 {
-            return compactNumber(Double(value) / 1_000_000) + "M"
-        }
-        if value >= 1_000 {
-            return compactNumber(Double(value) / 1_000) + "K"
-        }
-        return String(value)
-    }
-
-    private nonisolated static func compactNumber(_ value: Double) -> String {
-        let rounded = (value * 10).rounded() / 10
-        return rounded.rounded() == rounded
-            ? String(Int(rounded))
-            : String(format: "%.1f", locale: Locale(identifier: "en_US_POSIX"), rounded)
+        guard let snapshot, snapshot.apiBillingUsage != nil else { return [] }
+        return snapshot.windows.filter { $0.key == "api_balance" }
     }
 }
 
@@ -258,10 +232,9 @@ final class UsageMenuBarController: NSObject, NSMenuDelegate {
         let codexPart = codexSnapshot?.windows
             .map { "\($0.key):\($0.roundedUsedPercentage)" }
             .joined(separator: ",") ?? "--"
-        let codexTokens = codexSnapshot?.tokenUsage?.totalTokens ?? 0
         // 陈旧状态纳入签名:数据从新鲜变陈旧(或反之)时强制重绘,数字随之变灰/复原
         let stale = snapshot?.isStale() == true ? "1" : "0"
-        return "\(appr)|\(part(snapshot?.fiveHour))|\(part(snapshot?.sevenDay))|\(codexPart)|\(codexTokens)|\(stale)"
+        return "\(appr)|\(part(snapshot?.fiveHour))|\(part(snapshot?.sevenDay))|\(codexPart)|\(stale)"
     }
 
     private func usageAttributedString() -> NSAttributedString {
@@ -293,6 +266,7 @@ final class UsageMenuBarController: NSObject, NSMenuDelegate {
         if let snapshot, snapshot.isApiBalance, let w = snapshot.fiveHour {
             // API Key 模式:网关已用额度%,颜色按用量判红黄绿(与 5h/7d 一致)
             add("已用 ", labelCol)
+            add("CC ", labelCol)
             add("\(w.roundedUsedPercentage)%", stale ? dim : barColor(w.usedPercentage))
         } else if let snapshot, !snapshot.isEmpty {
             chunk("5h", snapshot.fiveHour, gap: true)
@@ -300,13 +274,10 @@ final class UsageMenuBarController: NSObject, NSMenuDelegate {
         }
 
         if let codexWindow = UsageMenuBarCodexPresenter.headlineWindow(in: codexSnapshot) {
-            if result.length > 0 { add("  ·  ", dim) }
-            add("CX \(codexWindow.label) ", labelCol)
+            if result.length > 0 { add(codexWindow.key == "api_balance" ? "  " : "  ·  ", dim) }
+            else if codexWindow.key == "api_balance" { add("已用 ", labelCol) }
+            add(codexWindow.key == "api_balance" ? "CX " : "CX \(codexWindow.label) ", labelCol)
             add("\(codexWindow.roundedUsedPercentage)%", barColor(codexWindow.usedPercentage))
-        } else if let tokenUsage = codexSnapshot?.tokenUsage {
-            if result.length > 0 { add("  ·  ", dim) }
-            add("CX ", labelCol)
-            add(UsageMenuBarCodexPresenter.compactTokenCount(tokenUsage.totalTokens), labelCol)
         }
 
         if result.length == 0 {
@@ -325,13 +296,15 @@ final class UsageMenuBarController: NSObject, NSMenuDelegate {
 
     private func updateInfoItems() {
         // Claude 与 Codex 分开决定显隐,避免某一侧无数据时误伤另一侧。
-        if let snapshot, snapshot.isApiBalance, let w = snapshot.fiveHour {
+        if let snapshot,
+           snapshot.isApiBalance,
+           let w = snapshot.fiveHour,
+           let usage = snapshot.apiBillingUsage {
             infoItem5h?.isHidden = false
             infoItem7d?.isHidden = true
-            let remaining = max(0, 100 - Int(w.usedPercentage.rounded()))
             infoView5h?.configure(
-                label: "CC 已用额度:",
-                value: "\(w.roundedUsedPercentage)% · 剩余 \(remaining)%",
+                label: "CC - 总额度:",
+                value: "\(usage.totalUSDText) · 剩余 \(usage.remainingUSDText)",
                 valueColor: menuColor(w.usedPercentage)
             )
         } else if (snapshot == nil || snapshot?.isEmpty == true), ClaudeUsageLoader.isApiKeyMode() {
@@ -361,36 +334,19 @@ final class UsageMenuBarController: NSObject, NSMenuDelegate {
             (infoItemCodexSecondary, infoViewCodexSecondary)
         ]
 
-        if windows.isEmpty, let tokenUsage = codexSnapshot?.tokenUsage {
+        if let usage = codexSnapshot?.apiBillingUsage,
+           let window = windows.first(where: { $0.key == "api_balance" }) {
             rows[0].0?.isHidden = false
             rows[1].0?.isHidden = true
             rows[0].1?.configure(
-                label: "Codex 最近会话:",
-                value: "\(UsageMenuBarCodexPresenter.compactTokenCount(tokenUsage.totalTokens)) Tokens",
-                valueColor: .labelColor
+                label: "CX - 总额度:",
+                value: "\(usage.totalUSDText) · 剩余 \(usage.remainingUSDText)",
+                valueColor: menuColor(window.usedPercentage)
             )
             return
         }
 
-        for (index, row) in rows.enumerated() {
-            guard windows.indices.contains(index) else {
-                row.0?.isHidden = true
-                continue
-            }
-            row.0?.isHidden = false
-            configureCodexInfoView(row.1, windows[index])
-        }
-    }
-
-    private func configureCodexInfoView(_ view: UsageInfoMenuItemView?, _ window: CodexUsageWindow) {
-        let remaining = max(0, Int(window.leftPercentage.rounded()))
-        var segments: [(String, NSColor)] = [
-            ("已用 \(window.roundedUsedPercentage)% · 剩余 \(remaining)%", menuColor(window.usedPercentage))
-        ]
-        if let reset = countdown(window.resetsAt) {
-            segments.append((" · \(reset)", .secondaryLabelColor))
-        }
-        view?.configure(label: "Codex \(window.label):", valueSegments: segments)
+        rows.forEach { $0.0?.isHidden = true }
     }
 
     private func configureInfoView(

@@ -4629,7 +4629,6 @@ actor SessionStore {
         workspacePath: String
     ) async -> SessionClientInfo? {
         // cmux is based on Ghostty, so we reuse the Ghostty enrichment logic
-        // (Otty 的 tab id 非 UUID、且脚本词汇不同,不参与 Ghostty 终端标识富化)
         guard current.terminalBundleIdentifier == "com.mitchellh.ghostty" || current.terminalBundleIdentifier == "com.cmuxterm.app",
               TerminalSessionFocuser.normalizedGhosttyTerminalIdentifier(current.terminalSessionIdentifier) == nil,
               shouldCaptureFrontmostGhosttyTerminalIdentifier(for: event) else {

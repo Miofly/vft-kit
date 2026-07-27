@@ -156,6 +156,13 @@ claudemd_has_anysearch(){
   [ -f "$f" ] || return 1
   grep -Eiq 'anysearch' "$f"
 }
+# 全局 ~/.claude/CLAUDE.md 是否含「agentmemory 持久化记忆」使用规范
+# agentmemory 是必装 MCP，必须告诉 CC 何时主动调用（remember/recall/recap/forget/handoff）及自动工作机制。
+claudemd_has_agentmemory(){
+  local f="$HOME/.claude/CLAUDE.md"
+  [ -f "$f" ] || return 1
+  grep -Eiq 'agentmemory|持久化记忆.*agentmemory|记忆.*自动管理' "$f"
+}
 # 全局 ~/.claude/CLAUDE.md 是否含「CodeGraph 自动初始化」规范
 # codegraph CLI 已装时必需：进入新项目若没有 .codegraph 目录，自动建索引，充分利用代码知识图谱。
 claudemd_has_codegraph_auto_init(){
@@ -195,6 +202,7 @@ npm_g_installed "@danielsogl/lighthouse-mcp"                  && ok "@danielsogl
 sec "MCP 服务器（已注册到 CC）"
 mcp_registered codegraph           && ok "codegraph"           || bad "codegraph MCP"           "codegraph install -t claude -l global -y"
 mcp_registered lighthouse-mcp      && ok "lighthouse-mcp"      || bad "lighthouse-mcp MCP"      "claude mcp add lighthouse-mcp -s user -- node \"\$(npm root -g)/@danielsogl/lighthouse-mcp/dist/index.js\""
+mcp_registered agentmemory         && ok "agentmemory"         || bad "agentmemory MCP"         "bash \"$SCRIPT_DIR/install-agentmemory.sh\""
 
 # ---------- 4. 插件（默认必备集） ----------
 sec "插件（默认必备集）"
@@ -283,6 +291,8 @@ if skill_installed anysearch; then
 else
   ok "anysearch 调用规范（skill 未装，无需配置）"
 fi
+# agentmemory 使用规范：必需——agentmemory 是必装 MCP，必须告诉 CC 自动工作机制与主动调用场景。
+claudemd_has_agentmemory           && ok "全局规范含「agentmemory 持久化记忆」" || bad "agentmemory 使用规范" "bash \"$SCRIPT_DIR/install-agentmemory.sh\"（会自动追加规范到 CLAUDE.md）"
 [ -d "$HOME/.claude/projects" ]    && ok "项目 memory 目录"                   || opt "项目 memory"     "~/.claude/projects/<项目>/memory/ 跨会话记忆"
 
 # ---------- 7. MCP 连接健康（仅 --health） ----------
@@ -292,9 +302,10 @@ if [ "$HEALTH" -eq 1 ]; then
   # 核心 MCP：<名字正则> <显示名>
   mcp_healthy '^codegraph:'           && ok "codegraph 已连接"           || bad "codegraph 未连"           "codegraph serve --mcp 起不来，检查 codegraph install / 重启 CC"
   mcp_healthy '^lighthouse-mcp:'      && ok "lighthouse-mcp 已连接"      || bad "lighthouse-mcp 未连"      "检查 dist/index.js 路径，重跑 claude mcp add"
+  mcp_healthy '^agentmemory:'         && ok "agentmemory 已连接"         || bad "agentmemory 未连"         "npx @agentmemory/agentmemory 起不来，检查网络或重启 CC"
   mcp_healthy ':playwright:'          && ok "playwright 已连接（插件 MCP）" || bad "playwright 未连"        "npx @playwright/mcp@latest 起不来；先装浏览器 npx playwright install chromium"
 else
-  printf "\n${c_d}（跳过 MCP 连接健康检查；加 --health 参数可实连核对 codegraph/lighthouse/playwright）${c_0}\n"
+  printf "\n${c_d}（跳过 MCP 连接健康检查；加 --health 参数可实连核对 codegraph/lighthouse/agentmemory/playwright）${c_0}\n"
 fi
 
 # ---------- 汇总 ----------

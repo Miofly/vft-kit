@@ -15,7 +15,6 @@ struct TerminalAppRegistry: Sendable {
         "com.openai.codex": "Codex",
         "com.mitchellh.ghostty": "Ghostty",
         "com.cmuxterm.app": "cmux",
-        "io.appmakes.otty": "Otty",
         "io.alacritty": "Alacritty",
         "org.alacritty": "Alacritty",
         "net.kovidgoyal.kitty": "kitty",
@@ -33,7 +32,6 @@ struct TerminalAppRegistry: Sendable {
         "terminal.app": "com.apple.Terminal",
         "ghostty": "com.mitchellh.ghostty",
         "cmux": "com.cmuxterm.app",
-        "otty": "io.appmakes.otty",
         "alacritty": "io.alacritty",
         "kitty": "net.kovidgoyal.kitty",
         "hyper": "co.zeit.hyper",
@@ -80,7 +78,6 @@ struct TerminalAppRegistry: Sendable {
         "Codex",
         "Ghostty",
         "cmux",
-        "Otty",
         "Alacritty",
         "kitty",
         "Hyper",
@@ -112,7 +109,6 @@ struct TerminalAppRegistry: Sendable {
         "com.openai.codex",
         "com.mitchellh.ghostty",
         "com.cmuxterm.app",
-        "io.appmakes.otty",
         "org.alacritty",
         "net.kovidgoyal.kitty",
         "co.zeit.hyper",
@@ -192,10 +188,6 @@ struct TerminalAppRegistry: Sendable {
         }
         if normalizedCommand.contains("cmux") {
             return "com.cmuxterm.app"
-        }
-        // 注意:必须放在 ghostty 判断之后 —— "ghostty" 本身含子串 "otty",Ghostty 命令已在上面先行返回
-        if normalizedCommand.contains("otty") {
-            return "io.appmakes.otty"
         }
         if normalizedCommand.contains("wezterm") {
             return "com.github.wez.wezterm"

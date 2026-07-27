@@ -13,7 +13,8 @@ final class UsageSnapshotCacheStoreTests: XCTestCase {
         let snapshot = ClaudeUsageSnapshot(
             fiveHour: ClaudeUsageWindow(usedPercentage: 12, resetsAt: Date(timeIntervalSince1970: 1_760_000_000)),
             sevenDay: ClaudeUsageWindow(usedPercentage: 44, resetsAt: nil),
-            cachedAt: Date(timeIntervalSince1970: 1_760_000_100)
+            cachedAt: Date(timeIntervalSince1970: 1_760_000_100),
+            apiBillingUsage: APIBillingUsage(totalUsage: 2_400, hardLimitUSD: 200)
         )
 
         UsageSnapshotCacheStore.saveClaude(snapshot, to: directoryURL)
@@ -36,6 +37,7 @@ final class UsageSnapshotCacheStoreTests: XCTestCase {
             planType: "pro",
             limitID: "codex",
             tokenUsage: CodexTokenUsage(inputTokens: 100, outputTokens: 50, totalTokens: 150),
+            apiBillingUsage: APIBillingUsage(totalUsage: 8_000, hardLimitUSD: 600),
             windows: [
                 CodexUsageWindow(
                     key: "primary",

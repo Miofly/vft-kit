@@ -1,6 +1,7 @@
 ---
 name: plugin-refresh
-description: 刷新 Claude Code / Codex 插件，把 marketplace 远端 / 本地源目录的最新内容（skill / hook / agent / SKILL.md 正文）落到本机 cache 并生效。Claude Code 走 `claude plugin uninstall + install` 重建 `~/.claude/plugins/cache/`；Codex 走 `codex plugin remove + add` 重建 `~/.codex/plugins/cache/`。用户说"刷新插件"、"插件更新"、"拉最新 skill"、"plugin update"、"marketplace update"、"插件缓存不一致"、"插件装回来"、"重新安装插件"、"同步最新 skill 到本机"、"为啥新 skill 还没出现"、"为啥改了 SKILL.md 没生效"、"为啥 codex/cc 看到的还是旧 skill"、"刷 cache"等场景时触发。**默认行为**：执行此 skill 时，自动检查本地目录插件（`Source: Directory`）数量，若少于 10 个则直接全部刷新，不询问用户。**核心认知**：插件详情/列表可能实时读源目录，但注入给 LLM 的 SKILL.md **正文**读的是 cache 拷贝——两者可以不一致，所以改完源必须刷 cache 再重启会话。**安全红线**：绝不能把 cache 目录做成指向源目录的软链（一种流行的"免刷新"偷懒做法）——plugin install/remove 写操作可能穿透软链改写源码，实测导致源目录里的文件被静默增删。
+description: >-
+  刷新 Claude Code / Codex 插件，把 marketplace 远端 / 本地源目录的最新内容（skill / hook / agent / SKILL.md 正文）落到本机 cache 并生效。Claude Code 走 `claude plugin uninstall + install` 重建 `~/.claude/plugins/cache/`；Codex 走 `codex plugin remove + add` 重建 `~/.codex/plugins/cache/`。用户说"刷新插件"、"插件更新"、"拉最新 skill"、"plugin update"、"marketplace update"、"插件缓存不一致"、"插件装回来"、"重新安装插件"、"同步最新 skill 到本机"、"为啥新 skill 还没出现"、"为啥改了 SKILL.md 没生效"、"为啥 codex/cc 看到的还是旧 skill"、"刷 cache"等场景时触发。**默认行为**：执行此 skill 时，自动检查本地目录插件（`Source: Directory`）数量，若少于 10 个则直接全部刷新，不询问用户。**核心认知**：插件详情/列表可能实时读源目录，但注入给 LLM 的 SKILL.md **正文**读的是 cache 拷贝——两者可以不一致，所以改完源必须刷 cache 再重启会话。**安全红线**：绝不能把 cache 目录做成指向源目录的软链（一种流行的"免刷新"偷懒做法）——plugin install/remove 写操作可能穿透软链改写源码，实测导致源目录里的文件被静默增删。
 ---
 
 # Claude Code / Codex 插件刷新

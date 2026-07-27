@@ -21,6 +21,7 @@ struct CodexUsageSnapshot: Equatable, Codable, Sendable {
     let planType: String?
     let limitID: String?
     let tokenUsage: CodexTokenUsage?
+    let apiBillingUsage: APIBillingUsage?
     let windows: [CodexUsageWindow]
 
     nonisolated init(
@@ -29,6 +30,7 @@ struct CodexUsageSnapshot: Equatable, Codable, Sendable {
         planType: String?,
         limitID: String?,
         tokenUsage: CodexTokenUsage? = nil,
+        apiBillingUsage: APIBillingUsage? = nil,
         windows: [CodexUsageWindow]
     ) {
         self.sourceFilePath = sourceFilePath
@@ -36,6 +38,7 @@ struct CodexUsageSnapshot: Equatable, Codable, Sendable {
         self.planType = planType
         self.limitID = limitID
         self.tokenUsage = tokenUsage
+        self.apiBillingUsage = apiBillingUsage
         self.windows = windows
     }
 
@@ -45,6 +48,7 @@ struct CodexUsageSnapshot: Equatable, Codable, Sendable {
         case planType
         case limitID
         case tokenUsage
+        case apiBillingUsage
         case windows
     }
 
@@ -55,6 +59,7 @@ struct CodexUsageSnapshot: Equatable, Codable, Sendable {
         planType = try container.decodeIfPresent(String.self, forKey: .planType)
         limitID = try container.decodeIfPresent(String.self, forKey: .limitID)
         tokenUsage = try container.decodeIfPresent(CodexTokenUsage.self, forKey: .tokenUsage)
+        apiBillingUsage = try container.decodeIfPresent(APIBillingUsage.self, forKey: .apiBillingUsage)
         windows = try container.decode([CodexUsageWindow].self, forKey: .windows)
     }
 
@@ -79,6 +84,10 @@ struct CodexUsageSnapshot: Equatable, Codable, Sendable {
 enum CodexUsageLoader {
     nonisolated static let defaultRootURL = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent(".codex/sessions", isDirectory: true)
+    private nonisolated static let defaultConfigURL = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent(".codex/config.toml")
+    private nonisolated static let defaultAuthURL = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent(".codex/auth.json")
 
     private nonisolated static let defaultCandidateScanLimit = 24
     private nonisolated static let defaultMaxBytesPerFile = 4 * 1024 * 1024
@@ -102,13 +111,14 @@ enum CodexUsageLoader {
         candidateScanLimit: Int = defaultCandidateScanLimit,
         maxBytesPerFile: Int = defaultMaxBytesPerFile
     ) throws -> CodexUsageSnapshot? {
+        let apiBillingUsage = rootURL == defaultRootURL ? loadApiBillingUsage() : nil
         guard fileManager.fileExists(atPath: rootURL.path),
               let enumerator = fileManager.enumerator(
                 at: rootURL,
                 includingPropertiesForKeys: [.contentModificationDateKey, .fileSizeKey, .isRegularFileKey],
                 options: [.skipsHiddenFiles]
               ) else {
-            return nil
+            return merging(localSnapshot: nil, apiBillingUsage: apiBillingUsage)
         }
 
         var candidates: [Candidate] = []
@@ -146,7 +156,7 @@ enum CodexUsageLoader {
             maxBytesPerFile: maxBytesPerFile
         )
         if let cached = cachedSnapshot(for: fingerprint) {
-            return cached
+            return merging(localSnapshot: cached, apiBillingUsage: apiBillingUsage)
         }
 
         var bestSnapshot: CodexUsageSnapshot?
@@ -169,7 +179,106 @@ enum CodexUsageLoader {
         }
 
         cache(snapshot: bestSnapshot, for: fingerprint)
-        return bestSnapshot
+        return merging(localSnapshot: bestSnapshot, apiBillingUsage: apiBillingUsage)
+    }
+
+    nonisolated static func apiConfiguration(
+        configContent: String,
+        authData: Data
+    ) -> (baseURL: URL, token: String)? {
+        var activeProvider: String?
+        var currentProvider: String?
+        var providerBaseURLs: [String: URL] = [:]
+
+        for rawLine in configContent.split(separator: "\n", omittingEmptySubsequences: false) {
+            let line = rawLine.trimmingCharacters(in: .whitespaces)
+            if line.hasPrefix("["), line.hasSuffix("]") {
+                let section = line.dropFirst().dropLast()
+                let prefix = "model_providers."
+                currentProvider = section.hasPrefix(prefix) ? String(section.dropFirst(prefix.count)) : nil
+                continue
+            }
+            guard let separator = line.firstIndex(of: "=") else { continue }
+            let key = line[..<separator].trimmingCharacters(in: .whitespaces)
+            let rawValue = line[line.index(after: separator)...].trimmingCharacters(in: .whitespaces)
+            let value = rawValue.trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+            if currentProvider == nil, key == "model_provider" {
+                activeProvider = value
+            } else if let currentProvider,
+                      key == "base_url",
+                      let baseURL = URL(string: value) {
+                providerBaseURLs[currentProvider] = baseURL
+            }
+        }
+
+        guard let activeProvider,
+              let baseURL = providerBaseURLs[activeProvider],
+              let auth = try? JSONSerialization.jsonObject(with: authData) as? [String: Any],
+              let token = auth["OPENAI_API_KEY"] as? String,
+              !token.isEmpty
+        else { return nil }
+        return (baseURL, token)
+    }
+
+    nonisolated static func apiBillingWindow(
+        totalUsage: Double,
+        hardLimitUSD: Double
+    ) -> CodexUsageWindow? {
+        guard totalUsage.isFinite, hardLimitUSD.isFinite, hardLimitUSD > 0 else { return nil }
+        let usedPercentage = APIBillingLoader.usedPercentage(
+            totalUsage: totalUsage,
+            hardLimitUSD: hardLimitUSD
+        )
+        return CodexUsageWindow(
+            key: "api_balance",
+            label: "额度",
+            usedPercentage: usedPercentage,
+            leftPercentage: 100 - usedPercentage,
+            windowMinutes: 0,
+            resetsAt: nil
+        )
+    }
+
+    nonisolated static func merging(
+        localSnapshot: CodexUsageSnapshot?,
+        apiBillingUsage: APIBillingUsage?
+    ) -> CodexUsageSnapshot? {
+        guard let apiBillingUsage,
+              let apiBalanceWindow = apiBillingWindow(
+                totalUsage: apiBillingUsage.totalUsage,
+                hardLimitUSD: apiBillingUsage.hardLimitUSD
+              ) else { return localSnapshot }
+        guard let localSnapshot else {
+            return CodexUsageSnapshot(
+                sourceFilePath: defaultConfigURL.path,
+                capturedAt: Date(),
+                planType: "api",
+                limitID: "billing",
+                apiBillingUsage: apiBillingUsage,
+                windows: [apiBalanceWindow]
+            )
+        }
+        return CodexUsageSnapshot(
+            sourceFilePath: localSnapshot.sourceFilePath,
+            capturedAt: localSnapshot.capturedAt,
+            planType: localSnapshot.planType,
+            limitID: localSnapshot.limitID,
+            tokenUsage: localSnapshot.tokenUsage,
+            apiBillingUsage: apiBillingUsage,
+            windows: [apiBalanceWindow]
+        )
+    }
+
+    private nonisolated static func loadApiBillingUsage() -> APIBillingUsage? {
+        guard let configContent = try? String(contentsOf: defaultConfigURL, encoding: .utf8),
+              let authData = try? Data(contentsOf: defaultAuthURL),
+              let configuration = apiConfiguration(configContent: configContent, authData: authData),
+              let usage = APIBillingLoader.load(
+                baseURL: configuration.baseURL,
+                token: configuration.token
+              )
+        else { return nil }
+        return usage
     }
 
     private nonisolated static func loadLatestSnapshot(

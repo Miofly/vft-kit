@@ -1,5 +1,72 @@
 import Foundation
 
+struct APIBillingUsage: Equatable, Codable, Sendable {
+    let totalUsage: Double
+    let hardLimitUSD: Double
+
+    nonisolated var totalUSDText: String { Self.formatUSD(hardLimitUSD) }
+    nonisolated var remainingUSDText: String {
+        Self.formatUSD(max(0, hardLimitUSD - totalUsage / 100))
+    }
+
+    private nonisolated static func formatUSD(_ value: Double) -> String {
+        let rounded = (value * 100).rounded() / 100
+        return rounded.rounded() == rounded
+            ? "$\(Int(rounded))"
+            : String(format: "$%.2f", locale: Locale(identifier: "en_US_POSIX"), rounded)
+    }
+}
+
+enum APIBillingLoader {
+    nonisolated static func load(baseURL: URL, token: String) -> APIBillingUsage? {
+        let billingBaseURL = baseURL.path.hasSuffix("/v1")
+            ? baseURL
+            : baseURL.appendingPathComponent("v1")
+
+        func getJSON(_ path: String) -> [String: Any]? {
+            var request = URLRequest(
+                url: billingBaseURL.appendingPathComponent(path),
+                timeoutInterval: 8
+            )
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            let semaphore = DispatchSemaphore(value: 0)
+            var result: [String: Any]?
+            URLSession.shared.dataTask(with: request) { data, response, _ in
+                defer { semaphore.signal() }
+                guard let data,
+                      (response as? HTTPURLResponse)?.statusCode == 200,
+                      let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+                else { return }
+                result = object
+            }.resume()
+            _ = semaphore.wait(timeout: .now() + 9)
+            return result
+        }
+
+        guard let subscription = getJSON("dashboard/billing/subscription"),
+              let hardLimitUSD = number(from: subscription["hard_limit_usd"]),
+              hardLimitUSD > 0,
+              let usage = getJSON("dashboard/billing/usage"),
+              let totalUsage = number(from: usage["total_usage"])
+        else { return nil }
+
+        return APIBillingUsage(totalUsage: totalUsage, hardLimitUSD: hardLimitUSD)
+    }
+
+    nonisolated static func usedPercentage(totalUsage: Double, hardLimitUSD: Double) -> Double {
+        guard hardLimitUSD > 0 else { return 0 }
+        return min(100, max(0, totalUsage / 100 / hardLimitUSD * 100))
+    }
+
+    private nonisolated static func number(from value: Any?) -> Double? {
+        switch value {
+        case let number as NSNumber: return number.doubleValue
+        case let string as String: return Double(string)
+        default: return nil
+        }
+    }
+}
+
 struct ClaudeUsageWindow: Equatable, Codable, Sendable {
     let usedPercentage: Double
     let resetsAt: Date?
@@ -15,6 +82,7 @@ struct ClaudeUsageSnapshot: Equatable, Codable, Sendable {
     let cachedAt: Date?
     /// API Key 模式:窗口是网关余额(fiveHour 装「已用%」),下游据此把 label 显示成「余额」而非「5h/7d」。
     var isApiBalance: Bool = false
+    var apiBillingUsage: APIBillingUsage? = nil
 
     /// 数据文件超过该时长未更新即视为陈旧(通常意味着 Claude Code 未运行 / 状态栏长期未刷新,
     /// 此时轮询读到的还是旧快照,不能当成实时用量)。3 分钟轮询 + 状态栏可能几分钟不刷,取 10 分钟。
@@ -70,45 +138,22 @@ enum ClaudeUsageLoader {
               let base = env["ANTHROPIC_BASE_URL"] as? String, !base.isEmpty,
               let baseURL = URL(string: base) else { return nil }
 
-        func getJSON(_ path: String) -> [String: Any]? {
-            var req = URLRequest(url: baseURL.appendingPathComponent(path),
-                                 timeoutInterval: 8)
-            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-            let sem = DispatchSemaphore(value: 0)
-            var result: [String: Any]?
-            URLSession.shared.dataTask(with: req) { data, resp, _ in
-                defer { sem.signal() }
-                guard let data,
-                      (resp as? HTTPURLResponse)?.statusCode == 200,
-                      let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-                else { return }
-                result = obj
-            }.resume()
-            _ = sem.wait(timeout: .now() + 9)
-            return result
-        }
-
-        guard let sub = getJSON("v1/dashboard/billing/subscription"),
-              let total = number(from: sub["hard_limit_usd"]), total > 0,
-              let usage = getJSON("v1/dashboard/billing/usage"),
-              let used = number(from: usage["total_usage"]) else { return nil }
-
-        let usedPct = apiBillingUsedPercentage(totalUsage: used, hardLimitUSD: total)
+        guard let usage = APIBillingLoader.load(baseURL: baseURL, token: token) else { return nil }
+        let usedPct = apiBillingUsedPercentage(
+            totalUsage: usage.totalUsage,
+            hardLimitUSD: usage.hardLimitUSD
+        )
         return ClaudeUsageSnapshot(
             fiveHour: ClaudeUsageWindow(usedPercentage: usedPct, resetsAt: nil),
             sevenDay: nil,
             cachedAt: Date(),
-            isApiBalance: true
+            isApiBalance: true,
+            apiBillingUsage: usage
         )
     }
 
     nonisolated static func apiBillingUsedPercentage(totalUsage: Double, hardLimitUSD: Double) -> Double {
-        guard hardLimitUSD > 0 else { return 0 }
-        // OpenAI-compatible billing usage returns total_usage in cents, while
-        // subscription hard_limit_usd is in dollars.
-        let usedUSD = totalUsage / 100
-        // used_percentage 供进度条复用;超支(>100%)夹到 100 以免进度条溢出。
-        return min(100, max(0, usedUSD / hardLimitUSD * 100))
+        APIBillingLoader.usedPercentage(totalUsage: totalUsage, hardLimitUSD: hardLimitUSD)
     }
 
     nonisolated static func load(from url: URL = defaultCacheURL) throws -> ClaudeUsageSnapshot? {

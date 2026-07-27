@@ -856,7 +856,6 @@ actor SessionLauncher {
 
         return normalizedBundleIdentifier == "com.mitchellh.ghostty"
             || normalizedBundleIdentifier == "com.cmuxterm.app"
-            || normalizedBundleIdentifier == "io.appmakes.otty"
     }
 
     nonisolated static func shouldUseProcessActivationForTerminalFallback(
