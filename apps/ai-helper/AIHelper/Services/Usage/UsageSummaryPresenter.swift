@@ -135,8 +135,8 @@ enum UsageSummaryPresenter {
             }
         }
 
-        if let snapshot = codexSnapshot, snapshot.isEmpty == false {
-            let windows = snapshot.windows.map { window in
+        if let snapshot = codexSnapshot, snapshot.apiBillingUsage != nil {
+            let windows = snapshot.windows.filter { $0.key == "api_balance" }.map { window in
                 UsageSummaryWindow(
                     id: "codex-\(window.key)",
                     label: window.label,

@@ -2,6 +2,13 @@ import XCTest
 @testable import Ping_Island
 
 final class ClaudeUsageLoaderTests: XCTestCase {
+    func testApiBillingUsageFormatsTotalAndRemainingUSD() {
+        let usage = APIBillingUsage(totalUsage: 8_062.8692, hardLimitUSD: 600)
+
+        XCTAssertEqual(usage.totalUSDText, "$600")
+        XCTAssertEqual(usage.remainingUSDText, "$519.37")
+    }
+
     func testLoadParsesCachedRateLimits() throws {
         let rootURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("ai-helper-claude-usage-\(UUID().uuidString)", isDirectory: true)

@@ -15,10 +15,11 @@ final class UsageSummaryPresenterTests: XCTestCase {
                 planType: "pro",
                 limitID: "codex",
                 tokenUsage: nil,
+                apiBillingUsage: APIBillingUsage(totalUsage: 8_000, hardLimitUSD: 600),
                 windows: [
                     CodexUsageWindow(
-                        key: "primary",
-                        label: "5h",
+                        key: "api_balance",
+                        label: "额度",
                         usedPercentage: 13,
                         leftPercentage: 87,
                         windowMinutes: 300,
@@ -34,6 +35,32 @@ final class UsageSummaryPresenterTests: XCTestCase {
         XCTAssertEqual(providers.map(\.title), ["Claude", "Codex"])
         XCTAssertEqual(providers.first?.windows.first?.valueText, "42%")
         XCTAssertEqual(providers.last?.windows.first?.valueText, "13%")
+    }
+
+    func testProvidersHideCodexWithoutApiBillingUsage() {
+        let providers = UsageSummaryPresenter.providers(
+            claudeSnapshot: nil,
+            codexSnapshot: CodexUsageSnapshot(
+                sourceFilePath: "/tmp/rollout.jsonl",
+                capturedAt: nil,
+                planType: nil,
+                limitID: nil,
+                tokenUsage: CodexTokenUsage(inputTokens: 80, outputTokens: 20, totalTokens: 100),
+                windows: [
+                    CodexUsageWindow(
+                        key: "primary",
+                        label: "5h",
+                        usedPercentage: 13,
+                        leftPercentage: 87,
+                        windowMinutes: 300,
+                        resetsAt: nil
+                    )
+                ]
+            ),
+            mode: .used
+        )
+
+        XCTAssertTrue(providers.isEmpty)
     }
 
     func testRemainingModeFormatsRemainingPercentInEnglish() {

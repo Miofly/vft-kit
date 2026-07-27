@@ -66,8 +66,6 @@ actor TerminalAutomationPermissionCoordinator {
             return "com.mitchellh.ghostty"
         case "com.cmuxterm.app":
             return "com.cmuxterm.app"
-        case "io.appmakes.otty":
-            return "io.appmakes.otty"
         default:
             return nil
         }
@@ -75,7 +73,7 @@ actor TerminalAutomationPermissionCoordinator {
 
     static func isAutomationPermissionRequired(bundleIdentifier: String) -> Bool {
         switch bundleIdentifier {
-        case "com.apple.Terminal", "com.googlecode.iterm2", "com.mitchellh.ghostty", "com.cmuxterm.app", "io.appmakes.otty":
+        case "com.apple.Terminal", "com.googlecode.iterm2", "com.mitchellh.ghostty", "com.cmuxterm.app":
             return true
         default:
             return false

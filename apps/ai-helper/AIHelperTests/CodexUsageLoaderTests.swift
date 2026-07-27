@@ -2,6 +2,62 @@ import XCTest
 @testable import Ping_Island
 
 final class CodexUsageLoaderTests: XCTestCase {
+    func testApiBillingWindowUsesDollarLimitAndCentUsage() throws {
+        let window = try XCTUnwrap(
+            CodexUsageLoader.apiBillingWindow(totalUsage: 2_200, hardLimitUSD: 600)
+        )
+
+        XCTAssertEqual(window.key, "api_balance")
+        XCTAssertEqual(window.label, "额度")
+        XCTAssertEqual(window.usedPercentage, 3.666666, accuracy: 0.000001)
+        XCTAssertEqual(window.leftPercentage, 96.333333, accuracy: 0.000001)
+    }
+
+    func testApiConfigurationUsesActiveModelProvider() throws {
+        let config = """
+        model_provider = "custom"
+
+        [model_providers.other]
+        base_url = "https://other.example/v1"
+
+        [model_providers.custom]
+        base_url = "https://one.example/chat/v1"
+        """
+        let auth = Data(#"{"OPENAI_API_KEY":"sk-test"}"#.utf8)
+
+        let configuration = try XCTUnwrap(
+            CodexUsageLoader.apiConfiguration(configContent: config, authData: auth)
+        )
+
+        XCTAssertEqual(configuration.baseURL.absoluteString, "https://one.example/chat/v1")
+        XCTAssertEqual(configuration.token, "sk-test")
+    }
+
+    func testApiBalanceMergeKeepsRolloutTokenUsage() throws {
+        let tokenUsage = CodexTokenUsage(inputTokens: 80, outputTokens: 20, totalTokens: 100)
+        let local = CodexUsageSnapshot(
+            sourceFilePath: "/tmp/rollout.jsonl",
+            capturedAt: Date(timeIntervalSince1970: 100),
+            planType: nil,
+            limitID: nil,
+            tokenUsage: tokenUsage,
+            windows: []
+        )
+        let balance = try XCTUnwrap(
+            CodexUsageLoader.apiBillingWindow(totalUsage: 2_200, hardLimitUSD: 600)
+        )
+        let usage = APIBillingUsage(totalUsage: 2_200, hardLimitUSD: 600)
+
+        let merged = try XCTUnwrap(
+            CodexUsageLoader.merging(localSnapshot: local, apiBillingUsage: usage)
+        )
+
+        XCTAssertEqual(merged.sourceFilePath, "/tmp/rollout.jsonl")
+        XCTAssertEqual(merged.tokenUsage, tokenUsage)
+        XCTAssertEqual(merged.apiBillingUsage, usage)
+        XCTAssertEqual(merged.windows, [balance])
+    }
+
     func testLoadParsesLastTokenCountRateLimits() throws {
         let rootURL = temporaryRootURL(named: "codex-usage")
         let rolloutURL = rootURL

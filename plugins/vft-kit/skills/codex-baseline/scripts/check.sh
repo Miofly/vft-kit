@@ -124,6 +124,12 @@ check_plugin(){
     opt "${key}（${detail}）" "$action"
   fi
 }
+github_plugin_active(){
+  local status
+  plugin_resolved "github@openai-api-curated"
+  status=$?
+  [ "$status" -eq 0 ] || { [ "$status" -eq 2 ] && plugin_enabled "github@openai-api-curated"; }
+}
 skill_exists(){
   [ -f "$SYSTEM_SKILLS/$1/SKILL.md" ]
 }
@@ -287,6 +293,15 @@ fi
 
 sec "CLI 插件（合并 scope 后 installed + enabled）"
 check_plugin "github@openai-api-curated" required "codex plugin add github@openai-api-curated"
+if github_plugin_active; then
+  if [ -n "${GITHUB_PAT_TOKEN:-}" ]; then
+    ok "GITHUB_PAT_TOKEN 已注入"
+  elif has_cmd gh && gh auth token >/dev/null 2>&1; then
+    bad "GITHUB_PAT_TOKEN 未注入（gh 已登录）" '执行: printf '\''\nexport GITHUB_PAT_TOKEN="$(gh auth token 2>/dev/null)"\n'\'' >> ~/.zshrc；然后重启 Codex'
+  else
+    bad "GITHUB_PAT_TOKEN 未注入" '先运行 gh auth login；再执行: printf '\''\nexport GITHUB_PAT_TOKEN="$(gh auth token 2>/dev/null)"\n'\'' >> ~/.zshrc；然后重启 Codex'
+  fi
+fi
 check_plugin "superpowers@openai-api-curated" required "codex plugin add superpowers@openai-api-curated"
 check_plugin "build-web-apps@openai-api-curated" required "codex plugin add build-web-apps@openai-api-curated"
 check_plugin "codex-security@openai-api-curated" required "codex plugin add codex-security@openai-api-curated"
@@ -335,6 +350,21 @@ agents_has 'codex-imagegen generate|不要先声明“我会走 imagegen skill�
 
 sec "系统辅助工具（可选）"
 [ -d "$CC_SWITCH_APP_PATH" ] && ok "cc-switch App" || opt "cc-switch App" "brew install --cask cc-switch"
+if cfg_has_line '^\[mcp_servers\.(node_repl|"node_repl")\][[:space:]]*$' && mcp_enabled "node_repl"; then
+  node_repl_command="$(awk '
+    $0 ~ /^\[mcp_servers\.(node_repl|"node_repl")\][[:space:]]*$/ { in_section=1; next }
+    /^\[/ { in_section=0 }
+    in_section && /^[[:space:]]*command[[:space:]]*=/ {
+      value=$0; sub(/^[^"]*"/, "", value); sub(/".*$/, "", value); print value; exit
+    }
+  ' "$CONFIG")"
+  if [ -n "$node_repl_command" ]; then
+    case "$node_repl_command" in
+      */*) [ -e "$node_repl_command" ] || opt "node_repl command 不存在" "禁用该 MCP，或修正 command: $node_repl_command" ;;
+      *) has_cmd "$node_repl_command" || opt "node_repl command 不存在" "禁用该 MCP，或修正 command: $node_repl_command" ;;
+    esac
+  fi
+fi
 
 if [ "$HEALTH" -eq 1 ]; then
   sec "MCP 实连健康检查"
