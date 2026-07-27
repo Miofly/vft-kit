@@ -5,12 +5,13 @@ description: >-
   基于 Kaggle CLI(kaggle 2.x),零额外依赖。多账号支持,credentials 从环境变量或配置文件读取
   (优先级:KAGGLE_USERNAME/KAGGLE_KEY 环境变量 > ~/.kaggle/kaggle.json > config file)。
   子命令:kernel push/status/logs、dataset push、quota。适合任何 Kaggle 账号,不含私有信息。
-trigger: []
 ---
 
 # kaggle-ops
 
 通用 Kaggle API 操作封装。**可开源、不含私有信息。** 适合任何需要管理 Kaggle kernels/datasets 的项目。
+
+下文 `<skill-dir>` 指当前 `SKILL.md` 所在目录的绝对路径，由 Claude Code 或 Codex 从已加载 skill 位置解析；不要按当前工作目录猜测。
 
 ## 特性
 
@@ -97,16 +98,16 @@ Credentials 配置文件**也可以**携带这些可选键:
 Push kernel 到 Kaggle:
 ```bash
 # 基础用法(从当前目录读 kernel-metadata.json)
-node scripts/kaggle-cli.mjs kernel push
+node "<skill-dir>/scripts/kaggle-cli.mjs" kernel push
 
 # 指定目录
-node scripts/kaggle-cli.mjs kernel push --dir /path/to/kernel
+node "<skill-dir>/scripts/kaggle-cli.mjs" kernel push --dir /path/to/kernel
 
 # 指定账号
-node scripts/kaggle-cli.mjs kernel push --account test --dir /path/to/kernel
+node "<skill-dir>/scripts/kaggle-cli.mjs" kernel push --account test --dir /path/to/kernel
 
 # 重试配置
-node scripts/kaggle-cli.mjs kernel push --retries 5 --retry-delay 3000
+node "<skill-dir>/scripts/kaggle-cli.mjs" kernel push --retries 5 --retry-delay 3000
 ```
 
 **重试逻辑**:网络瞬断(connection reset/timeout)自动重试;Kaggle API 500 错误也重试;其他错误(404/权限)不重试。
@@ -114,8 +115,8 @@ node scripts/kaggle-cli.mjs kernel push --retries 5 --retry-delay 3000
 ### kernel status
 查询 kernel 运行状态:
 ```bash
-node scripts/kaggle-cli.mjs kernel status <username>/<kernel-slug>
-node scripts/kaggle-cli.mjs kernel status <username>/<kernel-slug> --account test
+node "<skill-dir>/scripts/kaggle-cli.mjs" kernel status <username>/<kernel-slug>
+node "<skill-dir>/scripts/kaggle-cli.mjs" kernel status <username>/<kernel-slug> --account test
 ```
 
 返回:running / complete / error / queued 等。
@@ -123,15 +124,15 @@ node scripts/kaggle-cli.mjs kernel status <username>/<kernel-slug> --account tes
 ### kernel logs
 拉取 kernel 日志:
 ```bash
-node scripts/kaggle-cli.mjs kernel logs <username>/<kernel-slug>
-node scripts/kaggle-cli.mjs kernel logs <username>/<kernel-slug> --save logs.txt
+node "<skill-dir>/scripts/kaggle-cli.mjs" kernel logs <username>/<kernel-slug>
+node "<skill-dir>/scripts/kaggle-cli.mjs" kernel logs <username>/<kernel-slug> --save logs.txt
 ```
 
 ### dataset push
 Push dataset 到 Kaggle:
 ```bash
-node scripts/kaggle-cli.mjs dataset push --dir /path/to/dataset
-node scripts/kaggle-cli.mjs dataset push --dir /path/to/dataset --account test
+node "<skill-dir>/scripts/kaggle-cli.mjs" dataset push --dir /path/to/dataset
+node "<skill-dir>/scripts/kaggle-cli.mjs" dataset push --dir /path/to/dataset --account test
 ```
 
 需要目录下有 `dataset-metadata.json`。
@@ -139,8 +140,8 @@ node scripts/kaggle-cli.mjs dataset push --dir /path/to/dataset --account test
 ### quota
 查询账号 GPU 配额:
 ```bash
-node scripts/kaggle-cli.mjs quota
-node scripts/kaggle-cli.mjs quota --account test
+node "<skill-dir>/scripts/kaggle-cli.mjs" quota
+node "<skill-dir>/scripts/kaggle-cli.mjs" quota --account test
 ```
 
 返回:已用时长 / 剩余时长 / 周期重置时间。
@@ -200,7 +201,7 @@ A: 每次操作前明确 export KAGGLE_USERNAME/KAGGLE_KEY,覆盖环境;或用 `
 
 ```bash
 # 方式1：JSON 文件（推荐）
-node scripts/probe-gpu.mjs --accounts accounts.json
+node "<skill-dir>/scripts/probe-gpu.mjs" --accounts accounts.json
 
 # accounts.json 格式：
 # [
@@ -209,12 +210,12 @@ node scripts/probe-gpu.mjs --accounts accounts.json
 # ]
 
 # 方式2：单个账号
-node scripts/probe-gpu.mjs --username user1 --token KGAT_xxx
+node "<skill-dir>/scripts/probe-gpu.mjs" --username user1 --token KGAT_xxx
 
 # 方式3：环境变量
 export KAGGLE_USERNAME=user1
 export KAGGLE_API_TOKEN=KGAT_xxx
-node scripts/probe-gpu.mjs
+node "<skill-dir>/scripts/probe-gpu.mjs"
 ```
 
 **参数**:
@@ -229,69 +230,6 @@ node scripts/probe-gpu.mjs
 - `gpu-probe-report.json` - 完整探测结果
 - `gpu-probe-report.csv` - CSV 格式
 
----
-
-#### 1.1 probe-gpu-agent.mjs（Agent 并发版）⭐
-
-**功能**: 使用 Claude Code Agent 并发探测（推荐用于 Claude Code 环境）
-
-**适用场景**: Claude Code 会话中、需要快速并发探测大量账号
-
-**优势**:
-- ⚡ **更快**: Agent 真正并发执行，充分利用多核
-- 🔒 **隔离**: 每个 Agent 独立进程，互不干扰
-- 📊 **可视**: Claude Code 中可实时看到每个 Agent 的进度
-
-**快速开始**:
-
-```bash
-# 1. 准备账号文件 accounts.json
-# [
-#   {"username": "user1", "token": "KGAT_xxx"},
-#   {"username": "user2", "token": "KGAT_yyy"}
-# ]
-
-# 2. 生成 Agent 任务
-node scripts/probe-gpu-agent.mjs --accounts accounts.json --concurrency 8
-
-# 3. 复制脚本输出的 Agent 代码到 Claude Code 执行
-# （会输出类似下面的代码）
-# const results = await Promise.all([
-#   agent('探测账号 user1 GPU', { label: '账号1' }),
-#   agent('探测账号 user2 GPU', { label: '账号2' })
-# ]);
-
-# 4. 收集结果
-node scripts/collect-probe-results.mjs --dir .tmp-probe-accounts --output gpu-probe-report
-
-# 5. 清理临时文件
-rm -rf .tmp-probe-accounts
-```
-
-**工作流程**:
-1. `probe-gpu-agent.mjs` 为每个账号创建临时文件，输出 Agent 调用代码
-2. 在 Claude Code 中运行 Agent 并发任务（每个 Agent 调用 `probe-gpu-worker.mjs`）
-3. `collect-probe-results.mjs` 收集所有结果，生成汇总报告
-
-**性能对比**（10 个账号，每个 3 分钟）:
-- 顺序执行: 30 分钟
-- probe-gpu.mjs (并发=5): 6 分钟
-- **probe-gpu-agent.mjs: 3-4 分钟** ⚡
-
-**与 probe-gpu.mjs 的区别**:
-
-| 特性 | probe-gpu.mjs | probe-gpu-agent.mjs |
-|------|---------------|---------------------|
-| 并发方式 | 自定义并发池（单进程） | Agent 多进程并发 |
-| 适用环境 | 任何 Node.js 环境 | Claude Code 环境 |
-| 速度 | 快 | 更快（真正并行） |
-| 隔离性 | 共享进程 | 完全隔离 |
-| 推荐场景 | 命令行、CI/CD | Claude Code 会话 |
-
-**详细文档**: 参见 `README-AGENT-PROBE.md`
-
----
-
 #### 2. mark-gpu-verified.mjs
 
 **功能**: 解析 probe 报告，生成结构化结果文件
@@ -300,10 +238,10 @@ rm -rf .tmp-probe-accounts
 
 ```bash
 # 解析报告
-node scripts/mark-gpu-verified.mjs --report gpu-probe-report.json
+node "<skill-dir>/scripts/mark-gpu-verified.mjs" --report gpu-probe-report.json
 
 # 指定输出文件
-node scripts/mark-gpu-verified.mjs --report gpu-probe-report.json --output result.json
+node "<skill-dir>/scripts/mark-gpu-verified.mjs" --report gpu-probe-report.json --output result.json
 ```
 
 **输出**: `gpu-verified-result.json` - 分类后的账号列表（可用/不可用）
@@ -322,10 +260,10 @@ cat > accounts.json << EOF
 EOF
 
 # 第2步：探测 GPU
-node scripts/probe-gpu.mjs --accounts accounts.json --concurrency=5
+node "<skill-dir>/scripts/probe-gpu.mjs" --accounts accounts.json --concurrency=5
 
 # 第3步：解析结果
-node scripts/mark-gpu-verified.mjs --report gpu-probe-report.json
+node "<skill-dir>/scripts/mark-gpu-verified.mjs" --report gpu-probe-report.json
 
 # 第4步：使用结果（由调用方决定）
 # - 回写数据库
@@ -345,7 +283,7 @@ node scripts/mark-gpu-verified.mjs --report gpu-probe-report.json
 mysql ... -e "SELECT username, access_token as token FROM accounts" > accounts.json
 
 # 调用公共工具
-node scripts/probe-gpu.mjs --accounts accounts.json
+node "<skill-dir>/scripts/probe-gpu.mjs" --accounts accounts.json
 
 # 私有脚本：回写结果
 node private/write-to-db.mjs --input gpu-verified-result.json
@@ -358,7 +296,7 @@ node private/write-to-db.mjs --input gpu-verified-result.json
 node private/csv-to-json.mjs accounts.csv > accounts.json
 
 # 调用公共工具
-node scripts/probe-gpu.mjs --accounts accounts.json
+node "<skill-dir>/scripts/probe-gpu.mjs" --accounts accounts.json
 
 # 私有脚本：JSON 转 CSV
 node private/json-to-csv.mjs gpu-verified-result.json > verified.csv

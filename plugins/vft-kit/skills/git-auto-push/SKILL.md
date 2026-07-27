@@ -68,14 +68,14 @@ esac
 - **中文**
 - **简略**（≤ 50 字）
 - **快**：只看 step 1 已经拿到的 `git status --short` + `git diff --stat`，**不要**再读 diff 内容、不要扫每个文件。3 秒内拟不出来就直接用默认 fallback
-- **不要**追加 `Co-Authored-By: Claude` 尾巴
+- **不要**追加任何 AI `Co-Authored-By` 尾巴
 
 **生成策略（按顺序，谁先命中用谁）**：
 
 1. 用户在调用时已经提供 message → 直接用
 2. 改动集中在一个目录 → `<type>(<目录名>): <动作> xxx`
    - 例：只改 `src/views/foo.vue` → `feat: 更新 foo 页面`
-   - 例：只改 `.claude/skills/git-auto-push/SKILL.md` → `chore: 更新 git-auto-push skill`
+   - 例：只改 `skills/git-auto-push/SKILL.md` → `chore: 更新 git-auto-push skill`
 3. 主要是新增文件 → `feat: 新增 xxx`
 4. 主要是删除文件 → `chore: 清理 xxx`
 5. 改动跨多个无关目录 / 看不出主线 / 超过 3 秒还没拟好 → **默认 fallback**：`chore: 更新代码`

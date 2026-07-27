@@ -48,7 +48,7 @@ struct NotchView: View {
     @State private var isBouncing: Bool = false
     @State private var hasPrimedSoundTransitions: Bool = false
     @State private var previousAttentionSoundIds: Set<String> = []
-    @State private var previousEndedSoundIds: Set<String> = []
+    @State private var previousCompletionSoundIds: Set<String> = []
     @State private var previousCompletionNotificationPhases: [String: SessionPhase] = [:]
     @State private var completionNotificationQueue: [SessionCompletionNotification] = []
     @State private var activeCompletionNotification: SessionCompletionNotification?
@@ -1139,6 +1139,9 @@ struct NotchView: View {
         previousCompletionNotificationPhases = Dictionary(
             uniqueKeysWithValues: instances.map { ($0.stableId, $0.phase) }
         )
+        for session in instances where SessionCompletionStateEvaluator.isCompletedReadySession(session) {
+            markCompletionNotificationConsumed(session: session, kind: .completed)
+        }
         synchronizeCompletionNotifications(with: instances)
     }
 
@@ -1192,10 +1195,14 @@ struct NotchView: View {
         previousPhase: SessionPhase?,
         allSessions: [SessionState]
     ) -> SessionCompletionNotification? {
-        guard shouldQueueEndedNotification(for: session, previousPhase: previousPhase) else {
+        let kind: SessionCompletionNotification.Kind
+        if shouldQueueCompletedNotification(for: session, previousPhase: previousPhase) {
+            kind = .completed
+        } else if shouldQueueEndedNotification(for: session, previousPhase: previousPhase) {
+            kind = .ended
+        } else {
             return nil
         }
-        let kind = SessionCompletionNotification.Kind.ended
 
         guard !isCompletionNotificationConsumed(session: session, kind: kind) else {
             return nil
@@ -1210,6 +1217,17 @@ struct NotchView: View {
         }
 
         return SessionCompletionNotification(session: session, kind: kind)
+    }
+
+    private func shouldQueueCompletedNotification(
+        for session: SessionState,
+        previousPhase: SessionPhase?
+    ) -> Bool {
+        SessionCompletionNotificationPolicy.shouldQueueCompletedNotification(
+            for: session,
+            previousPhase: previousPhase,
+            isEnabled: settings.autoOpenCompletionPanel
+        )
     }
 
     private func shouldQueueEndedNotification(
@@ -1425,9 +1443,9 @@ struct NotchView: View {
                     .filter(SessionAttentionSoundEvaluator.shouldContributeToAttentionSoundEdge)
                     .map(\.stableId)
             )
-            previousEndedSoundIds = Set(
+            previousCompletionSoundIds = Set(
                 instances
-                    .filter { $0.phase == .ended }
+                    .filter(SessionCompletionStateEvaluator.isTaskCompletionSession)
                     .map(\.stableId)
             )
             hasPrimedSoundTransitions = true
@@ -1437,23 +1455,23 @@ struct NotchView: View {
         let attentionSessions = instances.filter(
             SessionAttentionSoundEvaluator.shouldContributeToAttentionSoundEdge
         )
-        let endedSessions = instances.filter { $0.phase == .ended }
+        let completionSessions = instances.filter(SessionCompletionStateEvaluator.isTaskCompletionSession)
 
         let newAttentionIds = Set(attentionSessions.map(\.stableId))
-        let newEndedIds = Set(endedSessions.map(\.stableId))
-        let endedDeltaIds = newEndedIds.subtracting(previousEndedSoundIds)
-        let newlyEndedSessions = endedSessions.filter { endedDeltaIds.contains($0.stableId) }
+        let newCompletionIds = Set(completionSessions.map(\.stableId))
+        let completionDeltaIds = newCompletionIds.subtracting(previousCompletionSoundIds)
+        let newlyCompletedSessions = completionSessions.filter { completionDeltaIds.contains($0.stableId) }
 
         let isNewAttention = !newAttentionIds.subtracting(previousAttentionSoundIds).isEmpty
 
         if isNewAttention {
             playEventSoundIfNeeded(.attentionRequired, sessions: attentionSessions)
-        } else if !endedDeltaIds.isEmpty {
-            playEventSoundIfNeeded(.taskCompleted, sessions: newlyEndedSessions)
+        } else if !completionDeltaIds.isEmpty {
+            playEventSoundIfNeeded(.taskCompleted, sessions: newlyCompletedSessions)
         }
 
         previousAttentionSoundIds = newAttentionIds
-        previousEndedSoundIds = newEndedIds
+        previousCompletionSoundIds = newCompletionIds
     }
 
     private func playEventSoundIfNeeded(_ event: NotificationEvent, sessions: [SessionState]) {

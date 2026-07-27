@@ -185,7 +185,7 @@ final class DetachedIslandWindowController: NSWindowController, NSWindowDelegate
     private var isPetSecondaryClickArmed = false
     private var hasPrimedSoundTransitions = false
     private var previousAttentionSoundIds = Set<String>()
-    private var previousEndedSoundIds = Set<String>()
+    private var previousCompletionSoundIds = Set<String>()
     private var previousCompletionNotificationPhases: [String: SessionPhase] = [:]
     private var completionNotificationQueue: [SessionCompletionNotification] = []
     private var currentEnergyMode: EnergyMode = .quietBackground
@@ -1615,6 +1615,9 @@ final class DetachedIslandWindowController: NSWindowController, NSWindowDelegate
         previousCompletionNotificationPhases = Dictionary(
             uniqueKeysWithValues: instances.map { ($0.stableId, $0.phase) }
         )
+        for session in instances where SessionCompletionStateEvaluator.isCompletedReadySession(session) {
+            markCompletionNotificationConsumed(session: session, kind: .completed)
+        }
         synchronizeCompletionNotifications(with: instances)
     }
 
@@ -1665,10 +1668,14 @@ final class DetachedIslandWindowController: NSWindowController, NSWindowDelegate
         previousPhase: SessionPhase?,
         allSessions: [SessionState]
     ) -> SessionCompletionNotification? {
-        guard shouldQueueEndedNotification(for: session, previousPhase: previousPhase) else {
+        let kind: SessionCompletionNotification.Kind
+        if shouldQueueCompletedNotification(for: session, previousPhase: previousPhase) {
+            kind = .completed
+        } else if shouldQueueEndedNotification(for: session, previousPhase: previousPhase) {
+            kind = .ended
+        } else {
             return nil
         }
-        let kind = SessionCompletionNotification.Kind.ended
 
         guard !isCompletionNotificationConsumed(session: session, kind: kind) else {
             return nil
@@ -1683,6 +1690,17 @@ final class DetachedIslandWindowController: NSWindowController, NSWindowDelegate
         }
 
         return SessionCompletionNotification(session: session, kind: kind)
+    }
+
+    private func shouldQueueCompletedNotification(
+        for session: SessionState,
+        previousPhase: SessionPhase?
+    ) -> Bool {
+        SessionCompletionNotificationPolicy.shouldQueueCompletedNotification(
+            for: session,
+            previousPhase: previousPhase,
+            isEnabled: AppSettings.autoOpenCompletionPanel
+        )
     }
 
     private func shouldQueueEndedNotification(
@@ -1894,9 +1912,9 @@ final class DetachedIslandWindowController: NSWindowController, NSWindowDelegate
                 .filter(SessionAttentionSoundEvaluator.shouldContributeToAttentionSoundEdge)
                 .map(\.stableId)
         )
-        previousEndedSoundIds = Set(
+        previousCompletionSoundIds = Set(
             instances
-                .filter { $0.phase == .ended }
+                .filter(SessionCompletionStateEvaluator.isTaskCompletionSession)
                 .map(\.stableId)
         )
         hasPrimedSoundTransitions = true
@@ -1911,23 +1929,23 @@ final class DetachedIslandWindowController: NSWindowController, NSWindowDelegate
         let attentionSessions = instances.filter(
             SessionAttentionSoundEvaluator.shouldContributeToAttentionSoundEdge
         )
-        let endedSessions = instances.filter { $0.phase == .ended }
+        let completionSessions = instances.filter(SessionCompletionStateEvaluator.isTaskCompletionSession)
 
         let newAttentionIds = Set(attentionSessions.map(\.stableId))
-        let newEndedIds = Set(endedSessions.map(\.stableId))
-        let endedDeltaIds = newEndedIds.subtracting(previousEndedSoundIds)
-        let newlyEndedSessions = endedSessions.filter { endedDeltaIds.contains($0.stableId) }
+        let newCompletionIds = Set(completionSessions.map(\.stableId))
+        let completionDeltaIds = newCompletionIds.subtracting(previousCompletionSoundIds)
+        let newlyCompletedSessions = completionSessions.filter { completionDeltaIds.contains($0.stableId) }
 
         let isNewAttention = !newAttentionIds.subtracting(previousAttentionSoundIds).isEmpty
 
         if isNewAttention {
             playEventSoundIfNeeded(.attentionRequired, sessions: attentionSessions)
-        } else if !endedDeltaIds.isEmpty {
-            playEventSoundIfNeeded(.taskCompleted, sessions: newlyEndedSessions)
+        } else if !completionDeltaIds.isEmpty {
+            playEventSoundIfNeeded(.taskCompleted, sessions: newlyCompletedSessions)
         }
 
         previousAttentionSoundIds = newAttentionIds
-        previousEndedSoundIds = newEndedIds
+        previousCompletionSoundIds = newCompletionIds
     }
 
     private func playEventSoundIfNeeded(_ event: NotificationEvent, sessions: [SessionState]) {

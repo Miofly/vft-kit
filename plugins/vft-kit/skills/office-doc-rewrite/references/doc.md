@@ -16,16 +16,16 @@ which soffice libreoffice                                  # Linux
 流程（`doc_convert.sh` 封装了转换）：
 ```bash
 # 1. doc → docx（便于精确改）
-bash scripts/doc_convert.sh report.doc docx ./work
+bash "<skill-dir>/scripts/doc_convert.sh" report.doc docx ./work
 
 # 2. 先看内容规划映射
-bash scripts/doc_convert.sh report.doc txt ./work && cat ./work/*.txt
+bash "<skill-dir>/scripts/doc_convert.sh" report.doc txt ./work && cat ./work/*.txt
 
 # 3. 按 docx 手法改（见 docx.md,注意合并单元格陷阱）
-$OFFICE_PY scripts/docx_swap.py ./work/report.docx ./work/new.docx rules.json
+$OFFICE_PY "<skill-dir>/scripts/docx_swap.py" ./work/report.docx ./work/new.docx rules.json
 
 # 4. 转回 doc（和原格式一致）
-bash scripts/doc_convert.sh ./work/new.docx doc ./out
+bash "<skill-dir>/scripts/doc_convert.sh" ./work/new.docx doc ./out
 ```
 
 ## 建议同时保留 docx
@@ -36,6 +36,6 @@ bash scripts/doc_convert.sh ./work/new.docx doc ./out
 
 转回的 .doc 用 LibreOffice 转 txt 复查内容：
 ```bash
-bash scripts/doc_convert.sh out/new.doc txt /tmp/verify && cat /tmp/verify/*.txt
+bash "<skill-dir>/scripts/doc_convert.sh" out/new.doc txt /tmp/verify && cat /tmp/verify/*.txt
 ```
 确认：新业务词到位、旧业务词零残留、日期等字段已更新。

@@ -114,6 +114,25 @@ final class SessionCompletionStateEvaluatorTests: XCTestCase {
         XCTAssertFalse(SessionCompletionStateEvaluator.isCompletedReadySession(session))
     }
 
+    func testTaskCompletionSessionIncludesReadyReplyAndTrueSessionEnd() {
+        let ready = SessionState(
+            sessionId: "ready-completion",
+            cwd: "/tmp/project",
+            phase: .waitingForInput,
+            chatItems: [
+                ChatHistoryItem(id: "assistant", type: .assistant("Done"), timestamp: Date())
+            ]
+        )
+        let ended = SessionState(
+            sessionId: "ended-completion",
+            cwd: "/tmp/project",
+            phase: .ended
+        )
+
+        XCTAssertTrue(SessionCompletionStateEvaluator.isTaskCompletionSession(ready))
+        XCTAssertTrue(SessionCompletionStateEvaluator.isTaskCompletionSession(ended))
+    }
+
     func testCompletedReadySessionRejectsQuestionInterventionEvenWithAssistantReply() {
         let session = SessionState(
             sessionId: "question-intervention",
@@ -236,7 +255,7 @@ final class SessionCompletionStateEvaluatorTests: XCTestCase {
         )
     }
 
-    func testCodexCompletionNotificationPolicyRejectsActiveToIdleCompletionEdge() {
+    func testCodexCompletionNotificationPolicyAllowsTrackedCompletionSnapshots() {
         let now = Date()
         let session = makeCodexCompletedSession(now: now)
         let approval = PermissionContext(
@@ -246,7 +265,7 @@ final class SessionCompletionStateEvaluatorTests: XCTestCase {
             receivedAt: now.addingTimeInterval(-5)
         )
 
-        XCTAssertFalse(
+        XCTAssertTrue(
             SessionCompletionNotificationPolicy.shouldQueueCompletedNotification(
                 for: session,
                 previousPhase: .processing,
@@ -254,7 +273,7 @@ final class SessionCompletionStateEvaluatorTests: XCTestCase {
                 now: now
             )
         )
-        XCTAssertFalse(
+        XCTAssertTrue(
             SessionCompletionNotificationPolicy.shouldQueueCompletedNotification(
                 for: session,
                 previousPhase: .waitingForInput,
@@ -262,7 +281,7 @@ final class SessionCompletionStateEvaluatorTests: XCTestCase {
                 now: now
             )
         )
-        XCTAssertFalse(
+        XCTAssertTrue(
             SessionCompletionNotificationPolicy.shouldQueueCompletedNotification(
                 for: session,
                 previousPhase: .waitingForApproval(approval),
@@ -270,7 +289,7 @@ final class SessionCompletionStateEvaluatorTests: XCTestCase {
                 now: now
             )
         )
-        XCTAssertFalse(
+        XCTAssertTrue(
             SessionCompletionNotificationPolicy.shouldQueueCompletedNotification(
                 for: session,
                 previousPhase: .idle,
@@ -288,11 +307,11 @@ final class SessionCompletionStateEvaluatorTests: XCTestCase {
         )
     }
 
-    func testCodexWaitingForInputDoesNotQueueCompletionNotification() {
+    func testCodexWaitingForInputQueuesCompletionNotification() {
         let now = Date()
         let session = makeCodexCompletedSession(phase: .waitingForInput, now: now)
 
-        XCTAssertFalse(
+        XCTAssertTrue(
             SessionCompletionNotificationPolicy.shouldQueueCompletedNotification(
                 for: session,
                 previousPhase: .processing,
@@ -300,6 +319,38 @@ final class SessionCompletionStateEvaluatorTests: XCTestCase {
                 now: now
             )
         )
+    }
+
+    func testCompletionNotificationPolicyHonorsDisabledSetting() {
+        let now = Date()
+        let session = makeCodexCompletedSession(now: now)
+
+        XCTAssertFalse(
+            SessionCompletionNotificationPolicy.shouldQueueCompletedNotification(
+                for: session,
+                previousPhase: .processing,
+                isEnabled: false,
+                now: now
+            )
+        )
+    }
+
+    func testCompletionNotificationRegistryDeduplicatesOneTurnForAllProviders() {
+        let now = Date()
+        var session = SessionState(
+            sessionId: "claude-registry-\(UUID().uuidString)",
+            cwd: "/tmp/project",
+            provider: .claude,
+            phase: .waitingForInput,
+            lastActivity: now
+        )
+
+        XCTAssertFalse(SessionCompletionNotificationRegistry.shared.isConsumed(session: session))
+        SessionCompletionNotificationRegistry.shared.markConsumed(session: session)
+        XCTAssertTrue(SessionCompletionNotificationRegistry.shared.isConsumed(session: session))
+
+        session.lastActivity = now.addingTimeInterval(1)
+        XCTAssertFalse(SessionCompletionNotificationRegistry.shared.isConsumed(session: session))
     }
 
     func testCompletionNotificationPolicyAllowsTrackedEndedTransition() {

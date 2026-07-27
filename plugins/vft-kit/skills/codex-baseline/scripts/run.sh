@@ -20,5 +20,5 @@ if ! bash "$IMAGEGEN_AGENTS_SCRIPT"; then
   printf '  ○ imagegen CLI 全局规则安装异常；继续执行只读基线检查\n' >&2
 fi
 
-bash "$CHECK_SCRIPT"
+bash "$CHECK_SCRIPT" "$@"
 exit $?

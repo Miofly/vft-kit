@@ -7,7 +7,7 @@
 #   1. 命令行参数 $1
 #   2. 环境变量 FE_TEST_OUTPUT_DIR  ← 本机若把 playwright MCP 的 --output-dir 指到别处，
 #      在这里设成同一个路径，两边才对得上（否则截图落 A、清理扫 B，永远清不到）
-#   3. $HOME/.claude/playwright（默认）
+#   3. $HOME/.cache/vft-kit/fe-auto-test（默认）
 #
 # 用法:
 #   cleanup-screenshots.sh            # 清理中央目录里的 test-*/page-* 截图
@@ -20,7 +20,7 @@ set -uo pipefail
 
 # 注意：DIR 的默认值必须用 $HOME 而不是 ~ —— `"${1:-~/x}"` 里的 ~ 在双引号中不做波浪号展开，
 # 会得到字面量 "~/x"，于是 [ -d ] 恒假、脚本每次都报"目录不存在"然后空转（清理从未生效过）。
-DIR="${1:-${FE_TEST_OUTPUT_DIR:-$HOME/.claude/playwright}}"
+DIR="${1:-${FE_TEST_OUTPUT_DIR:-$HOME/.cache/vft-kit/fe-auto-test}}"
 
 if [ ! -d "$DIR" ]; then
   echo "目录不存在，跳过清理: $DIR"

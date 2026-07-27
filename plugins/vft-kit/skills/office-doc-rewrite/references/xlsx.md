@@ -64,16 +64,16 @@ $OFFICE_PY xlsx_dump.py file.xlsx --sheet "业务分析概要"
 
 ```bash
 # 1. 环境
-eval "$(bash scripts/setup-env.sh)"   # 得到 $OFFICE_PY
+eval "$(bash "<skill-dir>/scripts/setup-env.sh")"   # 得到 $OFFICE_PY
 
 # 2. 导出字符串,人工规划映射
-$OFFICE_PY scripts/xlsx_dump.py in.xlsx --strings-out /tmp/ss.txt
+$OFFICE_PY "<skill-dir>/scripts/xlsx_dump.py" in.xlsx --strings-out /tmp/ss.txt
 
 # 3. 写映射 JSON: {"1":"新标题","23":"新正文","12":["1）关键词","：说明"]}
 #    (在临时目录写 mapping.json)
 
 # 4. 改写
-$OFFICE_PY scripts/xlsx_swap.py in.xlsx out.xlsx mapping.json \
+$OFFICE_PY "<skill-dir>/scripts/xlsx_swap.py" in.xlsx out.xlsx mapping.json \
     --sheet-num-edits num.json   # 可选
 
 # 5. 校验(见 SKILL.md 校验清单)

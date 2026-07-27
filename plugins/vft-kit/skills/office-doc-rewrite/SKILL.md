@@ -24,12 +24,14 @@ description: >-
 
 三种文件的文字承载位置不同，手法也不同（下面分述）。
 
+下文 `<skill-dir>` 指当前 `SKILL.md` 所在目录的绝对路径，由 Claude Code 或 Codex 从已加载 skill 位置解析；不要按当前工作目录猜测。
+
 ## 环境准备（第一步，必做）
 
 本 skill 依赖 Python 库 openpyxl / python-docx / pillow，以及（可选）mermaid.js。本机 pip 常被 uv/homebrew 接管，直接 `pip install` 会报 "No virtual environment found"。**统一用一个专用 venv**，脚本已封装：
 
 ```bash
-bash scripts/setup-env.sh
+bash "<skill-dir>/scripts/setup-env.sh"
 ```
 
 它在 `~/.cache/vft-kit/office-rewrite/venv` 建一个 venv 并装好依赖，幂等（已装则秒退）。后续所有 python 脚本都用这个 venv 的解释器：`$VENV/bin/python3`（脚本里用 `OFFICE_PY` 环境变量引用）。
@@ -99,7 +101,7 @@ which soffice libreoffice                                  # Linux
 
 ## 你可能看不到图
 
-很多终端环境（如 otty）下，Read 一张图片没有回显、`file://` 被禁。此时**不要盲目相信"渲染成功"**：
+很多终端环境（如 otty）下，Claude Code 的 `Read` 或 Codex 的 `view_image` 可能不可用，`file://` 也可能被禁。此时**不要盲目相信"渲染成功"**：
 - 靠 mermaid 语法正确性 + 长宽比数值 + **导出图内所有文字节点**来验证内容完整。
 - 需要人眼确认时，起一个本地 http server（`python3 -m http.server`）让用户或 playwright MCP 访问，或直接让用户在 Excel/Word 里打开成品确认。
 - 老实告诉用户"我看不到渲染效果，请你打开确认"，别假装看过了。

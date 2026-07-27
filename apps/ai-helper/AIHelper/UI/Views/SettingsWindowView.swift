@@ -2876,7 +2876,7 @@ private struct SettingsPanelContentView: View {
 
                 SettingsToggleLine(
                     title: "对话结束时自动展开",
-                    subtitle: "只有收到真正的 SessionEnd 后才弹出结果面板；普通工具调用或中间完成不弹",
+                    subtitle: "一轮回答完成并等待你继续时弹出结果面板；普通工具调用或中间状态不弹",
                     isOn: $settings.autoOpenCompletionPanel
                 )
                 SettingsLineDivider()
@@ -2980,11 +2980,11 @@ private struct SettingsPanelContentView: View {
                         FloatingPetSizeModePicker(mode: $settings.floatingPetSizeMode)
                     }
                 } else {
-                    // 自绘横幅模式:只保留用户介入和真正结束两类通知。
+                    // 自绘横幅模式:只保留用户介入和回答完成两类通知。
                     SettingsLineDivider()
                     SettingsToggleLine(
                         title: "对话结束时弹横幅",
-                        subtitle: "会话真正结束（SessionEnd）时",
+                        subtitle: "一轮回答完成并等待你继续时",
                         isOn: $settings.bannerNotifyEnded
                     )
                     SettingsLineDivider()

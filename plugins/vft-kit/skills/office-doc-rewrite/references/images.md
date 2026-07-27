@@ -24,17 +24,17 @@ xlsx 图片用 `twoCellAnchor`（双单元格锚点）定位：显示框由 `<xd
 
 ```bash
 # 量每个框的真实像素比例
-$OFFICE_PY scripts/xlsx_measure_frames.py orig.xlsx
+$OFFICE_PY "<skill-dir>/scripts/xlsx_measure_frames.py" orig.xlsx
 # 输出: image6 [逻辑架构]: 框≈1692x6436px 比0.26
 
 # 渲染新图
-node scripts/mmd_render.mjs seq.mmd /tmp/new6.png 4
+node "<skill-dir>/scripts/mmd_render.mjs" seq.mmd /tmp/new6.png 4
 
 # padding 到框比例(不拉伸,加白边)
-$OFFICE_PY scripts/fit_image_ratio.py /tmp/new6.png /tmp/fit6.png 0.26
+$OFFICE_PY "<skill-dir>/scripts/fit_image_ratio.py" /tmp/new6.png /tmp/fit6.png 0.26
 
 # 替换(可同时恢复锚点)
-$OFFICE_PY scripts/xlsx_replace_images.py in.xlsx out.xlsx img_map.json \
+$OFFICE_PY "<skill-dir>/scripts/xlsx_replace_images.py" in.xlsx out.xlsx img_map.json \
     --restore-anchors-from orig.xlsx
 ```
 
@@ -62,9 +62,9 @@ mermaid v11 里 **`subgraph` 内嵌 `direction TB/LR` 常导致整图塌缩成�
 
 ## 坑4：你可能看不到图
 
-很多终端环境（otty 等）Read 图片无回显、`file://` 被禁,**你根本看不到渲染效果**。别假装看过。验证内容完整的办法：
+很多终端环境（otty 等）无法使用宿主图片查看能力（Claude Code `Read` / Codex `view_image`），`file://` 也被禁，**你根本看不到渲染效果**。别假装看过。验证内容完整的办法：
 ```bash
-node scripts/mmd_render.mjs --check diagram.mmd
+node "<skill-dir>/scripts/mmd_render.mjs" --check diagram.mmd
 # 打印图内所有文字节点,确认文字都在、无截断、无错字
 ```
 `mmd_render.mjs` 渲染时也会把文字节点打到 stderr。最终视觉效果**让用户在 Excel 里打开确认**,或起 `python3 -m http.server` 让用户/playwright MCP 看图。

@@ -131,7 +131,7 @@ enum SessionCompletionPreviewBuilder {
 }
 
 enum SessionCompletionStateEvaluator {
-    static func isCompletedReadySession(_ session: SessionState) -> Bool {
+    nonisolated static func isCompletedReadySession(_ session: SessionState) -> Bool {
         guard session.intervention == nil else { return false }
         guard session.phase == .waitingForInput || isCompletedCodexIdleSession(session) else {
             return false
@@ -139,11 +139,15 @@ enum SessionCompletionStateEvaluator {
         return hasCompletedAssistantReply(for: session)
     }
 
-    private static func isCompletedCodexIdleSession(_ session: SessionState) -> Bool {
+    nonisolated static func isTaskCompletionSession(_ session: SessionState) -> Bool {
+        session.phase == .ended || isCompletedReadySession(session)
+    }
+
+    nonisolated private static func isCompletedCodexIdleSession(_ session: SessionState) -> Bool {
         session.provider == .codex && session.phase == .idle
     }
 
-    static func allowsEndedNotificationAfterWaitingForInput(_ session: SessionState) -> Bool {
+    nonisolated static func allowsEndedNotificationAfterWaitingForInput(_ session: SessionState) -> Bool {
         guard session.phase == .ended else { return false }
         guard session.intervention == nil else { return false }
         return true
@@ -151,7 +155,7 @@ enum SessionCompletionStateEvaluator {
 
     /// Treat tool-only or commentary-only updates as in-progress. A completion notification
     /// should only fire once the session has an actual assistant reply ready for the user.
-    static func hasCompletedAssistantReply(for session: SessionState) -> Bool {
+    nonisolated static func hasCompletedAssistantReply(for session: SessionState) -> Bool {
         for item in session.chatItems.reversed() {
             switch item.type {
             case .assistant:
@@ -168,24 +172,20 @@ enum SessionCompletionStateEvaluator {
 final class SessionCompletionNotificationRegistry {
     static let shared = SessionCompletionNotificationRegistry()
 
-    private var consumedCodexCompletionKeys = Set<String>()
+    private var consumedActivityBySessionID: [String: Int64] = [:]
 
     private init() {}
 
     func isConsumed(session: SessionState) -> Bool {
-        guard let key = codexCompletionKey(for: session) else { return false }
-        return consumedCodexCompletionKeys.contains(key)
+        consumedActivityBySessionID[session.stableId] == activityMilliseconds(for: session)
     }
 
     func markConsumed(session: SessionState) {
-        guard let key = codexCompletionKey(for: session) else { return }
-        consumedCodexCompletionKeys.insert(key)
+        consumedActivityBySessionID[session.stableId] = activityMilliseconds(for: session)
     }
 
-    private func codexCompletionKey(for session: SessionState) -> String? {
-        guard session.provider == .codex else { return nil }
-        let activityMilliseconds = Int64((session.lastActivity.timeIntervalSince1970 * 1_000).rounded())
-        return "\(session.sessionId):\(activityMilliseconds)"
+    private func activityMilliseconds(for session: SessionState) -> Int64 {
+        Int64((session.lastActivity.timeIntervalSince1970 * 1_000).rounded())
     }
 }
 
@@ -198,14 +198,12 @@ enum SessionCompletionNotificationPolicy {
         isEnabled: Bool,
         now: Date = Date()
     ) -> Bool {
-        // A turn-level "completed" / waitingForInput state can still have background
-        // commands or internal tool calls running. User-facing notifications are limited
-        // to explicit intervention and true SessionEnd events.
-        _ = session
-        _ = previousPhase
-        _ = isEnabled
-        _ = now
-        return false
+        guard isEnabled else { return false }
+        guard SessionCompletionStateEvaluator.isCompletedReadySession(session) else {
+            return false
+        }
+        guard let previousPhase, previousPhase != .ended else { return false }
+        return hasRecentNotificationActivity(session, now: now)
     }
 
     static func shouldQueueEndedNotification(

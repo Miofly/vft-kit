@@ -15,7 +15,7 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "VFT Kit",
-    "shortDescription": "Claude Code operations and shared development tools.",
+    "shortDescription": "Claude Code and Codex operations and shared development tools.",
     "longDescription": "A local toolbox for Claude Code and Codex operations, reusable development workflows, and verified installation of the ai-helper macOS menu bar app.",
     "developerName": "wfly",
     "category": "Productivity",
@@ -26,7 +26,6 @@
     "defaultPrompt": [
       "Use fe-auto-test to verify this page.",
       "Split this oversized Vue SFC.",
-      "Create an infographic from this content.",
       "Install the latest signed ai-helper release."
     ],
     "brandColor": "#0F766E"
