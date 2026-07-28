@@ -55,7 +55,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApplication.shared.setActivationPolicy(launchConfiguration.activationPolicy)
 
         // ai-helper 新增:菜单栏显示 Claude/Codex 用量(点开看剩余与重置时间)
-        if !launchConfiguration.isRunningTests {
+        // 可用 `defaults write com.wfly.ai-helper showMenuBarUsage -bool false` 关闭
+        // (给已有独立用量菜单栏工具的用户让路)。默认 true,不影响其他用户。
+        let menuBarUsageEnabled: Bool = {
+            let d = UserDefaults.standard
+            return d.object(forKey: "showMenuBarUsage") == nil ? true : d.bool(forKey: "showMenuBarUsage")
+        }()
+        if !launchConfiguration.isRunningTests && menuBarUsageEnabled {
             usageMenuBar.install()
         }
 
