@@ -252,12 +252,17 @@ if (usable.length) {
 }
 
 // ── 输出报告 ──────────────────────────────────────────
+// 输出到 other/temp/kaggle/ 而非脚本目录
+const repoRoot = path.resolve(__dirname, '../../../../..');
+const tempDir = path.join(repoRoot, 'other/temp/kaggle');
+fs.mkdirSync(tempDir, { recursive: true });
+
 const reportSuffix = ACCELERATOR ? '-' + ACCELERATOR.replace(/^NvidiaTesla/i, '').toLowerCase() : '';
-const jsonPath = path.join(__dirname, `${OUTPUT_PREFIX}${reportSuffix}.json`);
-const csvPath = path.join(__dirname, `${OUTPUT_PREFIX}${reportSuffix}.csv`);
+const jsonPath = path.join(tempDir, `${OUTPUT_PREFIX}${reportSuffix}.json`);
+const csvPath = path.join(tempDir, `${OUTPUT_PREFIX}${reportSuffix}.csv`);
 fs.writeFileSync(jsonPath, JSON.stringify({ accelerator: ACCELERATOR, at: new Date().toISOString(), results }, null, 2));
 fs.writeFileSync(csvPath, 'username,push,status,cuda,gpu,cap,count,note\n' +
-  results.map((r) => [r.username, r.push, r.status, r.cuda, r.gpu, r.cap, r.count, (r.note || '').replace(/,/g, ';')].join(',')).join('\n'));
+  results.map((r) => [r.username, r.push, r.status, r.cuda, r.gpu, r.cap, r.count, (r.note || '').replace(/,/g, ';')].join(','))).join('\n'));
 console.log(`\n报告: ${jsonPath}\n      ${csvPath}`);
 
 fs.rmSync(PROBE_HOME, { recursive: true, force: true });
