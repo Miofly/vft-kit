@@ -53,16 +53,23 @@ function resolveCredentials() {
     };
   }
 
-  // 2. ~/.kaggle/kaggle.json(Kaggle CLI 标准)
+  // 2. 显式配置必须覆盖本机默认账号
+  if (flags.config) {
+    const cfg = JSON.parse(readFileSync(flags.config, "utf8"));
+    if (cfg.username && (cfg.api_token || cfg.key)) {
+      return { username: cfg.username, key: cfg.api_token || cfg.key };
+    }
+  }
+
+  // 3. ~/.kaggle/kaggle.json(Kaggle CLI 标准)
   const stdPath = join(homedir(), ".kaggle", "kaggle.json");
   try {
     const std = JSON.parse(readFileSync(stdPath, "utf8"));
     if (std.username && std.key) return { username: std.username, key: std.key };
   } catch {}
 
-  // 3. 配置文件 <account>.json
+  // 4. 配置文件 <account>.json
   const searchPaths = [
-    flags.config,
     join(process.cwd(), `${account}.json`),
     join(process.cwd(), `.kaggle/${account}.json`),
     join(homedir(), `.config/kaggle/${account}.json`),
@@ -120,6 +127,7 @@ function execKaggle(args, opts = {}) {
     ...process.env,
     KAGGLE_USERNAME: creds.username,
     KAGGLE_KEY: creds.key,
+    KAGGLE_API_TOKEN: creds.key,
   };
 
   const result = spawnSync(KAGGLE[0], args, {
@@ -223,6 +231,7 @@ async function cmdKernelPush() {
   const dir = flags.dir || process.cwd();
   log(`Push kernel from ${dir}...`);
   const r = runWithRetry(["kernels", "push", "-p", dir], { cwd: dir });
+  if (/kernel push error:/i.test(r.stdout + r.stderr)) die((r.stdout + r.stderr).trim());
   log(r.stdout);
   log(`✅ Kernel pushed`);
 }
@@ -252,13 +261,14 @@ async function cmdKernelOutput() {
   const kernel = args[2] || die("缺少 <username>/<kernel-slug> 参数");
   const kaggleArgs = ["kernels", "output", kernel];
   if (flags.path) kaggleArgs.push("--path", flags.path);
+  if (flags.force) kaggleArgs.push("--force");
   proxyCommand(kaggleArgs);
 }
 
 async function cmdKernelDelete() {
   const kernel = args[2] || die("缺少 <username>/<kernel-slug> 参数");
   log(`⚠️ 删除 kernel: ${kernel}`);
-  const r = execKaggle(["kernels", "delete", kernel]);
+  const r = execKaggle(["kernels", "delete", kernel, "-y"]);
   if (r.status !== 0) die(`删除失败: ${r.stderr}`);
   log(`✅ Kernel 已删除`);
 }
@@ -467,7 +477,7 @@ KERNELS 命令:
   kernels push [--dir <path>]
   kernels status <username>/<kernel-slug>
   kernels logs <username>/<kernel-slug> [--save <file>]
-  kernels output <username>/<kernel-slug> [--path <dir>]
+  kernels output <username>/<kernel-slug> [--path <dir>] [--force]
   kernels delete <username>/<kernel-slug>
 
 DATASETS 命令:
