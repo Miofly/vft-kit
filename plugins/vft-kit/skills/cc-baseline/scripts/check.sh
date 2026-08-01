@@ -188,14 +188,15 @@ has_cmd node   && ok "node ($(node -v 2>/dev/null))"        || bad "node"   "装
 has_cmd npm    && ok "npm ($(npm -v 2>/dev/null))"          || bad "npm"    "随 node 安装"
 has_cmd claude && ok "claude ($(claude --version 2>/dev/null|awk '{print $1}'))" || bad "claude" "Claude Code CLI 未装"
 has_cmd rtk    && ok "rtk ($(rtk --version 2>/dev/null))"   || opt "rtk"    "brew install rtk（省 token 命令代理，可选）"
-has_cmd codegraph && ok "codegraph ($(codegraph -V 2>/dev/null))" || bad "codegraph" "npm i -g @colbymchenry/codegraph"
+has_cmd codegraph && ok "codegraph ($(codegraph -V 2>/dev/null))" || bad "codegraph" "volta install @colbymchenry/codegraph（volta 接管才建 shim，npm i -g 会装到版本私有目录导致找不到）"
 has_cmd brew   && ok "brew"                                 || opt "brew"   "Homebrew 建议装"
 has_cmd jq     && ok "jq"                                   || opt "jq"     "brew install jq"
 has_cmd gh     && ok "gh ($(gh --version 2>/dev/null|head -1|awk '{print $3}'))" || opt "gh"     "brew install gh（GitHub CLI：PR/Actions/仓库操作，可选）"
 
 # ---------- 2. 全局 npm 包（MCP 载体） ----------
 sec "全局 npm 包"
-npm_g_installed "@colbymchenry/codegraph"                     && ok "@colbymchenry/codegraph"                     || bad "@colbymchenry/codegraph" "npm i -g @colbymchenry/codegraph"
+# codegraph 改用 volta install 检测（volta list all 输出含 package 行才算装好），npm_g_installed 在 volta 机器上不可靠
+volta list all 2>/dev/null | grep -q 'package @colbymchenry/codegraph' && ok "@colbymchenry/codegraph (volta 接管)" || bad "@colbymchenry/codegraph" "volta install @colbymchenry/codegraph（必须走 volta，npm i -g 会装到版本私有目录）"
 npm_g_installed "@danielsogl/lighthouse-mcp"                  && ok "@danielsogl/lighthouse-mcp"                  || bad "@danielsogl/lighthouse-mcp" "npm i -g @danielsogl/lighthouse-mcp"
 
 # ---------- 3. MCP 注册 ----------
