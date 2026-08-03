@@ -16,10 +16,39 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 CODEX_AUTH="$HOME/.codex/auth.json"
 ZSHENV="${ZDOTDIR:-$HOME}/.zshenv"
 
-pass=0; fail=0; warn=0
+pass=0; fail=0; warn=0; declined=0
+
+# CC_BASELINE_SKIP：本机「刻意不装」的必需项清单（空格或逗号分隔的关键字，对检查项标签做子串匹配）。
+# 用途：基线里的必需项若与本机既有方案互斥（如 claude-hud 状态栏 vs ai-helper island statusline，
+# 二者抢同一个 settings.statusLine，只能留一个），它永远补不齐，每次都报 ✗ 并让退出码=1 —— 那是
+# 恒假的噪音，会淹掉真实缺失。声明进本变量后降级为中性「⊘ 刻意不装」，不计 fail、不影响退出码。
+# 例：CC_BASELINE_SKIP="claude-hud" bash check.sh
+# 只按逗号分隔，不按空格：检查项标签本身含空格（如「claude-hud 状态栏」），
+# 按空格切会把一条声明拆成多个更宽的关键字，误吞同前缀的其它检查项。
+declined_item(){
+  [ -n "${CC_BASELINE_SKIP:-}" ] || return 1
+  local rest="${CC_BASELINE_SKIP}" kw
+  while [ -n "$rest" ]; do
+    case "$rest" in
+      *,*) kw="${rest%%,*}"; rest="${rest#*,}" ;;
+      *)   kw="$rest";       rest="" ;;
+    esac
+    kw="${kw#"${kw%%[![:space:]]*}"}"; kw="${kw%"${kw##*[![:space:]]}"}"   # 去首尾空白
+    [ -n "$kw" ] || continue
+    case "$1" in *"$kw"*) return 0 ;; esac
+  done
+  return 1
+}
+
 c_g=$'\033[32m'; c_r=$'\033[31m'; c_y=$'\033[33m'; c_d=$'\033[2m'; c_0=$'\033[0m'
 ok()  { printf "  ${c_g}✓${c_0} %s\n" "$1"; pass=$((pass+1)); }
-bad() { printf "  ${c_r}✗${c_0} %-30s ${c_d}→ 修复: %s${c_0}\n" "$1" "$2"; fail=$((fail+1)); }
+# bad() 内拦 CC_BASELINE_SKIP：统一在出口处降级，无需改动散落各处的几十个检查点调用。
+bad() {
+  if declined_item "$1"; then
+    printf "  ${c_d}⊘ %-30s (刻意不装，已在 CC_BASELINE_SKIP 声明)${c_0}\n" "$1"; declined=$((declined+1)); return 0
+  fi
+  printf "  ${c_r}✗${c_0} %-30s ${c_d}→ 修复: %s${c_0}\n" "$1" "$2"; fail=$((fail+1))
+}
 opt() { printf "  ${c_y}○${c_0} %-30s ${c_d}(可选未装) %s${c_0}\n" "$1" "$2"; warn=$((warn+1)); }
 sec(){ printf "\n${c_d}== %s ==${c_0}\n" "$1"; }  # section 标题；勿命名为 head（会覆盖系统 head 命令）
 
@@ -33,9 +62,19 @@ mcp_registered(){
 # 插件是否已安装（读 installed_plugins.json，确定性文件读，覆盖 user/project/local 全 scope）
 # 不用 `claude plugin list`：它慢（逐个实连 MCP 健康检查）且输出不稳定、还可能触发 CC 重建清单。
 INSTALLED_PLUGINS="$HOME/.claude/plugins/installed_plugins.json"
+# 重试 3 次：CC 会话会在运行期原地重写 installed_plugins.json（插件刷新/marketplace 同步），
+# 撞上「已截断、还没写完」的瞬间 require() 解析失败 → node 非零退出 → 误报「插件未装」。
+# 这是假阴性（文件正在被写 ≠ 插件没装），靠短重试跨过写入窗口，别把它当真缺失。
 plugin_installed(){
   [ -f "$INSTALLED_PLUGINS" ] || return 1
-  node -e "const j=require('$INSTALLED_PLUGINS').plugins||{};process.exit(Object.keys(j).some(k=>k.split('@')[0]===process.argv[1])?0:1)" "$1" 2>/dev/null
+  local i
+  for i in 1 2 3; do
+    node -e "const j=require('$INSTALLED_PLUGINS').plugins||{};process.exit(Object.keys(j).some(k=>k.split('@')[0]===process.argv[1])?0:1)" "$1" 2>/dev/null && return 0
+    # 区分「解析失败(瞬时)」与「解析成功但没这插件(真缺)」：能解析出 JSON 就别再重试。
+    node -e "require('$INSTALLED_PLUGINS')" 2>/dev/null && return 1
+    sleep 0.3
+  done
+  return 1
 }
 # 全局 npm 包是否装（查 node_modules 目录，比 npm ls 快）
 npm_g_installed(){ [ -n "$NPM_ROOT" ] && [ -d "$NPM_ROOT/$1" ]; }
@@ -228,6 +267,8 @@ for p in context7 vercel; do
 done
 # 可选 skill：anysearch（AI Agent 联网实时搜索，装到 ~/.claude/skills/anysearch）
 skill_installed anysearch && ok "anysearch skill（联网实时搜索）" || opt "anysearch skill" "bash \"$SCRIPT_DIR/install-anysearch.sh\"（自动安装、随机邮箱注册 key 并写入 skill/.env）"
+# 可选 skill：grill-me（无情追问式访谈，via mattpocock-skills 插件）
+plugin_installed mattpocock-skills && ok "grill-me skill（via mattpocock-skills）" || opt "grill-me skill" "claude plugin install mattpocock-skills@claude-plugins-official"
 
 # ---------- 5. 系统配置 ----------
 sec "系统配置"
@@ -311,7 +352,9 @@ fi
 
 # ---------- 汇总 ----------
 printf "\n${c_d}────────────────────────────────${c_0}\n"
-printf "结果：${c_g}%d 正常${c_0} / ${c_r}%d 缺失(必需)${c_0} / ${c_y}%d 可选未装${c_0}\n" "$pass" "$fail" "$warn"
+printf "结果：${c_g}%d 正常${c_0} / ${c_r}%d 缺失(必需)${c_0} / ${c_y}%d 可选未装${c_0}" "$pass" "$fail" "$warn"
+[ "$declined" -gt 0 ] && printf " / ${c_d}%d 刻意不装${c_0}" "$declined"
+printf "\n"
 if [ "$fail" -eq 0 ]; then
   printf "${c_g}✓ 必备工具链齐全。${c_0}\n"
   exit 0
