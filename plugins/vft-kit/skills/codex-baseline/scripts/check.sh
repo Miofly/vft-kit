@@ -311,6 +311,7 @@ sec "兼容 Agent Skills"
 global_skill_exists "caveman" && ok "caveman skill" || bad "caveman skill" "npx skills add JuliusBrussee/caveman -a codex"
 gsap_skills_installed && ok "GSAP 官方 skills（8 项）" || bad "GSAP 官方 skills" "npx skills add https://github.com/greensock/gsap-skills --agent codex"
 global_skill_exists "anysearch" && ok "anysearch skill（联网实时搜索）" || opt "anysearch skill" "bash \"$SCRIPT_DIR/install-anysearch.sh\""
+global_skill_exists "grill-me" && ok "grill-me skill（深度访谈）" || opt "grill-me skill" "npx skills add mattpocock/skills --skill grill-me --agent codex --global --yes"
 
 sec "系统 skills"
 for s in openai-docs imagegen skill-creator plugin-creator skill-installer; do

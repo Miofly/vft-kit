@@ -203,6 +203,8 @@ grep -Fq '@danielsogl/lighthouse-mcp' <<< "$output" || { printf 'FAIL: npm packa
 grep -Fq 'CodeGraph 自动初始化' <<< "$output" || { printf 'FAIL: CodeGraph AGENTS check missing\n' >&2; exit 1; }
 grep -Fq 'context7 官方文档优先' <<< "$output" || { printf 'FAIL: context7 AGENTS check missing\n' >&2; exit 1; }
 grep -Fq 'anysearch 联网搜索优先' <<< "$output" || { printf 'FAIL: anysearch AGENTS check missing\n' >&2; exit 1; }
+grep -Fq 'grill-me skill' <<< "$output" || { printf 'FAIL: optional grill-me skill check missing\n' >&2; exit 1; }
+grep -Fq 'npx skills add mattpocock/skills --skill grill-me --agent codex --global --yes' <<< "$output" || { printf 'FAIL: grill-me Codex install command missing\n' >&2; exit 1; }
 grep -Fq 'Codex Memories' <<< "$output" && { printf 'FAIL: enabled memories reported missing\n' >&2; exit 1; }
 grep -Fq 'Codex multi_agent' <<< "$output" && { printf 'FAIL: enabled multi_agent reported missing\n' >&2; exit 1; }
 grep -Fq 'OpenAI Developer Docs MCP 已配置' <<< "$output" || { printf 'FAIL: docs MCP check missing\n' >&2; exit 1; }

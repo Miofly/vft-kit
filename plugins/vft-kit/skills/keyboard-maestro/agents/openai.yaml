@@ -1,0 +1,4 @@
+interface:
+  display_name: "Keyboard Maestro"
+  short_description: "创建、导入、运行及管理 Keyboard Maestro 自动化"
+  default_prompt: "使用 $keyboard-maestro 创建并安全管理一个 Keyboard Maestro 自动化。"
