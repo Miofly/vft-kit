@@ -310,8 +310,11 @@ async function cmdDatasetCreate() {
 
 async function cmdDatasetVersion() {
   const dir = flags.dir || process.cwd();
-  const kaggleArgs = ["datasets", "version", "-p", dir];
-  if (flags.message) kaggleArgs.push("--dir-mode", flags.message);
+  const kaggleArgs = [
+    "datasets", "version", "-p", dir,
+    "-m", flags.message || "update dataset",
+  ];
+  if (flags["dir-mode"]) kaggleArgs.push("--dir-mode", flags["dir-mode"]);
   log(`Create new dataset version from ${dir}...`);
   const r = runWithRetry(kaggleArgs, { cwd: dir });
   log(r.stdout);
@@ -485,7 +488,7 @@ DATASETS 命令:
   datasets files <username>/<dataset-slug>
   datasets download <username>/<dataset-slug> [--path <dir>] [--file <name>] [--unzip]
   datasets create [--dir <path>]
-  datasets version [--dir <path>] [--message <msg>]
+  datasets version [--dir <path>] [--message <msg>] [--dir-mode skip|zip|tar]
   datasets init [--path <dir>]
   datasets metadata <username>/<dataset-slug> [--path <dir>]
   datasets status <username>/<dataset-slug>
