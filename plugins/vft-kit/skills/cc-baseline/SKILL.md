@@ -5,7 +5,7 @@ description: 一键核对本机 Claude Code 是否符合「装配基线」——
 
 # cc-baseline —— Claude Code 装配基线核对
 
-对照「本机装配基线」逐项核对安装/注册/启用状态，缺了就告诉用户这项干什么、缺了什么影响（修复命令脚本已内嵌，回报时不摆给用户看）。核对本身**只读**，不改任何配置；补齐要等用户点头。
+对照「本机装配基线」逐项核对安装/注册/启用状态，缺了就告诉用户这项干什么、缺了什么影响（修复命令脚本已内嵌，回报时不摆给用户看）。`check.sh` 本身**只读**，不改任何配置；skill 流程仅在 ponytail 缺失时按既有授权自动补齐，其余补齐要等用户点头。
 
 基线 = 一台机器上 Claude Code「该长什么样」的规格：必备 CLI、全局 npm 包、MCP 注册、插件精简集、系统配置、权限与规范基线。清单本身就是资产——本 skill 既是核对器，也是这份规格的落地处。
 
@@ -21,7 +21,7 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/check.sh
 
 - `✓` 绿 = 已装/已启用
 - `✗` 红 = **必需**项缺失，行尾直接给修复命令
-- `○` 黄 = 可选项未装（brew / jq / **rtk** / cc-switch App），不算故障
+- `○` 黄 = 可选项未装，不算故障
 
 跑完把结果回报给用户。**回报缺失项时用表格，列「项 | 作用（这东西是干什么的）」两列——只讲每项干什么、缺了有什么影响，让用户判断要不要补；不要把修复命令罗列给用户看**（那串 `jq`/`sed`/`printf` 又长又噪，用户看不懂也没必要看）。「作用」列的措辞从下面〈各检查项作用速查〉取。修复命令你自己保留在心里：用户说「补齐/全部补上/补某几项」后，你**直接照脚本行尾内嵌的修复命令执行**（脚本 `✗` 行尾已给出准确命令，别自己现编），执行完重跑 `check.sh` 复核。
 
@@ -33,13 +33,12 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/check.sh
 
 | 类别 | 检查项 | 数据来源 |
 |---|---|---|
-| CLI 工具 | node / npm / claude / **codegraph** / rtk（可选）/ brew / jq / gh（可选） | `command -v` |
-| 全局 npm 包 | `@colbymchenry/codegraph` / `@danielsogl/lighthouse-mcp` | `$(npm root -g)/<pkg>` 目录 |
+| CLI 工具 | node / npm / claude / **codegraph（Volta 管理）** / rtk（可选）/ brew / jq / gh（可选） | `command -v` |
+| 全局 npm 包 | `@colbymchenry/codegraph`（Volta） / `@danielsogl/lighthouse-mcp` | Volta 包清单 / `$(npm root -g)/<pkg>` 目录 |
 | MCP 注册 | codegraph / lighthouse-mcp / **agentmemory** | `~/.claude.json` 的 `mcpServers`（含各 project scope） |
-| 插件（必备集 + 可选） | 必备：superpowers / skill-creator / code-review / frontend-design / playwright / claude-hud / remember / typescript-lsp / jdtls-lsp / security-guidance / claude-md-management / context-mode / **ponytail** / **caveman** / **gsap-skills**；可选：context7 / vercel | `~/.claude/plugins/installed_plugins.json`（确定性文件读，覆盖 user/project/local 全 scope） |
-| 可选 skill | **anysearch**（AI Agent 联网实时搜索）/ **grill-me**（via mattpocock-skills 插件，无情追问式访谈） | skill 目录或插件检测 |
+| 插件（必备集 + 可选） | 必备：superpowers / skill-creator / code-review / frontend-design / playwright / claude-hud / remember / typescript-lsp / jdtls-lsp / security-guidance / claude-md-management / context-mode / **ponytail** / **caveman** / **gsap-skills**；可选：context7 / vercel / **anysearch** / **grill-me** | `installed_plugins.json`、skill 目录或插件检测 |
 | 系统配置 | RTK hook / **RTK 压缩豁免（cat/diff/find/grep/curl/head/wc）**〈装了 rtk 才核对，未装整段跳过〉 / claude-hud 状态栏 / cc-switch App | `settings.json` 的 `hooks`、`statusLine`；`~/Library/Application Support/rtk/config.toml` 的 `[hooks].exclude_commands`；`/Applications/CC Switch.app` |
-| 配置基线 | **bypassPermissions** / **bypass 警告已接受** / **~ 目录已信任** / codegraph 只读白名单 / **Codex API key 启动注入**（`auth.json` 有 key 时必需）/ 全局 CLAUDE.md（必需）/ **全局规范含「始终中文回复」**（必需）/ **全局规范含「代码位置用可点短链」**（必需）/ **全局规范含「上下文压缩取舍规则」**（必需）/ **全局规范含「外网操作代理兜底」**（必需）/ **全局规范含「多 Agent 并行执行」**（必需）/ **CodeGraph 自动初始化规范**（装了 codegraph CLI 时必需）/ **context7 调用规范**（装了 context7 插件时必需）/ **anysearch 调用规范**（装了 anysearch skill 时必需）/ **agentmemory 使用规范**（必需）/ **默认关闭自动更新**（必需）；skill-symlink hook / memory 目录（可选） | `settings.json` 的 `permissions`、`hooks`、`env.DISABLE_AUTOUPDATER`；`~/.claude.json` 的 `bypassPermissionsModeAccepted`、`projects[$HOME].hasTrustDialogAccepted`；`~/.codex/auth.json`、`~/.zshenv`；`~/.claude/CLAUDE.md`（含正文 grep）、`~/.claude/skills/anysearch`、`~/.claude/projects/` |
+| 配置基线 | **bypassPermissions** / **bypass 警告已接受（可选）** / **~ 目录已信任** / codegraph 只读白名单 / **Codex API key 启动注入**（`auth.json` 有 key 时必需）/ 全局 CLAUDE.md（必需）/ **全局规范含「始终中文回复」**（必需）/ **全局规范含「代码位置用可点短链」**（必需）/ **全局规范含「上下文压缩取舍规则」**（必需）/ **全局规范含「外网操作代理兜底」**（必需）/ **全局规范含「多 Agent 并行执行」**（必需）/ **CodeGraph 自动初始化规范**（装了 codegraph CLI 时必需）/ **context7 调用规范**（装了 context7 插件时必需）/ **anysearch 调用规范**（装了 anysearch skill 时必需）/ **agentmemory 使用规范**（必需）/ **默认关闭自动更新**（必需）；memory 目录（可选） | `settings.json` 的 `permissions`、`hooks`、`env.DISABLE_AUTOUPDATER`；`~/.claude.json` 的 `bypassPermissionsModeAccepted`、`projects[$HOME].hasTrustDialogAccepted`；`~/.codex/auth.json`、`~/.zshenv`；`~/.claude/CLAUDE.md`（含正文 grep）、`~/.claude/skills/anysearch`、`~/.claude/projects/` |
 
 ## 各检查项作用速查（回报缺失项时「作用」列取这里）
 
@@ -76,9 +75,7 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/check.sh
 | vercel（可选） | Vercel 部署 / AI SDK / 性能优化助手 |
 | anysearch skill（可选） | AI Agent 联网实时搜索：通用/垂直领域/并行批量搜索 + 整页正文抓取；缺了只能用内置 WebSearch/WebFetch |
 | grill-me skill（可选） | 无情追问式访谈工具（via mattpocock-skills 插件），在动手前对计划/设计进行深度追问直到每个决策分支都明确；包含 grill-me / grill-with-docs / tdd / code-review / diagnosing-bugs 等工程流程 skill |
-| vercel（可选） | Vercel 部署 / AI SDK / 性能优化助手 |
 | context7 调用规范（条件必需） | 装了 context7 才核对：全局 CLAUDE.md 里有没有「库/框架/SDK/API/CLI 用法优先查 context7」的场景说明；没有 = 装了文档 MCP 但 CC 仍可能凭旧记忆答过时 API |
-| anysearch skill（可选） | AI Agent 联网实时搜索：通用/垂直领域/并行批量搜索 + 整页正文抓取；缺了只能用内置 WebSearch/WebFetch |
 | anysearch 调用规范（条件必需） | 装了 anysearch 才核对：全局 CLAUDE.md 里有没有「何时优先调 anysearch」的场景说明；没有 = 装了 skill 但 CC 不知何时用，等于白装 |
 | agentmemory 使用规范（必需） | agentmemory 是必装 MCP，全局 CLAUDE.md 必须写明：①自动工作机制（12个Hook自动捕获、定时压缩、会话启动注入）②主动调用场景（remember/recall/recap/forget/handoff 5个工具何时用）③与现有 memory 文件系统的关系；没有 = AI 不知何时主动调用、误以为要手动管理记忆 |
 | RTK hook | 把命令改写成 `rtk <cmd>` 过压缩，省 token 的开关；不挂就没压缩收益 |
@@ -86,12 +83,12 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/check.sh
 | claude-hud 状态栏 | 把 statusLine 接到 claude-hud；缺了状态栏空着 |
 | cc-switch App | 多 Claude 账号一键切换 |
 | bypassPermissions | 免逐次权限确认，AI 连续操作不被打断 |
-| bypass 警告已接受 | 免每次开机的 Bypass 模式警告弹窗 |
+| bypass 警告已接受（可选） | 免每次开机的 Bypass 模式警告弹窗 |
 | ~ 目录已信任 | 免在家目录起 CC 时的「是否信任此文件夹」弹窗 |
 | codegraph 只读白名单 | codegraph 只读工具免逐次确认 |
 | 自动更新已关闭 | 版本由人工掌控，不让 auto-updater 静默改动工具链 |
 | Codex API key 注入 | 启动 Codex 时从 `auth.json` 动态注入 key，密钥不明文落盘、不泄漏到整个终端 |
-| 全局 CLAUDE.md | 全局规范文件本体，下面三条规范都写在这里 |
+| 全局 CLAUDE.md | 全局规范文件本体，相关规范都写在这里 |
 | 中文回复规范 | 所有会话一律简体中文回复 |
 | 代码短链规范 | 代码位置写成可点 markdown 短链，IDEA 的 CC 插件里点得动（裸文件名会报 Cannot open file） |
 | 压缩取舍规范 | compact / 生成摘要时保留决策和状态、丢掉噪音，防压缩后重踩坑重决策 |
@@ -106,9 +103,8 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/check.sh
 - **默认必备插件集是「精简集」（可按需增删，见 scripts/check.sh 顶部清单）**：superpowers / skill-creator / code-review / frontend-design / playwright / claude-hud / remember / typescript-lsp / jdtls-lsp / security-guidance / claude-md-management / context-mode / ponytail / caveman / gsap-skills。其中 `typescript-lsp`（前端 Vue/TS）与 `jdtls-lsp`（后端 Java）是分语言 LSP，`security-guidance` 是官方内联安全审查（改码时扫命令注入/反序列化/XSS 并当场修），`ponytail` 是「反过度工程」skill（写码前先走七级决策阶梯：需不需要存在→库里有没有→标准库/原生/依赖能不能做→能不能一行→再写最小实现，安全/校验/无障碍不砍），`caveman` 是省 token 的通讯风格 skill（回复用极简「穴居人」句式，省 65% 输出 token，技术准确性不变；副作用仅一处——请求「简短/省 token」时可能自动切换风格，`stop caveman` 关掉），`gsap-skills` 是 GSAP 官方的 AI 技能集（教 AI 正确使用 GSAP 动画库 API、最佳实践与常见动画模式）。这是一份「够用就好」的精简集，不追求把装过的插件全列进来。要加/减默认集，改 `check.sh` 里第 4 类的第一个 `for p in ...` 清单即可。多数走 `*)` 默认命令 `claude plugin install $p@claude-plugins-official`；来源不同的要加专属 case：`context-mode` 来自第三方 marketplace `mksglu/claude-context-mode`（本体是 Context Mode MCP，插件方式装完自带 hooks + 11 个 ctx_* 工具），`claude-hud` 来自 `jarrodwatts/claude-hud`，`ponytail` 来自 `DietrichGebert/ponytail`、`caveman` 来自 `JuliusBrussee/caveman`、`gsap-skills` 来自 GSAP 官方 `greensock/gsap-skills`（**不在 `claude-plugins-official`**，官方市场装会报 `Plugin "gsap-skills" not found`；这四个都是**装两条命令必须分开发送**——`marketplace add` 与 `plugin install` 同一 prompt 里连发会失败，ponytail 官方 README 明确的坑，caveman / gsap-skills 同理）。caveman 的 CC 插件方式**只带 skills + agents，不挂 hook / 不装 MCP / 不改 settings.json**（README 里 `curl|bash` 一键装才会挂 hook + 装 caveman-shrink MCP + 改一堆 agent 配置，副作用大——本基线不用那种）。自建的本地插件按需自行加 case。
 - **可选插件（装了更好，不装不算故障）**：context7 / vercel（均来自 `claude-plugins-official`）。在第 4 类必备集循环后另有一个 `for p in context7 vercel` 循环，用 `opt` 而非 `bad`，缺失不影响退出码。context7 另有一条「条件必需」调用规范：只在 context7 已装时要求全局 CLAUDE.md 写明库/框架/SDK/API/CLI 用法优先查 context7。要加/减可选插件改这个循环。
 - **可选 skill（装了更好，不装不算故障）**：anysearch（AI Agent 联网实时搜索，装到 `~/.claude/skills/anysearch`）、grill-me（via mattpocock-skills 插件，无情追问式访谈）。两者都在第 4 类可选插件后单独检测，用 `opt` 而非 `bad`，缺失不影响退出码。anysearch 有一条「条件必需」调用规范（装了才要求写使用场景）。grill-me 通过 `plugin_installed mattpocock-skills` 检测（装插件=所有 skill 可用：grill-me / grill-with-docs / tdd / code-review / diagnosing-bugs 等）。
-- **可选插件（装了显示 ✓，不装显示 ○ 不算故障）**：context7 / vercel（均来自 `claude-plugins-official`）。在第 4 类必备集循环后另有一个 `for p in context7 vercel` 循环，用 `opt` 而非 `bad`，缺失不影响退出码。context7 另有一条「条件必需」调用规范：只在 context7 已装时要求全局 CLAUDE.md 写明库/框架/SDK/API/CLI 用法优先查 context7。要加/减可选插件改这个循环。
 - **MCP 注册要扫所有 scope**：`~/.claude.json` 顶层 `mcpServers` 之外，各 `projects[<path>].mcpServers` 也要并进来（否则 project scope 注册的 MCP 会漏报）。
-- **npm 全局包查目录不查 `npm ls -g`**：`npm ls -g <pkg>` 慢且对子依赖会误判；直接 `[ -d "$(npm root -g)/<pkg>" ]` 又快又准。
+- **全局包按脚本实际来源检查**：`@danielsogl/lighthouse-mcp` 直接查 `$(npm root -g)` 目录；`@colbymchenry/codegraph` 由 Volta 管理，检查 `volta list all`，不要用 `npm ls -g` 代替。
 - **codegraph 的 target id 是 `claude` 不是 `claude-code`**：修复命令 `codegraph install -t claude -l global -y`。
 - **文件夹信任弹窗（"Is this a project you trust?"）由 `~/.claude.json` 的 `projects[<dir>].hasTrustDialogAccepted` 控制**，不是 `settings.json`。`~`（`$HOME`）默认是 `false`，在家目录起 CC 会弹确认；设为 `true` 免弹。本 skill 检查 `$HOME` 是否已信任。
 - **claude-hud 状态栏检测认「委托链」，不只认字面量**：早期 `statusline_has "claude-hud"` 只 grep `settings.json` 里 `statusLine.command` 字符串含不含 `claude-hud`，会漏报一类真实配置——用户用自定义状态栏包装器（如 ai-helper 的 `island-statusline`）时，`command` 是包装器路径、字面量里没有 `claude-hud`，但它内部 `exec` 委托给了 claude-hud（`island-statusline` 读 `island-statusline-delegate`，delegate 里 `exec node .../claude-hud/*/dist/index.js`），状态栏实际就是 claude-hud 在渲染。现改用 `statusline_uses_hud`：① 先 grep `command` 本身（直接引用）；② 再取 `command` 里的绝对路径脚本 + 其同目录的 `*delegate*`/`*statusline*` 伴生脚本，grep 是否引用 `claude-hud`（委托链）。命中任一即 ✓。只扫「命令指向的脚本 + 同目录伴生脚本」，不整目录递归，避免误命中与性能问题。**因此本 skill 不该为过这一项去覆盖用户已有的 `statusLine`**——包装器往往还带 rate_limits 记录等附加功能，粗暴替换会丢功能；委托到 claude-hud 的配置本就合规。加/改检测改 `check.sh` 的 `statusline_uses_hud` 函数与第 5 类对应 `bad` 行。
@@ -117,7 +113,7 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/check.sh
 - **「上下文压缩取舍规则」同理查全局 `~/.claude/CLAUDE.md` 正文**：约束 compact / 生成对话摘要时该留什么、该丢什么——核心「保留决策和状态，丢掉噪音」。必留：架构决策及理由（永不压缩掉，无法从代码反推）、改过的文件及改动、当前阻塞报错、进行中的工作与下一步、验证状态、失败过的方案及原因（防重复踩坑）、待办与回滚；可丢：冗长工具输出（提炼结论后弃原文）、无关探索、死胡同中间步骤、已入 git 的文件内容（`git diff` 可恢复）。判据统一：能从 git / 重跑命令廉价恢复的丢，只存于对话里、丢了要重踩坑或重决策的留。这条也是跨所有会话恒定的规范，与「中文回复」「可点短链」并列写进全局 CLAUDE.md。`claudemd_has_compact` 用 `grep -Eq '上下文压缩|压缩取舍|保留决策和状态'` 探测，缺失=必需项 `✗`，修复命令 `printf ... >> ~/.claude/CLAUDE.md` 追加规范。加/改关键字改 `check.sh` 的 `claudemd_has_compact` 函数与对应 `bad` 行。
 - **「外网操作代理兜底」同理查全局 `~/.claude/CLAUDE.md` 正文**：这条治的是「想不到用代理」——在国内直连境外资源经常被 GFW 干扰，用户本机有代理（clash/mihomo/v2rayN 等），走代理就通/就快，但 CC 常常想不到、在直连路径反复撞墙。规范定三件事：① **触发信号放宽到两类**——不只「连不通」（TLS 握手后 RST / 连接超时 / SSL 报错），还含「慢得反常」（几 KB/s、卡住不动），两者任一都当被墙处理，别归因「网络就是慢」硬等；② **端口不写死、先探到可用代理**——不同代理软件/机器端口不同（clash/mihomo 混合口 7890、clash verge rev 7897、clash socks 7891、v2rayN 10809、ss/其它 1080/1087），所以规范要求**先复用已设的 `$https_proxy`/`$http_proxy`/`$all_proxy`，没有再对常见端口 http 与 socks5h 双协议探测取第一个通的**（`for p in 端口; do for s in http socks5h; do curl -fsm2 -x $s://127.0.0.1:$p <204探测URL> && break 2; done; done`），7890 只作探测列表首位（clash 混合口、命中快），不是唯一真值；**双协议探测是关键**——纯 SOCKS 口（clash 7891 / v2rayN 10808 / ss 1080）用 `http://` scheme 连不上，只列 http 会让「只开 socks 口」的人探测全灭、规范失效；都不通=没开代理，如实告知别硬试；③ **反射动作是先探后用**——探到 `$PROXY` 后本次操作全程走它，切法按工具分：`curl -x $PROXY` / `git -c http.proxy=$PROXY` / 吃环境变量的（brew/npm/pip/kaggle/gh）用 `https_proxy=$PROXY http_proxy=$PROXY <命令>` / `WebFetch`·`ctx_fetch`·`Playwright` 无法传代理就弃用改走 `curl -x`。覆盖场景比旧「抓取兜底」更广:GitHub/googleapis 等域抓取、brew bottle、npm/pip/cargo 下载、kaggle 上传下载。根因：Node 的 fetch/undici（WebFetch 底层）默认不认系统代理和 `HTTP_PROXY`,「系统装了代理」≠「工具会走代理」,必须显式把代理传给每条命令；国内裸直连 GitHub 等域常被 GFW 干扰成功率很低,走本地代理才稳。规范倡导**命令级/环境变量级代理优先、不强依赖 TUN 或系统全局**（更精准、零系统改动、可随时回退、不影响其它进程）——这既贴合本机用户「不开 TUN、失败后手动切」的偏好,也是对所有人都成立的通用建议。`claudemd_has_proxy` 用 `grep -Eiq '代理兜底|走代理重试|外网.*代理|127\.0\.0\.1:78|http\.proxy|https_proxy'` 探测（**关键字用通用语义词，不绑死具体端口/软件**，免得别人机器用 v2rayN/clash verge 写的规范被误判缺失），缺失=必需项 `✗`，修复命令 `printf ... >> ~/.claude/CLAUDE.md` 追加规范。加/改关键字改 `check.sh` 的 `claudemd_has_proxy` 函数与对应 `bad` 行。
 - **「多 Agent 并行执行」同理查全局 `~/.claude/CLAUDE.md` 正文**：这条治的是「该扇出时却一个人串行干」——很多任务本可拆成一批互相独立的子项（批量读/改文件、跑一批测试、多目标探查、跨多子系统调研、迁移/审计/批量整改），一个 agent 从头串到尾既慢（本可并发几分钟跑完的拖成十几分钟）又把大量原始文件内容涌进主上下文挤占推理预算。规范定四件事：① **判据**——子项之间无先后依赖（A 不吃 B 的输出）就并行，有依赖的才串行；② **典型场景**——「同一动作重复施加到 N 个独立对象」优先扇出（批量文件/测试/独立问题、大范围调研、多独立视角如多方案对比/交叉验证/对抗复核、批量整改每对象一个 agent）；③ **怎么做**——一条消息里同时发多个 Agent 调用让独立任务并发，用 Explore/general-purpose 类 subagent 承接搜索与读文件、只把结论收回主线程（主上下文不吞文件内容），有 Workflow/编排工具时用它编排「扇出→各自干→汇总」；④ **别过度**——单个明确小任务（改一个函数、查一个已知文件）直接自己干，扇出本身有启动开销，只在「多个独立子项」时才划算。这是跨所有会话恒定的工作规范，与「中文回复」「可点短链」「压缩取舍」「代理兜底」并列写进全局 CLAUDE.md，属**无条件必需**（不像 CodeGraph/context7/anysearch 那样条件必需）。`claudemd_has_parallel_agents` 用 `grep -Eiq '并行.*[Aa]gent|多.*[Aa]gent|多个 subagent|subagent 并行|扇出|fan-?out|并行执行'` 探测（关键字中英兼容、语义通用，不绑死某个编排工具名），缺失=必需项 `✗`，修复命令 `printf ... >> ~/.claude/CLAUDE.md` 追加规范。加/改关键字改 `check.sh` 的 `claudemd_has_parallel_agents` 函数与对应 `bad` 行。
-- **CodeGraph 自动初始化规范是条件必需项，仅当 codegraph CLI 已装时才要求**：codegraph 是代码知识图谱工具，装了才能在项目里用 `codegraph_explore` MCP 工具或 `codegraph explore "<query>"` shell 命令——一次返回相关符号的完整源码 + 调用链（含动态派发路径），替代低效的 grep + Read 循环。但 codegraph 要工作需要项目根目录先有 `.codegraph/` 索引目录；如果没有这个目录，codegraph 相关调用会失败。这条规范治的是「装了 codegraph 却忘记初始化」——进入新项目时，若识别到这是代码项目（有 package.json / pom.xml / Cargo.toml / go.mod 等或明显的源码目录结构）且项目根目录下没有 `.codegraph/` 目录，就自动运行 `codegraph init` 建立索引。索引存储在 `.codegraph/` 目录（已在标准 .gitignore 模板中，不入版本控制）。对于非代码目录（纯文档 / 配置仓库 / 个人笔记），跳过初始化。规范强调三点：① **什么时候建**——识别到是代码项目且没索引时立即初始化；② **怎么建**——在项目根目录（git 根目录或主 build 文件所在目录）运行 `codegraph init`，会自动识别语言并建索引；③ **注意事项**——索引前确认在项目根目录（不要在子目录建）、对于已有但陈旧的索引用 `codegraph update` 增量更新或 `codegraph init --force` 重建、非代码项目不强制建（浪费且无收益）。`claudemd_has_codegraph_auto_init` 用 `grep -Eiq 'codegraph.*自动|\.codegraph.*自动建立|自动.*codegraph.*索引|codegraph.*新项目'` 探测，缺失=必需项 `✗`，修复命令 `printf ... >> ~/.claude/CLAUDE.md` 追加完整规范（含初始化时机、方法、注意事项）。未装 codegraph CLI 时该项显示「无需配置」的 `ok`，不影响退出码。加/改关键字改 `check.sh` 的 `claudemd_has_codegraph_auto_init` 函数与对应 `bad` 行；条件检查在第 6 类配置基线的 `if has_cmd codegraph` 块。
+- **CodeGraph 自动初始化规范是条件必需项，仅当 codegraph CLI 已装时才要求**：codegraph 是代码知识图谱工具，装了才能在项目里用 `codegraph_explore` MCP 工具或 `codegraph explore "<query>"` shell 命令——一次返回相关符号的完整源码 + 调用链（含动态派发路径），替代低效的 grep + Read 循环。但 codegraph 要工作需要项目根目录先有 `.codegraph/` 索引目录；如果没有这个目录，codegraph 相关调用会失败。这条规范治的是「装了 codegraph 却忘记初始化」——进入新项目时，若识别到这是代码项目（有 package.json / pom.xml / Cargo.toml / go.mod 等或明显的源码目录结构）且项目根目录下没有 `.codegraph/` 目录，就自动运行 `codegraph init` 建立索引。索引存储在 `.codegraph/` 目录（已在标准 .gitignore 模板中，不入版本控制）。对于非代码目录（纯文档 / 配置仓库 / 个人笔记），跳过初始化。规范强调三点：① **什么时候建**——识别到是代码项目且没索引时立即初始化；② **怎么建**——在项目根目录（git 根目录或主 build 文件所在目录）运行 `codegraph init`，会自动识别语言并建索引；③ **注意事项**——索引前确认在项目根目录（不要在子目录建）、对于已有但陈旧的索引用 `codegraph sync` 增量同步或 `codegraph init --force` 重建、非代码项目不强制建（浪费且无收益）。`claudemd_has_codegraph_auto_init` 用 `grep -Eiq 'codegraph.*自动|\.codegraph.*自动建立|自动.*codegraph.*索引|codegraph.*新项目'` 探测，缺失=必需项 `✗`，修复命令 `printf ... >> ~/.claude/CLAUDE.md` 追加完整规范（含初始化时机、方法、注意事项）。未装 codegraph CLI 时该项显示「无需配置」的 `ok`，不影响退出码。加/改关键字改 `check.sh` 的 `claudemd_has_codegraph_auto_init` 函数与对应 `bad` 行；条件检查在第 6 类配置基线的 `if has_cmd codegraph` 块。
 - **context7 是可选插件，且带一条「条件必需」的调用规范**：context7 是最新官方文档 MCP。它本身可选（第 4 类可选插件循环里缺失只报 `○`），但如果已经安装，第 6 类要求全局 `~/.claude/CLAUDE.md` 写明「涉及库、框架、SDK、API、CLI 或云服务的用法、配置、迁移、报错排查时优先查 context7」。理由是 CC 很容易凭模型旧记忆回答库/框架 API；装了 context7 但没写触发规则，仍可能想不起来查。`claudemd_has_context7` 用 `grep -Eiq 'context7|[Cc]ontext7|官方文档|最新文档|库.*框架.*文档|SDK.*文档|API.*文档'` 探测，缺失=必需项 `✗`，修复命令 `printf ... >> ~/.claude/CLAUDE.md` 追加规范。未装 context7 时显示「无需配置」的 `ok`，不影响退出码。
 - **自动更新默认关（`env.DISABLE_AUTOUPDATER=1`）**：基线要求 CC 版本由人工掌控，不让 auto-updater 静默改动工具链。**关闭方式只有环境变量一条路**——`settings.json` 没有顶层 `autoUpdates`/`autoUpdaterStatus` 键（只有 `autoUpdatesChannel`，那是选渠道不是开关），`/config` 里也没有交互开关，只能写进 `env` 块。两个坑：① `env` 是**整体替换不是深合并**，若优先级更高的 `settings.local.json` 也写了 `env`，会把 user 层整个 `env` 顶掉（连代理、OTEL 一起失效），排查"设了没生效"先看 local 层有没有 `env` 键；② 关掉后**升级要按 CC 的实际安装方式来**——`npm i -g` 只对 npm 全局装的有效，若 `claude` 是 Volta/nvm 等版本管理器托管的（`command -v claude` 落在 `~/.volta/` 等路径下），得用对应工具升级（如 `volta install @anthropic-ai/claude-code@latest`），用 npm 装了不生效。
 - **Codex API key 启动注入是条件必需项**：若 `~/.codex/auth.json` 含非空 `.OPENAI_API_KEY`，基线要求 `~/.zshenv` 安装 `vft-kit` 管理的 `codex()` 包装器。包装器每次启动 Codex 时动态读取 JSON，只给当前 `codex` 子进程注入 `OPENAI_API_KEY`；不会把 key 明文复制到 shell 配置，也不会 `export` 到整个终端会话。`auth.json` 不存在或 key 为空时该项显示为无需配置。缺失时运行 `scripts/install-codex-key-injector.sh`，重复运行不会重复追加；安装后新开终端生效。
@@ -130,8 +126,9 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/check.sh
 ## 各工具标准安装命令（脚本里也内嵌为修复提示）
 
 ```bash
-# MCP 载体（全局 npm 包）
-npm i -g @colbymchenry/codegraph @danielsogl/lighthouse-mcp
+# MCP 载体
+volta install @colbymchenry/codegraph
+npm i -g @danielsogl/lighthouse-mcp
 
 # 注册进 CC（codegraph 用自带命令自动接入；lighthouse node 直跑 dist 绕 npx 冷启；agentmemory 用安装脚本一键搞定）
 codegraph install -t claude -l global -y
