@@ -216,6 +216,24 @@ claudemd_has_context7(){
   [ -f "$f" ] || return 1
   grep -Eiq 'context7|[Cc]ontext7|官方文档|最新文档|库.*框架.*文档|SDK.*文档|API.*文档' "$f"
 }
+# 全局 ~/.claude/CLAUDE.md 是否含「ruflo swarm 调用规范」
+claudemd_has_ruflo_swarm(){
+  local f="$HOME/.claude/CLAUDE.md"
+  [ -f "$f" ] || return 1
+  grep -Eiq 'ruflo.*swarm|swarm.*多.*[Aa]gent|ruflo.*协作' "$f"
+}
+# 全局 ~/.claude/CLAUDE.md 是否含「ruflo autopilot 调用规范」
+claudemd_has_ruflo_autopilot(){
+  local f="$HOME/.claude/CLAUDE.md"
+  [ -f "$f" ] || return 1
+  grep -Eiq 'ruflo.*autopilot|autopilot.*监控|自主.*监控.*ruflo' "$f"
+}
+# 全局 ~/.claude/CLAUDE.md 是否含「ruflo loop 调用规范」
+claudemd_has_ruflo_loop(){
+  local f="$HOME/.claude/CLAUDE.md"
+  [ -f "$f" ] || return 1
+  grep -Eiq 'ruflo.*loop|loop-workers|定时任务.*ruflo' "$f"
+}
 # MCP 是否实连成功（在 claude mcp list 输出里匹配 $1 正则的行含 Connected）
 mcp_healthy(){ printf '%s\n' "$MCP_HEALTH" | grep -E "$1" | grep -q "Connected"; }
 
@@ -243,12 +261,13 @@ sec "MCP 服务器（已注册到 CC）"
 mcp_registered codegraph           && ok "codegraph"           || bad "codegraph MCP"           "codegraph install -t claude -l global -y"
 mcp_registered lighthouse-mcp      && ok "lighthouse-mcp"      || bad "lighthouse-mcp MCP"      "claude mcp add lighthouse-mcp -s user -- node \"\$(npm root -g)/@danielsogl/lighthouse-mcp/dist/index.js\""
 mcp_registered agentmemory         && ok "agentmemory"         || bad "agentmemory MCP"         "bash \"$SCRIPT_DIR/install-agentmemory.sh\""
+mcp_registered claude-flow         && ok "ruflo"               || bad "ruflo MCP"               "volta install @claude-flow/cli && claude-flow init && claude mcp add claude-flow -s user -- /Users/\$USER/.volta/bin/claude-flow-mcp（init 只写项目级 ./.mcp.json，必须再 mcp add 注册到 user scope；别用 npx -y ruflo@latest，每会话 spawn 3 进程且不回收）"
 
 # ---------- 4. 插件（默认必备集） ----------
 sec "插件（默认必备集）"
 # 精简后的默认必备插件清单（用户指定）：核心工作流 + 自研 + 反过度工程
 for p in superpowers skill-creator code-review frontend-design playwright \
-         claude-hud remember typescript-lsp jdtls-lsp security-guidance \
+         claude-hud remember typescript-lsp jdtls-lsp \
          claude-md-management context-mode ponytail caveman gsap-skills; do
   if plugin_installed "$p"; then ok "$p"; else
     case "$p" in
@@ -269,6 +288,17 @@ done
 skill_installed anysearch && ok "anysearch skill（联网实时搜索）" || opt "anysearch skill" "bash \"$SCRIPT_DIR/install-anysearch.sh\"（自动安装、随机邮箱注册 key 并写入 skill/.env）"
 # 可选 skill：grill-me（无情追问式访谈，via mattpocock-skills 插件）
 plugin_installed mattpocock-skills && ok "grill-me skill（via mattpocock-skills）" || opt "grill-me skill" "claude plugin install mattpocock-skills@claude-plugins-official"
+# 可选插件集：pm-skills（9 个 PM 插件 / 68 skills / 42 链式工作流，来自 phuryn/pm-skills）
+# 按「装了几个」三态报：全 9 个=ok，部分=opt 并提示补齐，0 个=opt
+pm_installed=0
+for p in pm-toolkit pm-product-strategy pm-product-discovery pm-market-research pm-data-analytics \
+         pm-marketing-growth pm-go-to-market pm-execution pm-ai-shipping; do
+  plugin_installed "$p" && pm_installed=$((pm_installed+1))
+done
+if   [ "$pm_installed" -eq 9 ]; then ok  "pm-skills（9 个 PM 插件全装）"
+elif [ "$pm_installed" -gt 0 ]; then opt "pm-skills（$pm_installed/9 部分装）" "bash \"$SCRIPT_DIR/install-pm-skills.sh\"（补齐缺失插件）"
+else                                 opt "pm-skills（PM 工作流插件集）"      "bash \"$SCRIPT_DIR/install-pm-skills.sh\"（一键装 9 个插件：/discover /strategy /write-prd 等）"
+fi
 
 # ---------- 5. 系统配置 ----------
 sec "系统配置"
@@ -289,6 +319,12 @@ else
 fi
 statusline_uses_hud             && ok "状态栏 statusLine（claude-hud）"      || bad "claude-hud 状态栏" "在 CC 里运行 /claude-hud:setup（或让现有 statusLine 委托给 claude-hud）"
 [ -d "/Applications/CC Switch.app" ] && ok "cc-switch App"                  || opt "cc-switch App"    "brew install --cask cc-switch"
+# ruflo daemon（后台进程）：ruflo MCP 已注册后必需
+if mcp_registered claude-flow; then
+  pgrep -f "claude-flow.*daemon|ruflo.*daemon" >/dev/null 2>&1 && ok "ruflo daemon（学习循环 + autopilot + loop-workers）" || bad "ruflo daemon" "claude-flow daemon start"
+else
+  ok "ruflo daemon（ruflo MCP 未注册，无需配置）"
+fi
 
 # ---------- 6. 配置基线 ----------
 sec "配置基线"
@@ -335,6 +371,15 @@ else
 fi
 # agentmemory 使用规范：必需——agentmemory 是必装 MCP，必须告诉 CC 自动工作机制与主动调用场景。
 claudemd_has_agentmemory           && ok "全局规范含「agentmemory 持久化记忆」" || bad "agentmemory 使用规范" "bash \"$SCRIPT_DIR/install-agentmemory.sh\"（会自动追加规范到 CLAUDE.md）"
+# ruflo 调用规范：条件必需——仅当 ruflo MCP 已注册时才要求（装了不告诉 CC 何时用 swarm/autopilot/loop = 白装）
+if mcp_registered claude-flow; then
+  claudemd_has_ruflo_swarm        && ok "全局规范含「ruflo swarm 调用规范」"   || bad "ruflo swarm 调用规范"     'bash "$SCRIPT_DIR/install-ruflo-guidance.sh"（追加实测校准过的 ruflo 规范：CLI 名 claude-flow、swarm start -o/-s、与原生 Agent 扇出的分流判据）'
+  claudemd_has_ruflo_autopilot    && ok "全局规范含「ruflo autopilot 调用规范」" || bad "ruflo autopilot 调用规范" 'bash "$SCRIPT_DIR/install-ruflo-guidance.sh"（同上，含 autopilot 真实语义：持续完成模式 enable/disable，不是定时巡检）'
+  claudemd_has_ruflo_loop         && ok "全局规范含「ruflo 定时/后台任务规范」"  || bad "ruflo 定时任务规范"       'bash "$SCRIPT_DIR/install-ruflo-guidance.sh"（同上，含「没有 loop 命令、定时走 daemon 9 worker」的纠正）'
+  [ -f "$HOME/.claude-flow/config.json" ] && ok ".claude-flow/config.json（ruflo 配置）" || bad "ruflo 配置文件" "npx ruflo init（自动创建 ~/.claude-flow/config.json）"
+else
+  ok "ruflo 调用规范（ruflo MCP 未注册，无需配置）"
+fi
 [ -d "$HOME/.claude/projects" ]    && ok "项目 memory 目录"                   || opt "项目 memory"     "~/.claude/projects/<项目>/memory/ 跨会话记忆"
 
 # ---------- 7. MCP 连接健康（仅 --health） ----------
@@ -346,8 +391,12 @@ if [ "$HEALTH" -eq 1 ]; then
   mcp_healthy '^lighthouse-mcp:'      && ok "lighthouse-mcp 已连接"      || bad "lighthouse-mcp 未连"      "检查 dist/index.js 路径，重跑 claude mcp add"
   mcp_healthy '^agentmemory:'         && ok "agentmemory 已连接"         || bad "agentmemory 未连"         "npx @agentmemory/agentmemory 起不来，检查网络或重启 CC"
   mcp_healthy ':playwright:'          && ok "playwright 已连接（插件 MCP）" || bad "playwright 未连"        "npx @playwright/mcp@latest 起不来；先装浏览器 npx playwright install chromium"
+  # ruflo MCP：条件必需——仅当 ruflo MCP 已注册时才实连检查
+  if mcp_registered claude-flow; then
+    mcp_healthy '^claude-flow:'       && ok "ruflo 已连接"               || bad "ruflo 未连"               "MCP 起不来，检查 claude-flow daemon start / 重启 CC"
+  fi
 else
-  printf "\n${c_d}（跳过 MCP 连接健康检查；加 --health 参数可实连核对 codegraph/lighthouse/agentmemory/playwright）${c_0}\n"
+  printf "\n${c_d}（跳过 MCP 连接健康检查；加 --health 参数可实连核对 codegraph/lighthouse/agentmemory/playwright/ruflo）${c_0}\n"
 fi
 
 # ---------- 汇总 ----------

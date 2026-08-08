@@ -111,14 +111,11 @@ enabled = true
 [plugins."build-web-apps@openai-api-curated"]
 enabled = true
 
-[plugins."codex-security@openai-api-curated"]
-enabled = true
-
 [plugins."ponytail@ponytail"]
 enabled = true
 EOF
 
-for key in github superpowers build-web-apps codex-security; do
+for key in github superpowers build-web-apps; do
   mkdir -p "$TEST_CODEX_HOME/plugins/cache/openai-api-curated/$key/v1"
 done
 mkdir -p "$TEST_CODEX_HOME/plugins/cache/ponytail/ponytail/v1"
@@ -198,7 +195,11 @@ run_check() {
 }
 
 write_agents yes
-output="$(run_check)"
+set +e
+output="$(run_check 2>&1)"
+status=$?
+set -e
+[ "$status" -eq 0 ] || { printf 'FAIL: complete baseline fixture should pass\n' >&2; exit 1; }
 grep -Fq '@danielsogl/lighthouse-mcp' <<< "$output" || { printf 'FAIL: npm package check missing\n' >&2; exit 1; }
 grep -Fq 'CodeGraph 自动初始化' <<< "$output" || { printf 'FAIL: CodeGraph AGENTS check missing\n' >&2; exit 1; }
 grep -Fq 'context7 官方文档优先' <<< "$output" || { printf 'FAIL: context7 AGENTS check missing\n' >&2; exit 1; }
@@ -244,7 +245,6 @@ cat > "$TMP_ROOT/plugin-list.json" <<'EOF'
   {"pluginId":"github@openai-api-curated","installed":true,"enabled":true},
   {"pluginId":"superpowers@openai-api-curated","installed":true,"enabled":true},
   {"pluginId":"build-web-apps@openai-api-curated","installed":true,"enabled":true},
-  {"pluginId":"codex-security@openai-api-curated","installed":true,"enabled":true},
   {"pluginId":"ponytail@ponytail","installed":true,"enabled":true}
 ]}
 EOF
@@ -252,7 +252,7 @@ rm -rf "$TEST_CODEX_HOME/plugins/cache"
 output="$(run_check)"
 grep -Fq 'ponytail@ponytail（installed + enabled）' <<< "$output" || { printf 'FAIL: resolved plugin state not used\n' >&2; exit 1; }
 rm "$TMP_ROOT/plugin-list.json"
-for key in github superpowers build-web-apps codex-security; do
+for key in github superpowers build-web-apps; do
   mkdir -p "$TEST_CODEX_HOME/plugins/cache/openai-api-curated/$key/v1"
 done
 mkdir -p "$TEST_CODEX_HOME/plugins/cache/ponytail/ponytail/v1"
