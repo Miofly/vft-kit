@@ -216,6 +216,18 @@ claudemd_has_context7(){
   [ -f "$f" ] || return 1
   grep -Eiq 'context7|[Cc]ontext7|官方文档|最新文档|库.*框架.*文档|SDK.*文档|API.*文档' "$f"
 }
+# ruflo daemon 的 launchd supervisor 是否装好且配置正确（仅 macOS 有意义）
+# 三个条件都要满足才算 ok：① unit 文件存在 ② 已 load 到 launchd ③ 参数带 --ttl 0。
+# 为什么查 --ttl 0：unit 默认不带它，daemon 12h 后「正常退出」，而 KeepAlive 只在 SuccessfulExit=false /
+# Crashed 时重启 → 正常退出不会被拉起，等于白装。带 --ttl 0 才是真常驻。
+RUFLO_PLIST="$HOME/Library/LaunchAgents/io.ruv.ruflo.daemon.plist"
+ruflo_supervisor_ok(){
+  case "$(uname -s)" in Darwin) ;; *) return 0 ;; esac   # 非 macOS 不核对此项
+  [ -f "$RUFLO_PLIST" ] || return 1
+  launchctl print "gui/$(id -u)/io.ruv.ruflo.daemon" >/dev/null 2>&1 || return 1
+  /usr/libexec/PlistBuddy -c 'Print :ProgramArguments' "$RUFLO_PLIST" 2>/dev/null \
+    | tr -d ' ' | grep -qx -- '--ttl' || return 1
+}
 # 全局 ~/.claude/CLAUDE.md 是否含「ruflo swarm 调用规范」
 claudemd_has_ruflo_swarm(){
   local f="$HOME/.claude/CLAUDE.md"
@@ -319,9 +331,12 @@ else
 fi
 statusline_uses_hud             && ok "状态栏 statusLine（claude-hud）"      || bad "claude-hud 状态栏" "在 CC 里运行 /claude-hud:setup（或让现有 statusLine 委托给 claude-hud）"
 [ -d "/Applications/CC Switch.app" ] && ok "cc-switch App"                  || opt "cc-switch App"    "brew install --cask cc-switch"
-# ruflo daemon（后台进程）：ruflo MCP 已注册后必需
+# ruflo daemon（后台进程）+ launchd supervisor：ruflo MCP 已注册后必需
+# 两项分开报：daemon 在跑 ≠ 能常驻。裸 `daemon start` 默认 TTL 12h 到点自退，且不随开机启动，
+# 每天要手动重开——所以 supervisor（launchd 常驻 + 崩溃重启 + --ttl 0）是必需项而非可选。
 if mcp_registered claude-flow; then
-  pgrep -f "claude-flow.*daemon|ruflo.*daemon" >/dev/null 2>&1 && ok "ruflo daemon（学习循环 + autopilot + loop-workers）" || bad "ruflo daemon" "claude-flow daemon start"
+  pgrep -f "claude-flow.*daemon|ruflo.*daemon" >/dev/null 2>&1 && ok "ruflo daemon（学习循环 + autopilot + 后台 worker）" || bad "ruflo daemon" "claude-flow daemon start（想常驻见下一项 supervisor）"
+  ruflo_supervisor_ok && ok "ruflo daemon supervisor（launchd 常驻 + --ttl 0）" || bad "ruflo daemon supervisor" "bash \"$SCRIPT_DIR/install-ruflo-supervisor.sh\"（在仓库根装 launchd unit 并补 --ttl 0，避免 12h 自退与开机不启）"
 else
   ok "ruflo daemon（ruflo MCP 未注册，无需配置）"
 fi
