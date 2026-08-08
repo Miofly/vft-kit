@@ -1,6 +1,6 @@
 ---
 name: codex-baseline
-description: 一键核对本机 Codex CLI 是否符合「装配基线」——核对 CLI、dangerous full access、项目信任、hooks、Memories、稳定版 multi-agent、Playwright、CodeGraph/Lighthouse/OpenAI Docs MCP、Context7/Vercel 可选 MCP、GitHub/Superpowers/Build Web Apps/Codex Security/Ponytail 插件、Caveman/GSAP/AnySearch/Grill-me skills、RTK Codex 指令、图片生成 CLI 与全局 AGENTS 规范。MCP 与插件检查读取 Codex 合并后的真实状态，覆盖用户和项目 scope；支持 `--health` 实连 stdio MCP。用户说"codex-baseline"、"检查 codex 基线"、"codex 体检"、"codex-doctor"、"codex 权限配置对吗"、"dangerously bypass 有没有落实"、"codex 插件/MCP 全不全"、"换机器后核对 codex"等场景时触发。
+description: 一键核对本机 Codex CLI 是否符合「装配基线」——核对 CLI、dangerous full access、项目信任、hooks、Memories、稳定版 multi-agent、Playwright、CodeGraph/Lighthouse/OpenAI Docs MCP、Context7/Vercel 可选 MCP、GitHub/Superpowers/Build Web Apps/Ponytail 插件、Caveman/GSAP/AnySearch/Grill-me skills、RTK Codex 指令、图片生成 CLI 与全局 AGENTS 规范。MCP 与插件检查读取 Codex 合并后的真实状态，覆盖用户和项目 scope；支持 `--health` 实连 stdio MCP。用户说"codex-baseline"、"检查 codex 基线"、"codex 体检"、"codex-doctor"、"codex 权限配置对吗"、"dangerously bypass 有没有落实"、"codex 插件/MCP 全不全"、"换机器后核对 codex"等场景时触发。
 ---
 
 # codex-baseline —— Codex 装配基线核对
@@ -66,7 +66,7 @@ codex-imagegen generate \
 | Playwright MCP | `playwright` stdio server 已配置且未禁用 / Chromium 内核存在 | `~/.codex/config.toml` + Playwright browser cache |
 | 代码与审计 MCP | `codegraph` / `lighthouse-mcp` 的 npm 载体、注册与启用状态，全部必需 | `$(npm root -g)` + `codex mcp get --json` |
 | 文档与部署 MCP | OpenAI Developer Docs 必需；Context7 / Vercel 可选 | `codex mcp get --json` |
-| CLI 插件 | github / superpowers / build-web-apps / codex-security / ponytail 必需；GitHub 另检查 `GITHUB_PAT_TOKEN` | `codex plugin list --json`，失败时回退全局 config + cache；环境变量 + `gh auth token` |
+| CLI 插件 | github / superpowers / build-web-apps / ponytail 必需；GitHub 另检查 `GITHUB_PAT_TOKEN` | `codex plugin list --json`，失败时回退全局 config + cache；环境变量 + `gh auth token` |
 | 兼容 Agent Skills | Caveman 与 GSAP 官方 8 项 skills 必需；AnySearch 与 Grill-me 可选 | `~/.codex/skills` |
 | 系统 skills | openai-docs / imagegen / skill-creator / plugin-creator / skill-installer | `~/.codex/skills/.system` |
 | 图片生成 CLI/API | imagegen CLI 脚本 / 专用 venv / `openai` + `pillow` / `codex-imagegen` / `OPENAI_API_KEY` 注入源 | `~/.codex/skills/.system/imagegen` + `~/.codex/venvs/imagegen-cli` + `~/.local/bin/codex-imagegen` |
@@ -86,7 +86,7 @@ codex-imagegen generate \
 - **全局 npm 包查目录，不跑 `npm ls -g`**：直接检查 `$(npm root -g)/<pkg>`，避免慢查询和子依赖误判。
 - **全局 AGENTS 是个人基线的必需项**：中文回复、可点短链、压缩取舍、代理兜底和多 Agent 并行均为硬检查。codegraph CLI 已装时额外要求自动初始化索引；context7 MCP 已启用或 anysearch skill 已装时，额外要求对应调用场景规范。
 - **多 Agent 与 CC 基线效果等价、编排接口不同**：Codex 用 `spawn_agent` 等协作工具扇出独立子任务、主 Agent 汇总结果。基线同时要求 `codex features list` 的 `multi_agent` 实际状态为 `true`，以及 AGENTS.md 写明自动触发、并发编排、文件所有权和最终整体验证；只有“可以并行”一句弱提示不算合格。Codex 子 Agent 与主 Agent 共享工作区，因此必须给各 Agent 分配互不重叠的文件或问题边界，主 Agent 负责冲突处理与最终验证。
-- **Claude 插件映射到 Codex 原生能力**：frontend-design → `build-web-apps@openai-api-curated`；security-guidance → `codex-security@openai-api-curated`；remember → `features.memories = true`；code-review → `codex review` + GitHub 插件；playwright → Playwright MCP；skill-creator → system skill。
+- **Claude 插件映射到 Codex 原生能力**：frontend-design → `build-web-apps@openai-api-curated`；remember → `features.memories = true`；code-review → `codex review` + GitHub 插件；playwright → Playwright MCP；skill-creator → system skill。
 - **Ponytail 使用其官方 Codex 插件**：安装后同时获得 skills 与 Codex lifecycle hooks；缺失时按上面的常设授权自动补齐。
 - **兼容能力用 Agent Skills 形态**：Codex 能直接加载 `~/.codex/skills/<name>/SKILL.md`，因此不搬 Claude 插件元数据；Caveman 检查主 skill，GSAP 检查官方 8 个 skill 是否完整。Grill-me 通过 `mattpocock/skills` 安装为可选全局 skill，缺失不影响退出码。
 - **RTK 只迁移 Codex 支持的模式**：检查 `rtk init --codex --global` 生成的 `RTK.md` 与 AGENTS 引用，不检查 Claude 专属 `rtk hook claude` 和压缩豁免。

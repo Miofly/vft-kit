@@ -304,7 +304,6 @@ if github_plugin_active; then
 fi
 check_plugin "superpowers@openai-api-curated" required "codex plugin add superpowers@openai-api-curated"
 check_plugin "build-web-apps@openai-api-curated" required "codex plugin add build-web-apps@openai-api-curated"
-check_plugin "codex-security@openai-api-curated" required "codex plugin add codex-security@openai-api-curated"
 check_plugin "ponytail@ponytail" required "codex plugin marketplace add DietrichGebert/ponytail；再运行 codex plugin add ponytail@ponytail"
 
 sec "兼容 Agent Skills"

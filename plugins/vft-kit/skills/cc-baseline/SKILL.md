@@ -1,6 +1,6 @@
 ---
 name: cc-baseline
-description: 一键核对本机 Claude Code 是否符合「装配基线」——逐项核对 CLI 工具（codegraph / node / claude，rtk/gh 可选）、全局 npm 包（lighthouse-mcp / codegraph）、MCP 注册（codegraph / lighthouse-mcp / agentmemory）、默认必备插件精简集（superpowers / skill-creator / code-review / frontend-design / playwright / claude-hud / remember / typescript-lsp / jdtls-lsp / security-guidance / claude-md-management / context-mode / ponytail / caveman / gsap-skills）、系统配置（RTK hook 与压缩豁免〈装了 rtk 才核对〉、claude-hud 状态栏、cc-switch App）、以及配置基线（bypassPermissions、bypass 警告已接受、~ 目录已信任、codegraph 白名单、Codex API key 启动注入、全局规范含「始终中文回复」「代码位置用可点短链」「上下文压缩取舍规则」「外网操作代理兜底」「多 Agent 并行执行」、默认关闭自动更新、装了 context7 插件时全局规范含其调用场景、装了 anysearch 搜索 skill 时全局规范含其调用场景、agentmemory 持久化记忆使用规范〈必需〉）；另核对可选的 anysearch 联网搜索 skill 与 grill-me 访谈 skill。缺什么直接打印对应修复命令。可选 --health 参数额外实连核对核心 MCP（含 playwright）。用户说"cc-baseline"、"核对下基线"、"检查我的 cc 工具装齐了没"、"工具链体检"、"cc-doctor"（旧称）、"哪些工具没装"、"环境自检"、"看看必备插件/MCP 全不全"、"换机器后核对一下 cc 装配"、"重装后哪些没恢复"、"claude code 环境检查"等场景时触发。即使只说"体检一下"或"我的 cc 配置全吗"，且上下文是 Claude Code 工具链时，也用本 skill。纯只读，不改任何配置。
+description: 一键核对本机 Claude Code 是否符合「装配基线」——逐项核对 CLI 工具（codegraph / node / claude，rtk/gh 可选）、全局 npm 包（lighthouse-mcp / codegraph）、MCP 注册（codegraph / lighthouse-mcp / agentmemory / ruflo〈必需，键名 claude-flow〉）、默认必备插件精简集（superpowers / skill-creator / code-review / frontend-design / playwright / claude-hud / remember / typescript-lsp / jdtls-lsp / claude-md-management / context-mode / ponytail / caveman / gsap-skills）、系统配置（RTK hook 与压缩豁免〈装了 rtk 才核对〉、claude-hud 状态栏、cc-switch App、ruflo daemon〈装了 ruflo MCP 才核对〉）、以及配置基线（bypassPermissions、bypass 警告已接受、~ 目录已信任、codegraph 白名单、Codex API key 启动注入、全局规范含「始终中文回复」「代码位置用可点短链」「上下文压缩取舍规则」「外网操作代理兜底」「多 Agent 并行执行」、默认关闭自动更新、装了 context7 插件时全局规范含其调用场景、装了 anysearch 搜索 skill 时全局规范含其调用场景、agentmemory 持久化记忆使用规范〈必需〉、装了 ruflo MCP 时全局规范含 swarm/autopilot/loop 调用场景且 .claude-flow/config.json 存在）；另核对可选的 anysearch 联网搜索 skill 与 grill-me 访谈 skill。缺什么直接打印对应修复命令。可选 --health 参数额外实连核对核心 MCP（含 playwright 与 ruflo）。用户说"cc-baseline"、"核对下基线"、"检查我的 cc 工具装齐了没"、"工具链体检"、"cc-doctor"（旧称）、"哪些工具没装"、"环境自检"、"看看必备插件/MCP 全不全"、"换机器后核对一下 cc 装配"、"重装后哪些没恢复"、"claude code 环境检查"等场景时触发。即使只说"体检一下"或"我的 cc 配置全吗"，且上下文是 Claude Code 工具链时，也用本 skill。纯只读，不改任何配置。
 ---
 
 # cc-baseline —— Claude Code 装配基线核对
@@ -29,16 +29,18 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/check.sh
 
 **anysearch 是可选项，只在用户明确选择安装时执行。** 用户说要装 anysearch / 联网搜索 skill 时，直接运行 `bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/install-anysearch.sh`。脚本会下载最新 anysearch skill 到 `~/.claude/skills/anysearch`，生成一个随机邮箱注册 API key，把 key 写入 `~/.claude/skills/anysearch/.env`，并补上全局 CLAUDE.md 里的 anysearch 调用规范；执行完重跑 `check.sh` 复核。
 
+**pm-skills 同为可选项，只在用户明确选择安装时执行。** 用户说要装 pm-skills / PM 工作流插件 / 产品经理技能时，运行 `bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/install-pm-skills.sh` 一次装齐 9 个插件；装完提醒重启 CC 会话，再重跑 `check.sh` 复核。**这是面向产品向工作（写 PRD / 需求发现 / 定北极星指标 / 规划上线）的插件集，不做这类事的用户不必装**——回报缺失时照实说明用途即可，别默认推荐。
+
 ## 检查六类（数据来源）
 
 | 类别 | 检查项 | 数据来源 |
 |---|---|---|
 | CLI 工具 | node / npm / claude / **codegraph（Volta 管理）** / rtk（可选）/ brew / jq / gh（可选） | `command -v` |
 | 全局 npm 包 | `@colbymchenry/codegraph`（Volta） / `@danielsogl/lighthouse-mcp` | Volta 包清单 / `$(npm root -g)/<pkg>` 目录 |
-| MCP 注册 | codegraph / lighthouse-mcp / **agentmemory** | `~/.claude.json` 的 `mcpServers`（含各 project scope） |
-| 插件（必备集 + 可选） | 必备：superpowers / skill-creator / code-review / frontend-design / playwright / claude-hud / remember / typescript-lsp / jdtls-lsp / security-guidance / claude-md-management / context-mode / **ponytail** / **caveman** / **gsap-skills**；可选：context7 / vercel / **anysearch** / **grill-me** | `installed_plugins.json`、skill 目录或插件检测 |
-| 系统配置 | RTK hook / **RTK 压缩豁免（cat/diff/find/grep/curl/head/wc）**〈装了 rtk 才核对，未装整段跳过〉 / claude-hud 状态栏 / cc-switch App | `settings.json` 的 `hooks`、`statusLine`；`~/Library/Application Support/rtk/config.toml` 的 `[hooks].exclude_commands`；`/Applications/CC Switch.app` |
-| 配置基线 | **bypassPermissions** / **bypass 警告已接受（可选）** / **~ 目录已信任** / codegraph 只读白名单 / **Codex API key 启动注入**（`auth.json` 有 key 时必需）/ 全局 CLAUDE.md（必需）/ **全局规范含「始终中文回复」**（必需）/ **全局规范含「代码位置用可点短链」**（必需）/ **全局规范含「上下文压缩取舍规则」**（必需）/ **全局规范含「外网操作代理兜底」**（必需）/ **全局规范含「多 Agent 并行执行」**（必需）/ **CodeGraph 自动初始化规范**（装了 codegraph CLI 时必需）/ **context7 调用规范**（装了 context7 插件时必需）/ **anysearch 调用规范**（装了 anysearch skill 时必需）/ **agentmemory 使用规范**（必需）/ **默认关闭自动更新**（必需）；memory 目录（可选） | `settings.json` 的 `permissions`、`hooks`、`env.DISABLE_AUTOUPDATER`；`~/.claude.json` 的 `bypassPermissionsModeAccepted`、`projects[$HOME].hasTrustDialogAccepted`；`~/.codex/auth.json`、`~/.zshenv`；`~/.claude/CLAUDE.md`（含正文 grep）、`~/.claude/skills/anysearch`、`~/.claude/projects/` |
+| MCP 注册 | codegraph / lighthouse-mcp / **agentmemory** / **ruflo（键名 `claude-flow`）** | `~/.claude.json` 的 `mcpServers`（含各 project scope） |
+| 插件（必备集 + 可选） | 必备：superpowers / skill-creator / code-review / frontend-design / playwright / claude-hud / remember / typescript-lsp / jdtls-lsp / claude-md-management / context-mode / **ponytail** / **caveman** / **gsap-skills**；可选：context7 / vercel / **anysearch** / **grill-me** / **pm-skills（9 个插件）** | `installed_plugins.json`、skill 目录或插件检测 |
+| 系统配置 | RTK hook / **RTK 压缩豁免（cat/diff/find/grep/curl/head/wc）**〈装了 rtk 才核对，未装整段跳过〉 / claude-hud 状态栏 / cc-switch App / **ruflo daemon（学习循环 + autopilot + loop-workers）**〈装了 ruflo MCP 才核对〉 | `settings.json` 的 `hooks`、`statusLine`；`~/Library/Application Support/rtk/config.toml` 的 `[hooks].exclude_commands`；`/Applications/CC Switch.app`；`pgrep -f "ruflo.*daemon"` |
+| 配置基线 | **bypassPermissions** / **bypass 警告已接受（可选）** / **~ 目录已信任** / codegraph 只读白名单 / **Codex API key 启动注入**（`auth.json` 有 key 时必需）/ 全局 CLAUDE.md（必需）/ **全局规范含「始终中文回复」**（必需）/ **全局规范含「代码位置用可点短链」**（必需）/ **全局规范含「上下文压缩取舍规则」**（必需）/ **全局规范含「外网操作代理兜底」**（必需）/ **全局规范含「多 Agent 并行执行」**（必需）/ **CodeGraph 自动初始化规范**（装了 codegraph CLI 时必需）/ **context7 调用规范**（装了 context7 插件时必需）/ **anysearch 调用规范**（装了 anysearch skill 时必需）/ **agentmemory 使用规范**（必需）/ **ruflo swarm 调用规范**（装了 ruflo MCP 时必需）/ **ruflo autopilot 调用规范**（装了 ruflo MCP 时必需）/ **ruflo loop 调用规范**（装了 ruflo MCP 时必需）/ **.claude-flow/config.json**（装了 ruflo MCP 时必需）/ **默认关闭自动更新**（必需）；memory 目录（可选） | `settings.json` 的 `permissions`、`hooks`、`env.DISABLE_AUTOUPDATER`；`~/.claude.json` 的 `bypassPermissionsModeAccepted`、`projects[$HOME].hasTrustDialogAccepted`；`~/.codex/auth.json`、`~/.zshenv`；`~/.claude/CLAUDE.md`（含正文 grep）、`~/.claude/skills/anysearch`、`~/.claude/projects/`、`~/.claude-flow/config.json` |
 
 ## 各检查项作用速查（回报缺失项时「作用」列取这里）
 
@@ -56,6 +58,12 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/check.sh
 | MCP: codegraph | 让 CC 直接问代码结构/调用链，不用手动 grep |
 | MCP: lighthouse-mcp | 页面性能 / 无障碍 / SEO 全维度审计 |
 | MCP: agentmemory | 持久化记忆：自动捕获交互、压缩成结构化记忆、会话启动时注入相关上下文；缺了每次会话要重新解释项目架构/踩过的坑/偏好 |
+| MCP: ruflo（必需，键名 `claude-flow`） | 多 agent 协作（swarm）+ 自主监控（autopilot）+ 定时任务（loop-workers）+ 知识图谱；缺了只能单 agent 干、无自主循环能力 |
+| ruflo daemon（必需） | ruflo 后台进程：学习循环、autopilot、loop-workers；daemon 挂了这些功能失效。TTL 12h 自动退出，重启机器/超时后要重新 `claude-flow daemon start` |
+| ruflo swarm 调用规范（必需） | 全局 CLAUDE.md 里有没有「复杂任务何时用 swarm 拆给多个专用 agent」的场景说明；没有 = 装了 swarm 但 CC 不知何时自动开，等于白装 |
+| ruflo autopilot 调用规范（必需） | 全局 CLAUDE.md 里有没有「设置后自主循环监控」的用法说明；没有 = 装了 autopilot 但用户不知道怎么用 |
+| ruflo loop 调用规范（必需） | 全局 CLAUDE.md 里有没有「定时任务按 cron/间隔执行」的用法说明；没有 = 装了 loop-workers 但用户不知道怎么用 |
+| .claude-flow/config.json（必需） | ruflo 配置文件，缺了 swarm/autopilot/loop 配置无处存。注意 `claude-flow init` 生成的是 `config.yaml`（V3 运行时配置），`config.json` 需另建 |
 | superpowers | 技能框架（brainstorming / TDD / 系统调试等流程 skill），决定「怎么做」 |
 | skill-creator | 造 / 改 / 评测 skill |
 | code-review | PR 代码审查 |
@@ -65,7 +73,6 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/check.sh
 | remember | 会话状态存档，跨会话干净续接 |
 | typescript-lsp | 前端 Vue/TS 语言服务（跳转 / 补全 / 诊断） |
 | jdtls-lsp | 后端 Java 语言服务 |
-| security-guidance | 改码时内联安全审查，扫命令注入 / 反序列化 / XSS 并当场修 |
 | claude-md-management | 审计与维护 CLAUDE.md |
 | context-mode | 大输出丢沙箱处理，只回传结论，省上下文窗口 |
 | ponytail | 反过度工程决策阶梯，写码前先问「需不需要 / 库里有没有 / 能不能一行」 |
@@ -75,6 +82,7 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/check.sh
 | vercel（可选） | Vercel 部署 / AI SDK / 性能优化助手 |
 | anysearch skill（可选） | AI Agent 联网实时搜索：通用/垂直领域/并行批量搜索 + 整页正文抓取；缺了只能用内置 WebSearch/WebFetch |
 | grill-me skill（可选） | 无情追问式访谈工具（via mattpocock-skills 插件），在动手前对计划/设计进行深度追问直到每个决策分支都明确；包含 grill-me / grill-with-docs / tdd / code-review / diagnosing-bugs 等工程流程 skill |
+| pm-skills（可选，9 个插件） | 产品经理工作流插件集（68 skills + 42 链式工作流）：把 Teresa Torres / Marty Cagan / Alberto Savoia 的产品方法论编码成可执行流程，覆盖发现→战略→执行→上线→增长。入口 `/discover`（头脑风暴→识别假设→排优先级→设计实验）、`/strategy`、`/write-prd`、`/plan-launch`、`/north-star`、`/ship-check`；缺了写 PRD / 做需求发现只能靠通用对话，没有框架约束 |
 | context7 调用规范（条件必需） | 装了 context7 才核对：全局 CLAUDE.md 里有没有「库/框架/SDK/API/CLI 用法优先查 context7」的场景说明；没有 = 装了文档 MCP 但 CC 仍可能凭旧记忆答过时 API |
 | anysearch 调用规范（条件必需） | 装了 anysearch 才核对：全局 CLAUDE.md 里有没有「何时优先调 anysearch」的场景说明；没有 = 装了 skill 但 CC 不知何时用，等于白装 |
 | agentmemory 使用规范（必需） | agentmemory 是必装 MCP，全局 CLAUDE.md 必须写明：①自动工作机制（12个Hook自动捕获、定时压缩、会话启动注入）②主动调用场景（remember/recall/recap/forget/handoff 5个工具何时用）③与现有 memory 文件系统的关系；没有 = AI 不知何时主动调用、误以为要手动管理记忆 |
@@ -100,8 +108,9 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/check.sh
 ## 关键实现细节（改脚本前必读）
 
 - **插件用 `~/.claude/plugins/installed_plugins.json` 判断，不要用 `claude plugin list`，也不要只读 `settings.json` 的 `enabledPlugins`**。三个坑叠加：① 插件可以装在**项目** scope（`.claude/settings.json`，team 共享进 git），这类插件在用户全局 `enabledPlugins` 里根本没有 → 只查全局会误报「缺失」；② `claude plugin list` 慢（逐个实连 MCP 做健康检查，十几秒）、输出不稳定（同一状态多次跑条目数会变），**且实测跑它本身会触发 CC 重建 `installed_plugins.json`**，越查越乱；③ `installed_plugins.json` 是磁盘上的安装事实（含 scope、marketplace、version），一次文件读，快且确定，覆盖所有 scope。所以本 skill 只读这个文件。
-- **默认必备插件集是「精简集」（可按需增删，见 scripts/check.sh 顶部清单）**：superpowers / skill-creator / code-review / frontend-design / playwright / claude-hud / remember / typescript-lsp / jdtls-lsp / security-guidance / claude-md-management / context-mode / ponytail / caveman / gsap-skills。其中 `typescript-lsp`（前端 Vue/TS）与 `jdtls-lsp`（后端 Java）是分语言 LSP，`security-guidance` 是官方内联安全审查（改码时扫命令注入/反序列化/XSS 并当场修），`ponytail` 是「反过度工程」skill（写码前先走七级决策阶梯：需不需要存在→库里有没有→标准库/原生/依赖能不能做→能不能一行→再写最小实现，安全/校验/无障碍不砍），`caveman` 是省 token 的通讯风格 skill（回复用极简「穴居人」句式，省 65% 输出 token，技术准确性不变；副作用仅一处——请求「简短/省 token」时可能自动切换风格，`stop caveman` 关掉），`gsap-skills` 是 GSAP 官方的 AI 技能集（教 AI 正确使用 GSAP 动画库 API、最佳实践与常见动画模式）。这是一份「够用就好」的精简集，不追求把装过的插件全列进来。要加/减默认集，改 `check.sh` 里第 4 类的第一个 `for p in ...` 清单即可。多数走 `*)` 默认命令 `claude plugin install $p@claude-plugins-official`；来源不同的要加专属 case：`context-mode` 来自第三方 marketplace `mksglu/claude-context-mode`（本体是 Context Mode MCP，插件方式装完自带 hooks + 11 个 ctx_* 工具），`claude-hud` 来自 `jarrodwatts/claude-hud`，`ponytail` 来自 `DietrichGebert/ponytail`、`caveman` 来自 `JuliusBrussee/caveman`、`gsap-skills` 来自 GSAP 官方 `greensock/gsap-skills`（**不在 `claude-plugins-official`**，官方市场装会报 `Plugin "gsap-skills" not found`；这四个都是**装两条命令必须分开发送**——`marketplace add` 与 `plugin install` 同一 prompt 里连发会失败，ponytail 官方 README 明确的坑，caveman / gsap-skills 同理）。caveman 的 CC 插件方式**只带 skills + agents，不挂 hook / 不装 MCP / 不改 settings.json**（README 里 `curl|bash` 一键装才会挂 hook + 装 caveman-shrink MCP + 改一堆 agent 配置，副作用大——本基线不用那种）。自建的本地插件按需自行加 case。
+- **默认必备插件集是「精简集」（可按需增删，见 scripts/check.sh 顶部清单）**：superpowers / skill-creator / code-review / frontend-design / playwright / claude-hud / remember / typescript-lsp / jdtls-lsp / claude-md-management / context-mode / ponytail / caveman / gsap-skills。其中 `typescript-lsp`（前端 Vue/TS）与 `jdtls-lsp`（后端 Java）是分语言 LSP，`ponytail` 是「反过度工程」skill（写码前先走七级决策阶梯：需不需要存在→库里有没有→标准库/原生/依赖能不能做→能不能一行→再写最小实现，安全/校验/无障碍不砍），`caveman` 是省 token 的通讯风格 skill（回复用极简「穴居人」句式，省 65% 输出 token，技术准确性不变；副作用仅一处——请求「简短/省 token」时可能自动切换风格，`stop caveman` 关掉），`gsap-skills` 是 GSAP 官方的 AI 技能集（教 AI 正确使用 GSAP 动画库 API、最佳实践与常见动画模式）。这是一份「够用就好」的精简集，不追求把装过的插件全列进来。要加/减默认集，改 `check.sh` 里第 4 类的第一个 `for p in ...` 清单即可。多数走 `*)` 默认命令 `claude plugin install $p@claude-plugins-official`；来源不同的要加专属 case：`context-mode` 来自第三方 marketplace `mksglu/claude-context-mode`（本体是 Context Mode MCP，插件方式装完自带 hooks + 11 个 ctx_* 工具），`claude-hud` 来自 `jarrodwatts/claude-hud`，`ponytail` 来自 `DietrichGebert/ponytail`、`caveman` 来自 `JuliusBrussee/caveman`、`gsap-skills` 来自 GSAP 官方 `greensock/gsap-skills`（**不在 `claude-plugins-official`**，官方市场装会报 `Plugin "gsap-skills" not found`；这四个都是**装两条命令必须分开发送**——`marketplace add` 与 `plugin install` 同一 prompt 里连发会失败，ponytail 官方 README 明确的坑，caveman / gsap-skills 同理）。caveman 的 CC 插件方式**只带 skills + agents，不挂 hook / 不装 MCP / 不改 settings.json**（README 里 `curl|bash` 一键装才会挂 hook + 装 caveman-shrink MCP + 改一堆 agent 配置，副作用大——本基线不用那种）。自建的本地插件按需自行加 case。
 - **可选插件（装了更好，不装不算故障）**：context7 / vercel（均来自 `claude-plugins-official`）。在第 4 类必备集循环后另有一个 `for p in context7 vercel` 循环，用 `opt` 而非 `bad`，缺失不影响退出码。context7 另有一条「条件必需」调用规范：只在 context7 已装时要求全局 CLAUDE.md 写明库/框架/SDK/API/CLI 用法优先查 context7。要加/减可选插件改这个循环。
+- **pm-skills 是可选插件集，按「装了几个」三态报**：来自第三方 marketplace `phuryn/pm-skills`（MIT），一次装进 9 个 PM 插件（pm-toolkit / pm-product-strategy / pm-product-discovery / pm-market-research / pm-data-analytics / pm-marketing-growth / pm-go-to-market / pm-execution / pm-ai-shipping），共 68 个 skill + 42 个链式工作流。它是**纯可选**——面向「要写 PRD / 做需求发现 / 定指标 / 规划上线」的产品向工作，不做这类事的人装了纯占位，所以缺失只报 `○` 不影响退出码。检测方式与其他可选项不同：**不是单个 `plugin_installed` 布尔，而是循环数 9 个插件装了几个**，分三态报——全装=`ok`、部分装=`opt` 且标出 `N/9` 提示补齐（marketplace 装到一半失败很常见，只报「已装」会掩盖残缺）、全没装=`opt`。安装走 `scripts/install-pm-skills.sh`：脚本内部先 `marketplace add` 再逐个 `plugin install`，**两步在脚本里顺序执行是安全的**（ponytail/caveman/gsap-skills 那条「两条命令必须分开发 prompt」的坑只在 CC 会话里连发才触发，脚本子进程里串行跑不受影响）；已添加的 marketplace 与已装的插件都按幂等处理（匹配 `already`/`already installed` 视作成功），失败的插件汇总在末尾给出单条重试命令。**不配套「条件必需」的调用规范**——与 anysearch/context7 不同，pm-skills 的 skill 靠 description 自动加载、命令靠 `/xxx` 显式触发，不需要在全局 CLAUDE.md 里写触发时机。加/减插件改 `check.sh` 第 4 类那个 `for p in pm-*` 循环与 `install-pm-skills.sh` 的 `PLUGINS` 数组（两处要同步，否则计数与安装不一致）。
 - **可选 skill（装了更好，不装不算故障）**：anysearch（AI Agent 联网实时搜索，装到 `~/.claude/skills/anysearch`）、grill-me（via mattpocock-skills 插件，无情追问式访谈）。两者都在第 4 类可选插件后单独检测，用 `opt` 而非 `bad`，缺失不影响退出码。anysearch 有一条「条件必需」调用规范（装了才要求写使用场景）。grill-me 通过 `plugin_installed mattpocock-skills` 检测（装插件=所有 skill 可用：grill-me / grill-with-docs / tdd / code-review / diagnosing-bugs 等）。
 - **MCP 注册要扫所有 scope**：`~/.claude.json` 顶层 `mcpServers` 之外，各 `projects[<path>].mcpServers` 也要并进来（否则 project scope 注册的 MCP 会漏报）。
 - **全局包按脚本实际来源检查**：`@danielsogl/lighthouse-mcp` 直接查 `$(npm root -g)` 目录；`@colbymchenry/codegraph` 由 Volta 管理，检查 `volta list all`，不要用 `npm ls -g` 代替。
@@ -153,6 +162,10 @@ claude plugin install gsap-skills@gsap-skills           # 官方市场装会报 
 # anysearch skill（AI Agent 联网实时搜索，可选；用户选择安装时才执行）
 # 自动安装 latest release，随机邮箱注册 key，写入 ~/.claude/skills/anysearch/.env，并补 anysearch 调用规范
 bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/install-anysearch.sh
+
+# pm-skills（9 个 PM 插件 / 68 skills / 42 工作流，可选；用户选择安装时才执行）
+# 脚本内部先 add marketplace 再逐个 install，幂等、失败汇总重试命令
+bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/install-pm-skills.sh
 
 # cc-switch（多账号切换 App，可选）
 brew install --cask cc-switch
