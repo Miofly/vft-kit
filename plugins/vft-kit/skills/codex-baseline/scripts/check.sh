@@ -22,10 +22,34 @@ CODEX_STATE_SCRIPT="${CODEX_STATE_SCRIPT:-$SCRIPT_DIR/inspect-codex-state.mjs}"
 CODEX_STATE_NODE="${CODEX_STATE_NODE:-node}"
 RTK_MD="$CODEX_HOME/RTK.md"
 
-pass=0; fail=0; warn=0
+pass=0; fail=0; warn=0; declined=0
+
+declined_item(){
+  [ -n "${CODEX_BASELINE_SKIP:-}" ] || return 1
+  local rest="${CODEX_BASELINE_SKIP}" kw
+  while [ -n "$rest" ]; do
+    case "$rest" in
+      *,*) kw="${rest%%,*}"; rest="${rest#*,}" ;;
+      *)   kw="$rest";       rest="" ;;
+    esac
+    kw="${kw#"${kw%%[![:space:]]*}"}"; kw="${kw%"${kw##*[![:space:]]}"}"
+    [ -n "$kw" ] || continue
+    case "$1" in *"$kw"*) return 0 ;; esac
+  done
+  return 1
+}
+
 c_g=$'\033[32m'; c_r=$'\033[31m'; c_y=$'\033[33m'; c_d=$'\033[2m'; c_0=$'\033[0m'
 ok()  { printf "  ${c_g}✓${c_0} %s\n" "$1"; pass=$((pass+1)); }
-bad() { printf "  ${c_r}✗${c_0} %-34s ${c_d}→ 修复: %s${c_0}\n" "$1" "$2"; fail=$((fail+1)); }
+bad() {
+  if declined_item "$1"; then
+    printf "  ${c_d}⊘ %-34s (刻意不装，已在 CODEX_BASELINE_SKIP 声明)${c_0}\n" "$1"
+    declined=$((declined+1))
+    return 0
+  fi
+  printf "  ${c_r}✗${c_0} %-34s ${c_d}→ 修复: %s${c_0}\n" "$1" "$2"
+  fail=$((fail+1))
+}
 opt() { printf "  ${c_y}○${c_0} %-34s ${c_d}(可选) %s${c_0}\n" "$1" "$2"; warn=$((warn+1)); }
 sec(){ printf "\n${c_d}== %s ==${c_0}\n" "$1"; }
 
@@ -35,6 +59,7 @@ codex_feature_enabled(){
   codex features list 2>/dev/null | awk -v feature="$1" '$1 == feature && $NF == "true" { found=1 } END { exit found?0:1 }'
 }
 npm_g_installed(){ [ -n "$NPM_ROOT" ] && [ -d "$NPM_ROOT/$1" ]; }
+volta_pkg_installed(){ has_cmd volta && volta list all 2>/dev/null | grep -Fq "package $1"; }
 cfg_has_line(){
   [ -f "$CONFIG" ] || return 1
   grep -Eq "$1" "$CONFIG"
@@ -149,7 +174,7 @@ agents_has_parallel_policy(){
   grep -Eiq '主.*汇总|结论汇总|最终验证|整合' "$AGENTS"
 }
 global_skill_exists(){
-  [ -f "$CODEX_HOME/skills/$1/SKILL.md" ]
+  [ -f "$CODEX_HOME/skills/$1/SKILL.md" ] || [ -f "$HOME/.agents/skills/$1/SKILL.md" ]
 }
 gsap_skills_installed(){
   local skill
@@ -253,12 +278,12 @@ fi
 chromium_installed && ok "Playwright Chromium 内核" || bad "Playwright Chromium 内核" "npx --yes playwright install chromium"
 
 sec "代码与审计 MCP（必需）"
-if npm_g_installed "@colbymchenry/codegraph"; then ok "@colbymchenry/codegraph"; else bad "@colbymchenry/codegraph" "npm i -g @colbymchenry/codegraph"; fi
+if volta_pkg_installed "@colbymchenry/codegraph"; then ok "@colbymchenry/codegraph（Volta）"; else bad "@colbymchenry/codegraph" "volta install @colbymchenry/codegraph"; fi
 if npm_g_installed "@danielsogl/lighthouse-mcp"; then ok "@danielsogl/lighthouse-mcp"; else bad "@danielsogl/lighthouse-mcp" "npm i -g @danielsogl/lighthouse-mcp"; fi
-if has_cmd codegraph; then ok "codegraph CLI ($(codegraph -V 2>/dev/null))"; else bad "codegraph CLI" "npm i -g @colbymchenry/codegraph"; fi
+if has_cmd codegraph; then ok "codegraph CLI ($(codegraph -V 2>/dev/null))"; else bad "codegraph CLI" "volta install @colbymchenry/codegraph"; fi
 if mcp_configured "codegraph"; then
   ok "codegraph MCP 已配置"
-  has_cmd codegraph && ok "codegraph MCP 命令可执行" || bad "codegraph MCP 命令不可执行" "npm i -g @colbymchenry/codegraph"
+  has_cmd codegraph && ok "codegraph MCP 命令可执行" || bad "codegraph MCP 命令不可执行" "volta install @colbymchenry/codegraph"
   mcp_enabled "codegraph" && ok "codegraph MCP 已启用" || bad "codegraph MCP 已禁用" '删除 [mcp_servers.codegraph] 下的 enabled = false，或改为 enabled = true'
 else
   bad "codegraph MCP" "codex mcp add codegraph -- codegraph serve --mcp"
@@ -305,6 +330,7 @@ fi
 check_plugin "superpowers@openai-api-curated" required "codex plugin add superpowers@openai-api-curated"
 check_plugin "build-web-apps@openai-api-curated" required "codex plugin add build-web-apps@openai-api-curated"
 check_plugin "ponytail@ponytail" required "codex plugin marketplace add DietrichGebert/ponytail；再运行 codex plugin add ponytail@ponytail"
+check_plugin "context-mode@context-mode" required "codex plugin marketplace add https://github.com/mksglu/claude-context-mode.git；再运行 codex plugin add context-mode@context-mode"
 
 sec "兼容 Agent Skills"
 global_skill_exists "caveman" && ok "caveman skill" || bad "caveman skill" "npx skills add JuliusBrussee/caveman -a codex"
@@ -378,7 +404,7 @@ if [ "$HEALTH" -eq 1 ]; then
 fi
 
 printf "\n${c_d}────────────────────────────────${c_0}\n"
-printf "结果：${c_g}%d 正常${c_0} / ${c_r}%d 缺失(必需)${c_0} / ${c_y}%d 可选提醒${c_0}\n" "$pass" "$fail" "$warn"
+printf "结果：${c_g}%d 正常${c_0} / ${c_r}%d 缺失(必需)${c_0} / ${c_y}%d 可选提醒${c_0} / ${c_d}%d 刻意不装${c_0}\n" "$pass" "$fail" "$warn" "$declined"
 if [ "$fail" -eq 0 ]; then
   printf "${c_g}✓ Codex 必备基线齐全。${c_0}\n"
   printf "${c_d}提示：配置变更后新开 Codex 会话才稳定生效。${c_0}\n"
