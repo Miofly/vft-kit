@@ -1,3 +1,9 @@
+---
+name: smart-web-scrape
+description: 智能网页抓取与场景路由工具，按需求选择 Scrapling、Crawl4AI 或 Playwright。用户要求抓取网页、提取 Markdown、深度爬取、处理 Cloudflare、自适应解析、下载渲染资源、截图或分析 XHR/API 请求时使用。
+compatibility: Requires Node.js 18+ and Python 3.8+; Scrapling, Crawl4AI, and Playwright are optional runtime dependencies.
+---
+
 # smart-web-scrape
 
 智能网页抓取工具，根据场景自动选择最佳抓取策略：

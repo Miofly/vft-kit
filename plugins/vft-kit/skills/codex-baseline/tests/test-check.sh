@@ -61,6 +61,14 @@ cat > "$FAKE_BIN/codegraph" <<'EOF'
 #!/usr/bin/env bash
 printf 'codegraph 1.0.0\n'
 EOF
+cat > "$FAKE_BIN/volta" <<'EOF'
+#!/usr/bin/env bash
+if [ "$1" = "list" ] && [ "$2" = "all" ]; then
+  printf 'package @colbymchenry/codegraph\n'
+  exit 0
+fi
+exit 2
+EOF
 for command_name in brew jq; do
   cat > "$FAKE_BIN/$command_name" <<'EOF'
 #!/usr/bin/env bash
@@ -113,12 +121,16 @@ enabled = true
 
 [plugins."ponytail@ponytail"]
 enabled = true
+
+[plugins."context-mode@context-mode"]
+enabled = true
 EOF
 
 for key in github superpowers build-web-apps; do
   mkdir -p "$TEST_CODEX_HOME/plugins/cache/openai-api-curated/$key/v1"
 done
 mkdir -p "$TEST_CODEX_HOME/plugins/cache/ponytail/ponytail/v1"
+mkdir -p "$TEST_CODEX_HOME/plugins/cache/context-mode/context-mode/v1"
 for skill in openai-docs imagegen skill-creator plugin-creator skill-installer; do
   mkdir -p "$TEST_CODEX_HOME/skills/.system/$skill"
   : > "$TEST_CODEX_HOME/skills/.system/$skill/SKILL.md"
@@ -131,7 +143,6 @@ for skill in caveman gsap-core gsap-frameworks gsap-performance gsap-plugins gsa
 done
 
 mkdir -p \
-  "$NPM_ROOT_FIXTURE/@colbymchenry/codegraph" \
   "$NPM_ROOT_FIXTURE/@danielsogl/lighthouse-mcp" \
   "$TEST_HOME/Library/Caches/ms-playwright/chromium-fixture" \
   "$TEST_CODEX_HOME/venvs/imagegen-cli/bin"
@@ -205,6 +216,7 @@ grep -Fq 'CodeGraph 自动初始化' <<< "$output" || { printf 'FAIL: CodeGraph 
 grep -Fq 'context7 官方文档优先' <<< "$output" || { printf 'FAIL: context7 AGENTS check missing\n' >&2; exit 1; }
 grep -Fq 'anysearch 联网搜索优先' <<< "$output" || { printf 'FAIL: anysearch AGENTS check missing\n' >&2; exit 1; }
 grep -Fq 'grill-me skill' <<< "$output" || { printf 'FAIL: optional grill-me skill check missing\n' >&2; exit 1; }
+grep -Fq 'context-mode@context-mode' <<< "$output" || { printf 'FAIL: required context-mode plugin check missing\n' >&2; exit 1; }
 grep -Fq 'npx skills add mattpocock/skills --skill grill-me --agent codex --global --yes' <<< "$output" || { printf 'FAIL: grill-me Codex install command missing\n' >&2; exit 1; }
 grep -Fq 'Codex Memories' <<< "$output" && { printf 'FAIL: enabled memories reported missing\n' >&2; exit 1; }
 grep -Fq 'Codex multi_agent' <<< "$output" && { printf 'FAIL: enabled multi_agent reported missing\n' >&2; exit 1; }
@@ -212,6 +224,29 @@ grep -Fq 'OpenAI Developer Docs MCP 已配置' <<< "$output" || { printf 'FAIL: 
 grep -Fq 'Vercel MCP 已配置' <<< "$output" || { printf 'FAIL: resolved project-scope MCP state not used\n' >&2; exit 1; }
 grep -Fq 'GITHUB_PAT_TOKEN 已注入' <<< "$output" || { printf 'FAIL: injected GitHub token not detected\n' >&2; exit 1; }
 grep -Fq 'node_repl command 不存在' <<< "$output" && { printf 'FAIL: disabled node_repl should be ignored\n' >&2; exit 1; }
+
+mkdir -p "$TEST_HOME/.agents/skills"
+for skill in caveman gsap-core gsap-frameworks gsap-performance gsap-plugins gsap-react gsap-scrolltrigger gsap-timeline gsap-utils; do
+  mv "$TEST_CODEX_HOME/skills/$skill" "$TEST_HOME/.agents/skills/$skill"
+done
+set +e
+output="$(run_check 2>&1)"
+status=$?
+set -e
+[ "$status" -eq 0 ] || { printf 'FAIL: compatible skills under ~/.agents/skills should pass\n' >&2; exit 1; }
+for skill in caveman gsap-core gsap-frameworks gsap-performance gsap-plugins gsap-react gsap-scrolltrigger gsap-timeline gsap-utils; do
+  mv "$TEST_HOME/.agents/skills/$skill" "$TEST_CODEX_HOME/skills/$skill"
+done
+
+mv "$FAKE_BIN/codegraph" "$TMP_ROOT/codegraph.disabled"
+set +e
+output="$(run_check 2>&1)"
+status=$?
+set -e
+[ "$status" -eq 1 ] || { printf 'FAIL: missing CodeGraph CLI should fail\n' >&2; exit 1; }
+grep -Fq 'volta install @colbymchenry/codegraph' <<< "$output" || { printf 'FAIL: CodeGraph repair should use Volta\n' >&2; exit 1; }
+grep -Fq 'npm i -g @colbymchenry/codegraph' <<< "$output" && { printf 'FAIL: CodeGraph repair should not use npm global install\n' >&2; exit 1; }
+mv "$TMP_ROOT/codegraph.disabled" "$FAKE_BIN/codegraph"
 
 set +e
 output="$(TEST_GITHUB_PAT_TOKEN= TEST_GH_TOKEN_AVAILABLE=true run_check 2>&1)"
@@ -245,7 +280,8 @@ cat > "$TMP_ROOT/plugin-list.json" <<'EOF'
   {"pluginId":"github@openai-api-curated","installed":true,"enabled":true},
   {"pluginId":"superpowers@openai-api-curated","installed":true,"enabled":true},
   {"pluginId":"build-web-apps@openai-api-curated","installed":true,"enabled":true},
-  {"pluginId":"ponytail@ponytail","installed":true,"enabled":true}
+  {"pluginId":"ponytail@ponytail","installed":true,"enabled":true},
+  {"pluginId":"context-mode@context-mode","installed":true,"enabled":true}
 ]}
 EOF
 rm -rf "$TEST_CODEX_HOME/plugins/cache"
@@ -256,6 +292,7 @@ for key in github superpowers build-web-apps; do
   mkdir -p "$TEST_CODEX_HOME/plugins/cache/openai-api-curated/$key/v1"
 done
 mkdir -p "$TEST_CODEX_HOME/plugins/cache/ponytail/ponytail/v1"
+mkdir -p "$TEST_CODEX_HOME/plugins/cache/context-mode/context-mode/v1"
 
 write_agents weak
 set +e
@@ -281,5 +318,22 @@ status=$?
 set -e
 [ "$status" -eq 1 ] || { printf 'FAIL: missing plugin cache should fail\n' >&2; exit 1; }
 [ "$(grep -Fc 'superpowers@openai-api-curated' <<< "$output")" -eq 1 ] || { printf 'FAIL: plugin failure should be counted once\n' >&2; exit 1; }
+
+mkdir -p "$TEST_CODEX_HOME/plugins/cache/openai-api-curated/superpowers/v1"
+rm -rf "$TEST_CODEX_HOME/plugins/cache/context-mode/context-mode"
+set +e
+output="$(run_check 2>&1)"
+status=$?
+set -e
+[ "$status" -eq 1 ] || { printf 'FAIL: missing required context-mode plugin should fail\n' >&2; exit 1; }
+[ "$(grep -Fc 'context-mode@context-mode' <<< "$output")" -eq 1 ] || { printf 'FAIL: context-mode failure should be counted once\n' >&2; exit 1; }
+
+set +e
+output="$(CODEX_BASELINE_SKIP='unused, context-mode@context-mode ' run_check 2>&1)"
+status=$?
+set -e
+[ "$status" -eq 0 ] || { printf 'FAIL: intentionally skipped required item should not fail\n' >&2; exit 1; }
+grep -Fq '刻意不装' <<< "$output" || { printf 'FAIL: skipped item should be reported neutrally\n' >&2; exit 1; }
+grep -Fq '1 刻意不装' <<< "$output" || { printf 'FAIL: skipped item should be included in summary\n' >&2; exit 1; }
 
 printf 'PASS: codex baseline checks\n'
