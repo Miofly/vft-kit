@@ -177,6 +177,7 @@ write_agents() {
       '- codegraph 新项目自动执行 codegraph init；已有索引执行 codegraph sync，完整重建执行 codegraph index -f。' \
       '- context7 查询最新官方文档。' \
       '- anysearch 联网搜索优先。' \
+      '- Caveman 默认 full 自动启用，每个新会话直接使用极简表达。' \
       '- 生图使用 codex-imagegen generate。'
   } > "$TEST_CODEX_HOME/AGENTS.md"
 }
@@ -211,6 +212,7 @@ grep -Fq '@danielsogl/lighthouse-mcp' <<< "$output" || { printf 'FAIL: npm packa
 grep -Fq 'CodeGraph 自动初始化' <<< "$output" || { printf 'FAIL: CodeGraph AGENTS check missing\n' >&2; exit 1; }
 grep -Fq 'context7 官方文档优先' <<< "$output" || { printf 'FAIL: context7 AGENTS check missing\n' >&2; exit 1; }
 grep -Fq 'anysearch 联网搜索优先' <<< "$output" || { printf 'FAIL: anysearch AGENTS check missing\n' >&2; exit 1; }
+grep -Fq 'Caveman 默认 full 自动启用' <<< "$output" || { printf 'FAIL: Caveman default activation check missing\n' >&2; exit 1; }
 grep -Fq 'grill-me skill' <<< "$output" || { printf 'FAIL: optional grill-me skill check missing\n' >&2; exit 1; }
 grep -Fq 'context-mode@context-mode' <<< "$output" || { printf 'FAIL: required context-mode plugin check missing\n' >&2; exit 1; }
 grep -Fq 'npx skills add mattpocock/skills --skill grill-me --agent codex --global --yes' <<< "$output" || { printf 'FAIL: grill-me Codex install command missing\n' >&2; exit 1; }
