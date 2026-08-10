@@ -395,7 +395,7 @@ if mcp_registered claude-flow; then
   claudemd_has_ruflo_swarm        && ok "全局规范含「ruflo swarm 调用规范」"   || bad "ruflo swarm 调用规范"     'bash "$SCRIPT_DIR/install-ruflo-guidance.sh"（追加实测校准过的 ruflo 规范：CLI 名 claude-flow、swarm start -o/-s、与原生 Agent 扇出的分流判据）'
   claudemd_has_ruflo_autopilot    && ok "全局规范含「ruflo autopilot 调用规范」" || bad "ruflo autopilot 调用规范" 'bash "$SCRIPT_DIR/install-ruflo-guidance.sh"（同上，含 autopilot 真实语义：持续完成模式 enable/disable，不是定时巡检）'
   claudemd_has_ruflo_loop         && ok "全局规范含「ruflo 定时/后台任务规范」"  || bad "ruflo 定时任务规范"       'bash "$SCRIPT_DIR/install-ruflo-guidance.sh"（同上，含「没有 loop 命令、定时走 daemon 9 worker」的纠正）'
-  [ -f "$HOME/.claude-flow/config.json" ] && ok ".claude-flow/config.json（ruflo 配置）" || bad "ruflo 配置文件" "npx ruflo init（自动创建 ~/.claude-flow/config.json）"
+  [ -f "$HOME/.claude-flow/config.json" ] && ok ".claude-flow/config.json（ruflo 配置）" || bad "ruflo 配置文件" "bash \"$SCRIPT_DIR/install-ruflo-config.sh\"（把 init 生成的 config.yaml 转成 config.json；别用 npx ruflo init——它只出 config.yaml，且会再往 \$HOME 写一遍 .claude/ 与 CLAUDE.md）"
 else
   ok "ruflo 调用规范（ruflo MCP 未注册，无需配置）"
 fi

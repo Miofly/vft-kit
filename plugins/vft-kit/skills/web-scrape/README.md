@@ -1,4 +1,4 @@
-# smart-web-scrape - 项目总结
+# web-scrape - 项目总结
 
 ## 🎉 已完成
 
@@ -7,7 +7,7 @@
 ## 📁 文件结构
 
 ```
-vft-kit/plugins/vft-kit/skills/smart-web-scrape/
+vft-kit/plugins/vft-kit/skills/web-scrape/
 ├── SKILL.md                        # 完整使用文档（主文档）
 ├── QUICKSTART.md                   # 快速开始指南
 ├── install-deps.sh                 # 依赖安装脚本
@@ -59,13 +59,12 @@ Playwright (渲染)
 Crawl4AI (重度反检测)
 ```
 
-### 4. 与现有 vft-ai:web-scrape 集成
+### 4. 内置 Playwright Worker
 
-复用 vft-ai 的 Playwright 实现，不重复造轮子：
+Playwright 实现随公版 skill 分发，不依赖私有仓库：
 ```javascript
 // scrape.mjs 中调用
-const vftAiSkillDir = '../../../../../vft-ai/skills/web-scrape';
-spawn('node', [join(vftAiSkillDir, 'scripts/scrape.mjs'), url, ...args]);
+spawn('node', [join(__dirname, 'playwright-worker.mjs'), url, ...args]);
 ```
 
 ## 🔧 快速开始
@@ -73,7 +72,7 @@ spawn('node', [join(vftAiSkillDir, 'scripts/scrape.mjs'), url, ...args]);
 ### 1. 安装依赖
 
 ```bash
-cd /Users/wfly/Documents/code/wfly/bolierplate/project/vft-kit/plugins/vft-kit/skills/smart-web-scrape
+cd /Users/wfly/Documents/code/wfly/bolierplate/project/vft-kit/plugins/vft-kit/skills/web-scrape
 ./install-deps.sh
 ```
 
@@ -91,7 +90,7 @@ node tests/integration.test.mjs
 
 预期输出：
 ```
-🧪 smart-web-scrape 集成测试
+🧪 web-scrape 集成测试
 
 检查 Python 依赖...
   Python: ✅
@@ -139,7 +138,7 @@ node scripts/scrape.mjs https://example.com --tool scrapling
 直接对 Claude Code 说：
 
 ```
-用 smart-web-scrape 抓取 https://docs.python.org 并转成 Markdown
+用 web-scrape 抓取 https://docs.python.org 并转成 Markdown
 ```
 
 或：
@@ -317,7 +316,7 @@ node scripts/scrape.mjs https://app.example.com \
 
 ## 💡 设计亮点
 
-1. **零重复造轮子**：复用 vft-ai:web-scrape 的 Playwright 实现
+1. **依赖方向清晰**：公版自包含抓取能力，私版只注入登录态
 2. **智能决策**：多维度场景识别（URL + 意图 + 实时检测）
 3. **优雅降级**：Fallback 链保证至少有一个工具成功
 4. **依赖隔离**：支持 venv 避免污染系统环境
@@ -329,7 +328,6 @@ node scripts/scrape.mjs https://app.example.com \
 - [Scrapling 官方文档](https://scrapling.readthedocs.io)
 - [Crawl4AI GitHub](https://github.com/unclecode/crawl4ai)
 - [Playwright 文档](https://playwright.dev)
-- [vft-ai:web-scrape 源码](../../../../../vft-ai/skills/web-scrape/)
 
 ---
 

@@ -63,7 +63,7 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/check.sh
 | ruflo swarm 调用规范（必需） | 全局 CLAUDE.md 里有没有「复杂任务何时用 swarm 拆给多个专用 agent」的场景说明；没有 = 装了 swarm 但 CC 不知何时自动开，等于白装 |
 | ruflo autopilot 调用规范（必需） | 全局 CLAUDE.md 里有没有「设置后自主循环监控」的用法说明；没有 = 装了 autopilot 但用户不知道怎么用 |
 | ruflo loop 调用规范（必需） | 全局 CLAUDE.md 里有没有「定时任务按 cron/间隔执行」的用法说明；没有 = 装了 loop-workers 但用户不知道怎么用 |
-| .claude-flow/config.json（必需） | ruflo 配置文件，缺了 swarm/autopilot/loop 配置无处存。注意 `claude-flow init` 生成的是 `config.yaml`（V3 运行时配置），`config.json` 需另建 |
+| .claude-flow/config.json（必需） | ruflo 配置文件，缺了 swarm/autopilot/loop 配置无处存。注意 `claude-flow init` 生成的是 `config.yaml`（V3 运行时配置），`config.json` 需由 `install-ruflo-config.sh` 从 yaml 转出——**别重跑 init 补它**（会再污染一遍 `$HOME`、还删 settings.json 的 `model` 键） |
 | superpowers | 技能框架（brainstorming / TDD / 系统调试等流程 skill），决定「怎么做」 |
 | skill-creator | 造 / 改 / 评测 skill |
 | code-review | PR 代码审查 |
@@ -140,6 +140,8 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/check.sh
   - **`loop` 命令根本不存在**（报 Unknown command）。定时能力的载体是 daemon 的 9 个**固定** worker（默认开 7：map/audit/optimize/consolidate/testgaps/backup/harness；默认关 2：predict/document），且**不接受自定义 shell 命令**——想跑清 CDN / 备份库这类自定义定时任务，ruflo 给不了，用 launchd/cron。
   - **MCP 千万别配 `npx -y ruflo@latest mcp start`**（`claude-flow init` 生成的 `.mcp.json` 就是这个）：每个 CC 会话 spawn `npx → npm exec → node` 三层进程，**会话退出不回收**，实测累积到 22 进程 / 603 MB。正确配法指向固定二进制：`claude mcp add claude-flow -s user -- ~/.volta/bin/claude-flow-mcp`（实测该二进制 stdin 关闭即自退，不残留）。清理旧泄漏：`pkill -f 'ruflo@latest mcp start'`。
   - **`claude-flow init` 只写项目级 `./.mcp.json`，不注册到 user scope**，必须再 `claude mcp add` 一次，否则 `mcp_registered` 查不到。它还会往 cwd 写 `.claude/`（30 skills/16 commands/17 agents）+ `.claude-flow/` + `CLAUDE.md`，**所以必须在预期的目录下执行**，别在插件仓库子目录里跑。
+  - **`init` 的 `--skip-claude` / `--no-global` / `--no-codex-detect` 三个开关实测全部失效（3.34.0）**，别指望它们兜住副作用。在 `$HOME` 下跑 `claude-flow init --skip-claude --no-global --no-signup --no-skills-sh --no-codex-detect` 实测仍然：① 往 `~/.claude/` 塞 30 skills + 16 commands + 6 agents + 43 helpers（原有内容未被覆盖，但从此每个会话都会加载这批 `swarm:*`/`sparc:*`/`agentdb-*` skill）；② 在家目录根写 `CLAUDE.md`（ruflo 自己的，不是全局规范那份）、`AGENTS.md`、`.agents/`、`.mcp.json`；③ **删掉 `~/.claude/settings.json` 的 `model` 键**（其余 hooks/statusLine/permissions 完好，另加 3 个 `CLAUDE_FLOW_*` env 键与 4 条 allow 白名单）。**所以 init 前必须先 `cp ~/.claude/settings.json{,.bak-ruflo-$(date +%s)}`，装完立刻核对 `model` 有没有被删**。因为副作用这么重，`config.json` 缺失时**不要重跑 init**，走 `install-ruflo-config.sh` 从已有 `config.yaml` 转。
+  - **国内直连 npm 装 `@claude-flow/cli` 大概率卡死**（762 个依赖）：实测裸 `volta install` 5 分钟零输出、`curl registry.npmjs.org` 10s 超时。按全局规范探到代理后加 `https_proxy`/`http_proxy` 再装，1 分钟完成。注意 volta 失败只报一句 `Could not install package '@claude-flow/cli'`，不提网络——**别误判成包名错或版本不兼容**，加 `--verbose` 看真实 npm 输出。
   - **daemon 与 supervisor 分两项报**：`daemon start` 默认 TTL 43200s（12h）到点 graceful 自退、且不随开机启动；而 `daemon install-supervisor` 生成的 launchd unit **默认不带 `--ttl`**，KeepAlive 又只配了 `SuccessfulExit=false` + `Crashed=true` —— TTL 到点属于「正常退出」，launchd **不会**拉起它，等于装了 supervisor 仍 12h 停摆。所以 `ruflo_supervisor_ok` 三个条件全查：unit 文件存在 + 已 load（`launchctl print`）+ ProgramArguments 含独立 `--ttl` 项。判断有没有 `--ttl` **不能用 `grep ttl "$PLIST"`**（plist 别处含这三字母会误命中，实测踩过），要用 PlistBuddy 打印 ProgramArguments 再 `grep -qx -- '--ttl'`。安装脚本 `install-ruflo-supervisor.sh` 固化了这套流程，并强制切到仓库根执行（unit 的 `WorkingDirectory` 与日志路径取 cwd，在 `skills/scripts` 下跑会把 `.claude-flow/logs/` 写进插件仓库）。
   - **杀 MCP 泄漏进程会连带杀死 daemon**：daemon 若是靠 `npx` 起的，父进程被杀它跟着退，清理完记得 `daemon start`（装了 supervisor 后由 launchd 自动拉起，无此问题）。
   - **`claude-flow daemon status` 认不出 launchd 托管的实例，别用它判活**：它读 PID 文件再 `kill -0` 探活，而 launchd 每次重启会换 PID、ruflo 不回写，于是文件里存的是上一个已死的 PID → 明明进程在跑也报 `Status: ○ STOPPED`（实测 launchd pid=53602 而 status 显示 54154）。同理它显示的 `TTL: 12h` 是配置默认值不是实参。**所以 check.sh 用 `pgrep -f "claude-flow.*daemon"` 判活、用 PlistBuddy 查 `--ttl` 判常驻，都不碰 `daemon status`。** 想确认 daemon 真在干活，看 `<workdir>/.claude-flow/daemon-state.json` 里各 worker 的 `runCount/successCount/lastRun`。
@@ -162,10 +164,17 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/install-agentmemory.sh    
 # ruflo（多 Agent swarm + autopilot 持续完成 + daemon 后台 worker）
 # ⚠️ CLI 名是 claude-flow 不是 ruflo；MCP 必须指固定二进制，别用 npx（会每会话泄漏 3 个进程）
 # ⚠️ daemon WorkingDirectory 推荐设为 $HOME（全局共享），不在项目根生成 .claude-flow/
+# ⚠️ 国内直连装不动（762 依赖，实测卡死）——按全局规范先探代理
+export https_proxy=http://127.0.0.1:7890 http_proxy=http://127.0.0.1:7890   # 端口按实际探测结果替换
 volta install @claude-flow/cli
 export RUFLO_SUPERVISOR_WORKDIR="$HOME"  # 关键：daemon 的工作目录设为家目录，不污染项目根
-cd ~/Documents/code/wfly && claude-flow init --skip-claude --no-global  # init 只为生成 .claude-flow/config.yaml，跳过 .claude/ 和 CLAUDE.md
+cp ~/.claude/settings.json ~/.claude/settings.json.bak-ruflo-$(date +%s)    # 必备：init 会删掉 settings.json 的 model 键
+cd "$HOME" && claude-flow init --skip-claude --no-global --no-signup --no-skills-sh --no-codex-detect
+# ⚠️ 上面 5 个开关实测 3.34.0 全部失效：仍会往 ~/.claude/ 塞 30 skills+16 commands+6 agents+43 helpers、
+#    在家目录根写 CLAUDE.md/AGENTS.md/.agents/.mcp.json、并删掉 settings.json 的 model 键。
+#    装完立刻核对：jq -r .model ~/.claude/settings.json（丢了就 jq '.model="<原值>"' 补回）
 claude mcp add claude-flow -s user -- "$HOME/.volta/bin/claude-flow-mcp"       # init 只写项目级 .mcp.json，必须再注册到 user scope
+bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/install-ruflo-config.sh      # 从 config.yaml 转出 config.json（别重跑 init 补）
 bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/install-ruflo-supervisor.sh  # launchd 常驻 + 补 --ttl 0（免 12h 自退/开机不启），会读 RUFLO_SUPERVISOR_WORKDIR
 bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/install-ruflo-guidance.sh    # 追加校准过的 swarm/autopilot/daemon 规范到全局 CLAUDE.md
 

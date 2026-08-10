@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * smart-web-scrape - 智能网页抓取调度器
+ * web-scrape - 智能网页抓取调度器
  * 根据场景自动选择 Scrapling / Crawl4AI / Playwright
  */
 
@@ -60,6 +60,10 @@ function parseArgs() {
     timeout: CONFIG.defaultTimeout,
     resources: true,
     screenshot: true,
+    storageState: null,
+    browser: 'chromium',
+    userAgent: null,
+    pdf: true,
   };
 
   for (let i = 1; i < args.length; i++) {
@@ -113,11 +117,26 @@ function parseArgs() {
         options.timeout = parseInt(next, 10);
         i++;
         break;
+      case '--storage-state':
+        options.storageState = next;
+        i++;
+        break;
+      case '--browser':
+        options.browser = next;
+        i++;
+        break;
+      case '--ua':
+        options.userAgent = next;
+        i++;
+        break;
       case '--no-resources':
         options.resources = false;
         break;
       case '--no-screenshot':
         options.screenshot = false;
+        break;
+      case '--no-pdf':
+        options.pdf = false;
         break;
       default:
         if (arg.startsWith('--')) {
@@ -153,8 +172,12 @@ function printUsage() {
   --headless [bool]    无头模式（默认: true）
   --wait <ms>          页面加载后等待时间（默认: 1500）
   --timeout <ms>       单页超时（默认: 60000）
+  --storage-state <f>  Playwright storageState 文件
+  --browser <name>     Playwright 浏览器: chromium / firefox / webkit
+  --ua <text>          Playwright User-Agent
   --no-resources       不下载静态资源（仅 Playwright）
   --no-screenshot      不生成截图
+  --no-pdf             不生成 PDF（仅 Playwright）
 
 示例:
   # 自动选择工具
@@ -390,12 +413,10 @@ async function runCrawl4AI(url, options, outDir) {
 async function runPlaywright(url, options, outDir) {
   console.log('\n🚀 使用 Playwright 抓取...\n');
 
-  // 调用 vft-ai:web-scrape
-  const vftAiSkillDir = join(__dirname, '../../../../../vft-ai/skills/web-scrape');
-  const scrapeScript = join(vftAiSkillDir, 'scripts/scrape.mjs');
+  const scrapeScript = join(__dirname, 'playwright-worker.mjs');
 
   if (!existsSync(scrapeScript)) {
-    throw new Error('vft-ai:web-scrape 不可用（未找到脚本）');
+    throw new Error('Playwright worker 不可用（未找到脚本）');
   }
 
   const args = [
@@ -408,7 +429,11 @@ async function runPlaywright(url, options, outDir) {
 
   if (!options.resources) args.push('--no-assets');
   if (!options.screenshot) args.push('--no-screenshot');
-  if (options.headless) args.push('--headless');
+  if (!options.pdf) args.push('--no-pdf');
+  if (!options.headless) args.push('--headed');
+  if (options.storageState) args.push('--storage-state', options.storageState);
+  if (options.browser) args.push('--browser', options.browser);
+  if (options.userAgent) args.push('--ua', options.userAgent);
 
   return new Promise((resolve, reject) => {
     const proc = spawn('node', args, { stdio: 'inherit' });
@@ -471,7 +496,7 @@ async function main() {
   const startTime = Date.now();
   const options = parseArgs();
 
-  console.log(`\n🕷️  smart-web-scrape\n`);
+  console.log(`\n🕷️  web-scrape\n`);
   console.log(`URL: ${options.url}`);
   if (options.intent) console.log(`意图: ${options.intent}`);
   console.log();

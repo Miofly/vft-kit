@@ -1,9 +1,9 @@
-# smart-web-scrape 快速开始
+# web-scrape 快速开始
 
 ## 安装依赖
 
 ```bash
-cd /path/to/vft-kit/plugins/vft-kit/skills/smart-web-scrape
+cd /path/to/vft-kit/plugins/vft-kit/skills/web-scrape
 ./install-deps.sh
 ```
 
@@ -175,7 +175,7 @@ playwright install chromium
 直接对 Claude Code 说：
 
 ```text
-用 smart-web-scrape 抓取 https://docs.python.org 并转成 Markdown
+用 web-scrape 抓取 https://docs.python.org 并转成 Markdown
 ```
 
 或：
@@ -196,7 +196,7 @@ const execFileAsync = promisify(execFile);
 
 async function scrapeWebsite(url, intent) {
   const { stdout } = await execFileAsync('node', [
-    '/path/to/vft-kit/plugins/vft-kit/skills/smart-web-scrape/scripts/scrape.mjs',
+    '/path/to/vft-kit/plugins/vft-kit/skills/web-scrape/scripts/scrape.mjs',
     url,
     '--intent', intent,
     '--out', './output',
@@ -265,4 +265,3 @@ node scripts/scrape.mjs <url>
 - [Scrapling 文档](https://scrapling.readthedocs.io)
 - [Crawl4AI 文档](https://crawl4ai.com)
 - [Playwright 文档](https://playwright.dev)
-- [vft-ai:web-scrape](../../../../../vft-ai/skills/web-scrape/SKILL.md)

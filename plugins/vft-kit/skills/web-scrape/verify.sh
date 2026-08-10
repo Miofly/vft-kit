@@ -1,12 +1,12 @@
 #!/bin/bash
-# smart-web-scrape 完整性验证脚本
+# web-scrape 完整性验证脚本
 
 set -e
 
 SKILL_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SKILL_DIR"
 
-echo "🔍 smart-web-scrape 完整性验证"
+echo "🔍 web-scrape 完整性验证"
 echo ""
 
 # 颜色定义
@@ -47,6 +47,7 @@ check_file "README.md" || ((MISSING++))
 check_file "QUICKSTART.md" || ((MISSING++))
 check_file "install-deps.sh" || ((MISSING++))
 check_file "scripts/scrape.mjs" || ((MISSING++))
+check_file "scripts/playwright-worker.mjs" || ((MISSING++))
 check_file "scripts/scrapling-worker.py" || ((MISSING++))
 check_file "scripts/crawl4ai-worker.py" || ((MISSING++))
 check_file "tests/integration.test.mjs" || ((MISSING++))
@@ -64,6 +65,7 @@ echo ""
 echo "2️⃣  检查可执行权限..."
 check_executable "install-deps.sh"
 check_executable "scripts/scrape.mjs"
+check_executable "scripts/playwright-worker.mjs"
 check_executable "scripts/scrapling-worker.py"
 check_executable "scripts/crawl4ai-worker.py"
 check_executable "tests/integration.test.mjs"
@@ -126,14 +128,9 @@ fi
 
 echo ""
 
-# 6. 检查 vft-ai:web-scrape 集成
-echo "6️⃣  检查 vft-ai:web-scrape 集成..."
-VFT_AI_SCRAPE="../../../../../vft-ai/skills/web-scrape/scripts/scrape.mjs"
-if [ -f "$VFT_AI_SCRAPE" ]; then
-    echo -e "  ${GREEN}✓${NC} vft-ai:web-scrape 可用"
-else
-    echo -e "  ${YELLOW}⚠${NC} vft-ai:web-scrape 不可用（Playwright fallback 将失败）"
-fi
+# 6. 检查 Playwright worker
+echo "6️⃣  检查本地 Playwright worker..."
+echo -e "  ${GREEN}✓${NC} web-scrape 自包含 Playwright worker"
 
 echo ""
 
@@ -145,6 +142,13 @@ if node -c scripts/scrape.mjs 2>/dev/null; then
     echo -e "  ${GREEN}✓${NC} scrape.mjs 语法正确"
 else
     echo -e "  ${RED}✗${NC} scrape.mjs 语法错误"
+    exit 1
+fi
+
+if node -c scripts/playwright-worker.mjs 2>/dev/null; then
+    echo -e "  ${GREEN}✓${NC} playwright-worker.mjs 语法正确"
+else
+    echo -e "  ${RED}✗${NC} playwright-worker.mjs 语法错误"
     exit 1
 fi
 

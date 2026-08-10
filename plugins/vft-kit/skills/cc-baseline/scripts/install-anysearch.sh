@@ -205,7 +205,8 @@ main() {
   echo "===== 安装完成 ====="
   echo "Skill 目录：$SKILL_DIR"
   echo "配置文件：$ENV_FILE"
-  echo "注册邮箱: $random_email（随机生成；如需登录后台，请改用可收信邮箱手动注册）"
+  # ${} 必带花括号：变量名紧跟中文/全角括号时，set -u 下 bash 会把多字节首字节当成名字的一部分而报 unbound variable
+  echo "注册邮箱: ${random_email}（随机生成；如需登录后台，请改用可收信邮箱手动注册）"
   echo ""
   echo "重启 CC 会话后即可使用 anysearch skill"
 }
