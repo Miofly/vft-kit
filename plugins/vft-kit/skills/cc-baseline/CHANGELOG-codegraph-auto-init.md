@@ -14,7 +14,7 @@ claudemd_has_codegraph_auto_init()
 ```
 - 位置：第 151-157 行（在 `claudemd_has_context7` 之前）
 - 功能：检测全局 `~/.claude/CLAUDE.md` 是否包含 CodeGraph 自动初始化规范
-- 匹配关键字：`codegraph.*自动`、`.codegraph.*自动建立`、`自动.*codegraph.*索引`、`codegraph.*新项目`
+- 必须包含自动初始化语义、`codegraph sync` 与 `codegraph index -f`；含旧错误命令则判缺失
 
 #### 新增条件检查逻辑
 - 位置：第 246-252 行（在「外网操作代理兜底」之后、「context7 调用规范」之前）
@@ -65,7 +65,7 @@ claudemd_has_codegraph_auto_init()
 
 **注意事项**：
 - 初始化前先确认是在项目根目录（git 根目录或主 build 文件所在目录），不要在子目录建索引
-- 如果项目已有 `.codegraph/` 但索引陈旧（代码大改过），用 `codegraph update` 增量更新或 `codegraph init --force` 重建
+- 如果项目已有 `.codegraph/` 但索引陈旧，用 `codegraph sync` 增量更新或 `codegraph index -f` 从头重建
 - 非代码项目不要强制建索引（浪费时间且无收益）
 ```
 
