@@ -1,9 +1,9 @@
 #!/bin/bash
-# smart-web-scrape 依赖安装脚本
+# web-scrape 依赖安装脚本
 
 set -e
 
-echo "🔧 smart-web-scrape 依赖安装"
+echo "🔧 web-scrape 依赖安装"
 echo ""
 
 # 检查 Python

@@ -24,7 +24,7 @@ esac
 
 command -v claude-flow >/dev/null 2>&1 || {
   echo "✗ 找不到 claude-flow CLI。先装：volta install @claude-flow/cli" >&2; exit 1; }
-[ -d "$WORKDIR" ] || { echo "✗ 工作目录不存在：$WORKDIR（可用 RUFLO_SUPERVISOR_WORKDIR 覆盖）" >&2; exit 1; }
+[ -d "$WORKDIR" ] || { echo "✗ 工作目录不存在：${WORKDIR}（可用 RUFLO_SUPERVISOR_WORKDIR 覆盖）" >&2; exit 1; }
 
 echo "→ 停掉手动起的 daemon（避免与 launchd 托管的实例并存）"
 claude-flow daemon stop >/dev/null 2>&1 || true

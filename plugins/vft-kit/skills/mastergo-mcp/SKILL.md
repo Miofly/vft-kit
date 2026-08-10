@@ -1,6 +1,6 @@
 ---
 name: mastergo-mcp
-description: 配置、检查、诊断和使用 MasterGo 官方 Vibe MCP 与 Magic MCP，并可通过浏览器 window.mg 提取 Canvas 原型。用户提到 MasterGo MCP、设计稿链接转代码/DSL、读取或修改 MasterGo 画布、原型文案/便签/尺寸提取、同步 HTML、变量/组件操作、未找到活跃连接、30678 端口、MG_MCP_TOKEN，或要给 Claude Code/Codex 安装 MasterGo 时使用。
+description: 配置、检查、诊断和使用 MasterGo 官方 Vibe MCP 与 Magic MCP，并可通过浏览器 window.mg 提取 Canvas 原型。用户提到 MasterGo MCP、设计稿链接转代码/DSL、读取或修改 MasterGo 画布、原型文案/便签/尺寸提取、同步 HTML、变量/组件操作、未找到活跃连接、50678 端口、MG_MCP_TOKEN，或要给 Claude Code/Codex 安装 MasterGo 时使用。
 ---
 
 # MasterGo MCP
@@ -9,7 +9,7 @@ description: 配置、检查、诊断和使用 MasterGo 官方 Vibe MCP 与 Magi
 
 | 模式 | 用途 | 前提 |
 |---|---|---|
-| Vibe MCP | 连接本机 MasterGo，读取选区、生成/修改画布、变量与组件、HTML 双向同步 | MasterGo 客户端打开目标文件并启用 MCP；默认 `http://localhost:30678`，端口可变 |
+| Vibe MCP | 连接本机 MasterGo，读取选区、生成/修改画布、变量与组件、HTML 双向同步 | MasterGo 客户端打开目标文件并启用 MCP；默认 `http://localhost:50678`，端口可变 |
 | Magic MCP | 从 MasterGo 链接读取远程 DSL/D2C、SVG、文本和元数据 | `MG_MCP_TOKEN` 或 `MASTERGO_API_TOKEN`；团队版及团队项目文件 |
 
 ## 执行入口
@@ -44,10 +44,14 @@ node "$SKILL_DIR/scripts/mastergo-mcp.mjs" configure --mode vibe --target codex
 MG_MCP_TOKEN='从安全来源注入' node "$SKILL_DIR/scripts/mastergo-mcp.mjs" configure --mode magic --target claude
 ```
 
+- 用户请求使用 MasterGo MCP 执行实际设计任务，视为允许为当前宿主安装 Magic 和 Vibe 两套官方 MCP；仅问能力、状态或诊断时保持只读。
+- 实际任务开始前先检查当前宿主；Magic 或 Vibe 任一缺失时，分别运行对应的 `configure --mode ... --target <当前宿主>` 补齐两套，不得只安装当前任务直接用到的一套。
+- Magic 从环境变量或现有安全配置取得 Token 和实际 URL；缺少 Token 时仍先补齐 Vibe，再请用户从安全来源配置 Magic，不要让用户把 Token 发到聊天。
+- Vibe 优先使用客户端实际端口；客户端未启动、无法探测时按官方默认 `http://localhost:50678` 安装，并明确报告连接仍待客户端启用。
 - Vibe 使用 `@mastergo/vibe-mcp@latest`；端口变化时传 `--url http://localhost:<实际端口>`。
 - Magic 使用 `@mastergo/magic-mcp@latest`；公网默认 API 是 `https://mastergo.com`，私有部署必须由用户或现有配置给出 `--url`。
 - Magic Token 只能从环境变量读取。不要让用户把 Token 发到聊天，不接受 `--token`，不输出明文，不写仓库。
-- 用户明确要求安装/配置即视为允许宿主原生命令写用户级 MCP 配置；仅问状态或诊断时保持只读。写入后脚本收紧已存在的宿主配置权限。
+- 上述安装授权允许宿主原生命令写用户级 MCP 配置；写入后脚本收紧已存在的宿主配置权限。
 - 等价配置幂等退出；冲突默认停止并报告脱敏差异。只有用户明确要求覆盖或已接受该影响时使用 `--force`。
 - 不提供删除命令。确需卸载时，先确认精确宿主和 server 名，再用宿主原生命令。
 
@@ -62,7 +66,7 @@ MG_MCP_TOKEN='从安全来源注入' node "$SKILL_DIR/scripts/mastergo-mcp.mjs" 
 3. Vibe 同步接收静态 HTML；先把 Vue/React 页面运行或导出为静态 HTML，不把 `.vue`、`.tsx` 源码直接交给 MCP。
 4. Magic 先取 meta/section，再按需获取 DSL、SVG、文本；避免一次拉完整大 payload。
 5. Vibe 连接失败时停止写操作并修复连接，不得降级为 Magic 假装完成画布修改。
-6. MCP 不适合或不可用但页面已在浏览器加载时，按工作流使用 `window.mg` 只读回退脚本；普通 DOM 抓取无法读取 Canvas 画板。
+6. MCP 不适合当前目标，或按上节安装仍不可用但页面已在浏览器加载时，按工作流使用 `window.mg` 只读回退脚本；普通 DOM 抓取无法读取 Canvas 画板。
 
 ## 完成标准
 

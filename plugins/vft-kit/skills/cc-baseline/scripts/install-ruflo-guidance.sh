@@ -15,7 +15,9 @@ MARK_END='<!-- cc-baseline:ruflo-guidance:end -->'
 [ -f "$CLAUDE_MD" ] || { echo "✗ 全局规范文件不存在：$CLAUDE_MD" >&2; exit 1; }
 
 if grep -Fq "$MARK_START" "$CLAUDE_MD"; then
-  echo "✓ ruflo 规范已存在（$MARK_START），跳过"
+  # 注意必须写 ${VAR} 带花括号：紧跟全角括号「）」时，bash 会把多字节首字节当成变量名的一部分，
+  # 裸 $MARK_START 在 set -u 下报 `MARK_START\xef: unbound variable` 而整脚本以 1 退出。
+  echo "✓ ruflo 规范已存在（${MARK_START}），跳过"
   exit 0
 fi
 
@@ -33,7 +35,7 @@ cat >> "$CLAUDE_MD" <<'RUFLO_GUIDANCE'
 
 **命令入口**：装的是 `@claude-flow/cli`（建议 volta 管理），可执行文件叫 **`claude-flow`**。`ruflo` 这个命令不存在，写成 `ruflo xxx` 会 command not found。MCP 注册名同样是 `claude-flow`（工具前缀 `mcp__claude-flow__*`）。
 
-### swarm — 只在子 agent 需要互看产物时用
+### ruflo swarm — 只在子 agent 需要互看产物时用
 分流判据：**子项互不相干走原生 Agent 扇出（一条消息多个 Agent 调用），子项要互相看才用 swarm**。swarm 唯一不可替代之处是共享记忆池——agent A 写入的中间结论，agent B 能读到；原生 subagent 各自上下文独立，看不到对方。
 
 ```bash

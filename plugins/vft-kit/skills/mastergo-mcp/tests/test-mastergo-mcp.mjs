@@ -9,6 +9,7 @@ import vm from 'node:vm';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const cli = path.resolve(here, '../scripts/mastergo-mcp.mjs');
+const skill = path.resolve(here, '../SKILL.md');
 
 function runBrowserSnippet(name, mg, transform = (source) => source) {
   const source = fs.readFileSync(path.resolve(here, `../scripts/${name}`), 'utf8');
@@ -100,6 +101,13 @@ function codexConfig(args, env = {}) {
   return { enabled: true, transport: { type: 'stdio', command: 'npx', args, env } };
 }
 
+test('SKILL 要求实际任务默认补齐 Magic 和 Vibe 两套官方 MCP', () => {
+  const source = fs.readFileSync(skill, 'utf8');
+  assert.match(source, /请求使用 MasterGo MCP.*Magic 和 Vibe 两套官方 MCP/);
+  assert.match(source, /任一缺失.*补齐两套/);
+  assert.doesNotMatch(source, /只安装当前任务需要的模式/);
+});
+
 test('status 同时检查两套宿主且缺失时返回非零', () => {
   const f = fixture();
   try {
@@ -112,19 +120,19 @@ test('status 同时检查两套宿主且缺失时返回非零', () => {
   } finally { f.cleanup(); }
 });
 
-test('configure vibe 使用官方包和当前默认端口，只修改点名宿主', () => {
+test('configure vibe 使用官方包和官方默认端口，只修改点名宿主', () => {
   const f = fixture();
   try {
     const result = f.run(['configure', '--mode', 'vibe', '--target', 'codex']);
     assert.equal(result.status, 0, result.stderr);
     const add = f.calls().find((call) => call.host === 'codex' && call.args[1] === 'add');
-    assert.deepEqual(add.args, ['mcp', 'add', 'mastergo', '--', 'npx', '-y', '@mastergo/vibe-mcp@latest', '--url=http://localhost:30678']);
+    assert.deepEqual(add.args, ['mcp', 'add', 'mastergo', '--', 'npx', '-y', '@mastergo/vibe-mcp@latest', '--url=http://localhost:50678']);
     assert.equal(f.calls().some((call) => call.host === 'claude'), false);
   } finally { f.cleanup(); }
 });
 
 test('等价配置幂等退出，不重复 add', () => {
-  const f = fixture({ codex: { mastergo: codexConfig(['-y', '@mastergo/vibe-mcp@latest', '--url', 'http://localhost:30678']) } });
+  const f = fixture({ codex: { mastergo: codexConfig(['-y', '@mastergo/vibe-mcp@latest', '--url', 'http://localhost:50678']) } });
   try {
     const result = f.run(['configure', '--mode', 'vibe', '--target', 'codex']);
     assert.equal(result.status, 0, result.stderr);
@@ -224,7 +232,7 @@ test('Claude 官方 --token 配置正确识别凭据、scope 和实际 health', 
 });
 
 test('status 区分 disabled、损坏配置与查询失败', () => {
-  const disabled = fixture({ codex: { mastergo: { ...codexConfig(['-y', '@mastergo/vibe-mcp@latest', '--url=http://localhost:30678']), enabled: false }, 'mastergo-magic-mcp': '__INVALID_JSON__' } });
+  const disabled = fixture({ codex: { mastergo: { ...codexConfig(['-y', '@mastergo/vibe-mcp@latest', '--url=http://localhost:50678']), enabled: false }, 'mastergo-magic-mcp': '__INVALID_JSON__' } });
   try {
     const result = disabled.run(['status', '--target', 'codex']);
     assert.equal(result.status, 1);
@@ -273,7 +281,7 @@ test('损坏配置即使 force 也停止，不猜测重建', () => {
 });
 
 test('包名藏在非 npx 命令参数中不算官方配置', () => {
-  const f = fixture({ codex: { mastergo: { enabled: true, transport: { type: 'stdio', command: 'evil-runner', args: ['@mastergo/vibe-mcp@latest', '--url=http://localhost:30678'], env: {} } } } });
+  const f = fixture({ codex: { mastergo: { enabled: true, transport: { type: 'stdio', command: 'evil-runner', args: ['@mastergo/vibe-mcp@latest', '--url=http://localhost:50678'], env: {} } } } });
   try {
     const status = f.run(['status', '--target', 'codex']);
     assert.match(status.stdout, /codex vibe installed package=other/);

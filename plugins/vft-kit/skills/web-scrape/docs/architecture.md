@@ -1,4 +1,4 @@
-# smart-web-scrape 架构设计
+# web-scrape 架构设计
 
 ## 系统架构
 
@@ -21,8 +21,8 @@
               │                   │                  │
               ▼                   ▼                  ▼
 ┌─────────────────────┐ ┌──────────────────┐ ┌────────────────────┐
-│ Scrapling Worker    │ │ Crawl4AI Worker  │ │ Playwright (vft-ai)│
-│ (scrapling-worker.py)│ │(crawl4ai-worker.py)│ │  web-scrape        │
+│ Scrapling Worker    │ │ Crawl4AI Worker  │ │ Playwright Worker  │
+│ (scrapling-worker.py)│ │(crawl4ai-worker.py)│ │(playwright-worker) │
 │                     │ │                  │ │                    │
 │ • 自适应解析         │ │ • fit_markdown   │ │ • 完整渲染          │
 │ • Stealth 模式       │ │ • BM25 过滤      │ │ • 资源下载          │
@@ -65,7 +65,7 @@ checkDependencies(tool)  // 检查 Python 依赖
 executeWithFallback()    // 执行 + 失败重试
 runScrapling()           // 调用 Scrapling Worker
 runCrawl4AI()            // 调用 Crawl4AI Worker
-runPlaywright()          // 调用 Playwright（vft-ai）
+runPlaywright()          // 调用本地 Playwright Worker
 ```
 
 **技术栈**：
@@ -125,7 +125,7 @@ async with AsyncWebCrawler() as crawler:
 - Playwright (底层)
 - 异步 asyncio
 
-### 4. Playwright Adapter (vft-ai:web-scrape)
+### 4. Playwright Adapter
 
 **职责**：
 - 完整页面渲染
@@ -136,8 +136,7 @@ async with AsyncWebCrawler() as crawler:
 **集成方式**：
 ```javascript
 // scrape.mjs 中调用
-const vftAiSkillDir = join(__dirname, '../../../../../vft-ai/skills/web-scrape');
-const scrapeScript = join(vftAiSkillDir, 'scripts/scrape.mjs');
+const scrapeScript = join(__dirname, 'playwright-worker.mjs');
 spawn('node', [scrapeScript, url, ...args]);
 ```
 
@@ -329,7 +328,7 @@ spawn(CONFIG.pythonCmd, [...]);  // 自动使用 venv
 // 所有工具失败
 ❌ 所有工具都失败了:
   - scrapling: Scrapling 失败，退出码: 1
-  - playwright: vft-ai:web-scrape 不可用（未找到脚本）
+  - playwright: Playwright worker 不可用（未找到脚本）
   - crawl4ai: 缺少依赖: crawl4ai
 ```
 
@@ -479,7 +478,7 @@ writeFileSync(configPath, JSON.stringify({
 ### 进度输出
 
 ```javascript
-console.log('🕷️  smart-web-scrape\n');
+console.log('🕷️  web-scrape\n');
 console.log(`URL: ${url}`);
 console.log('🎯 检测到 LLM/Markdown 意图 → Crawl4AI');
 console.log('\n🚀 使用 Crawl4AI 抓取...\n');

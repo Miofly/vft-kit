@@ -10,7 +10,7 @@ const MODES = {
   vibe: {
     name: 'mastergo',
     package: '@mastergo/vibe-mcp@latest',
-    url: 'http://localhost:30678',
+    url: 'http://localhost:50678',
   },
   magic: {
     name: 'mastergo-magic-mcp',

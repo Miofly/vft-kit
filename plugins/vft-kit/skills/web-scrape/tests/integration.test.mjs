@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 集成测试 - smart-web-scrape
+ * 集成测试 - web-scrape
  * 测试场景识别、工具选择、fallback 机制
  */
 
@@ -179,7 +179,7 @@ function runTest(testCase, deps) {
 
 // 主测试流程
 function main() {
-  log('\n🧪 smart-web-scrape 集成测试\n', 'cyan');
+  log('\n🧪 web-scrape 集成测试\n', 'cyan');
 
   // 检查依赖
   log('检查 Python 依赖...', 'reset');

@@ -1,10 +1,10 @@
 ---
-name: smart-web-scrape
+name: web-scrape
 description: 智能网页抓取与场景路由工具，按需求选择 Scrapling、Crawl4AI 或 Playwright。用户要求抓取网页、提取 Markdown、深度爬取、处理 Cloudflare、自适应解析、下载渲染资源、截图或分析 XHR/API 请求时使用。
 compatibility: Requires Node.js 18+ and Python 3.8+; Scrapling, Crawl4AI, and Playwright are optional runtime dependencies.
 ---
 
-# smart-web-scrape
+# web-scrape
 
 智能网页抓取工具，根据场景自动选择最佳抓取策略：
 
@@ -28,7 +28,7 @@ compatibility: Requires Node.js 18+ and Python 3.8+; Scrapling, Crawl4AI, and Pl
 ### 必需
 - **Node.js** ≥ 18（运行调度脚本）
 - **Python** ≥ 3.8（Scrapling / Crawl4AI）
-- **Playwright** 全局安装（fallback 到 vft-ai:web-scrape）
+- **Playwright** 全局安装（由本 skill 的本地 worker 调用）
 
 ### Python 依赖（自动检测并提示安装）
 ```bash
@@ -74,14 +74,14 @@ playwright install chromium  # Crawl4AI 需要
 
 ```bash
 # 在 vft-kit 项目根目录
-SKILL_DIR="plugins/vft-kit/skills/smart-web-scrape"
+SKILL_DIR="plugins/vft-kit/skills/web-scrape"
 node "$SKILL_DIR/scripts/scrape.mjs" <url> [options]
 ```
 
 或通过 Claude Code skill：
 
 ```text
-用 smart-web-scrape 抓取 https://example.com 并转成 Markdown
+用 web-scrape 抓取 https://example.com 并转成 Markdown
 ```
 
 ### 选项
@@ -207,7 +207,7 @@ node "$SKILL_DIR/scripts/scrape.mjs" https://blog.example.com/post/123 \
 脚本首次运行会检测依赖，缺失时输出：
 
 ```
-[smart-web-scrape] 缺少 Python 依赖，请运行：
+[web-scrape] 缺少 Python 依赖，请运行：
 
   pip install scrapling crawl4ai playwright
   playwright install chromium
@@ -227,7 +227,7 @@ node "$SKILL_DIR/scripts/scrape.mjs" https://blog.example.com/post/123 \
 ```typescript
 // 在其他 skill 中调用
 const { execSync } = require('child_process');
-const skillDir = '/path/to/vft-kit/plugins/vft-kit/skills/smart-web-scrape';
+const skillDir = '/path/to/vft-kit/plugins/vft-kit/skills/web-scrape';
 
 const result = execSync(
   `node ${skillDir}/scripts/scrape.mjs ${url} --format markdown --out ${outDir}`,
@@ -271,7 +271,7 @@ node "$SKILL_DIR/scripts/scrape.mjs" <url> --tool scrapling --adaptive
 playwright install chromium
 ```
 
-或指定全局 Playwright 路径（见 vft-ai:web-scrape 的依赖解析逻辑）。
+脚本会自动回退到全局 npm 安装路径解析 Playwright。
 
 ## 安全注意事项
 
@@ -348,7 +348,6 @@ Crawl4AI (重度反检测)
 
 ## 相关文档
 
-- [vft-ai:web-scrape](../../vft-ai/skills/web-scrape/SKILL.md) - 原始 Playwright 实现
 - [Scrapling 官方文档](https://scrapling.readthedocs.io)
 - [Crawl4AI 官方文档](https://crawl4ai.com)
 - [场景选择算法详解](docs/tool-selection.md)（TODO）

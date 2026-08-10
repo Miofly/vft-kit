@@ -1,4 +1,4 @@
-# 🎉 smart-web-scrape 项目交付总结
+# 🎉 web-scrape 项目交付总结
 
 ## ✅ 交付成果
 
@@ -61,9 +61,9 @@ if (intent.includes("资源") || intent.includes("接口"))
 Scrapling → Playwright → Crawl4AI
 ```
 
-### 4. 与 vft-ai:web-scrape 集成
+### 4. 内置 Playwright Worker
 
-复用现有 Playwright 实现，零重复代码 ✅
+公版自包含 Playwright 实现，不依赖私有仓库 ✅
 
 ---
 
@@ -143,7 +143,7 @@ node scripts/scrape.mjs https://app.example.com --tool playwright
 ## 📚 文档结构
 
 ```
-smart-web-scrape/
+web-scrape/
 ├── README.md              # 📖 项目总结（本文件）
 ├── SKILL.md               # 📘 完整功能文档
 ├── QUICKSTART.md          # 🚀 快速开始
@@ -170,7 +170,7 @@ smart-web-scrape/
 ### Step 1：安装依赖
 
 ```bash
-cd /Users/wfly/Documents/code/wfly/bolierplate/project/vft-kit/plugins/vft-kit/skills/smart-web-scrape
+cd /Users/wfly/Documents/code/wfly/bolierplate/project/vft-kit/plugins/vft-kit/skills/web-scrape
 ./install-deps.sh
 ```
 
@@ -193,7 +193,7 @@ node tests/integration.test.mjs
 node scripts/scrape.mjs https://docs.python.org
 
 # 在 Claude Code 中
-对 Claude 说："用 smart-web-scrape 抓取 https://example.com"
+对 Claude 说："用 web-scrape 抓取 https://example.com"
 ```
 
 ---
@@ -285,7 +285,7 @@ node scripts/scrape.mjs https://app.example.com \
 
 ## 💡 设计理念
 
-1. **零重复造轮子**：复用 vft-ai:web-scrape
+1. **依赖方向清晰**：公版自包含，私版只做增量
 2. **智能决策**：多维度场景识别
 3. **优雅降级**：Fallback 链保证成功
 4. **依赖隔离**：venv 避免污染
@@ -352,7 +352,6 @@ playwright install chromium
 - [Scrapling 文档](https://scrapling.readthedocs.io)
 - [Crawl4AI GitHub](https://github.com/unclecode/crawl4ai)
 - [Playwright 文档](https://playwright.dev)
-- [vft-ai:web-scrape 源码](../../../../../vft-ai/skills/web-scrape/)
 
 ---
 
@@ -371,4 +370,4 @@ playwright install chromium
 
 ---
 
-**🎉 恭喜！smart-web-scrape skill 已准备就绪！**
+**🎉 恭喜！web-scrape skill 已准备就绪！**
