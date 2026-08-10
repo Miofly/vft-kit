@@ -241,7 +241,7 @@ status=$?
 set -e
 [ "$status" -eq 1 ] || { printf 'FAIL: obsolete CodeGraph update policy should fail\n' >&2; exit 1; }
 grep -Fq 'CodeGraph 索引刷新规范' <<< "$output" || { printf 'FAIL: obsolete CodeGraph policy not reported\n' >&2; exit 1; }
-grep -Fq "sed -i.bak 's/codegraph update/codegraph sync/g'" <<< "$output" || { printf 'FAIL: executable CodeGraph policy repair missing\n' >&2; exit 1; }
+grep -Fq "sed -i.bak -e 's/codegraph update/codegraph sync/g'" <<< "$output" || { printf 'FAIL: executable CodeGraph policy repair missing\n' >&2; exit 1; }
 grep -Fq 'codegraph index -f' <<< "$output" || { printf 'FAIL: full CodeGraph rebuild command missing\n' >&2; exit 1; }
 mv "$TEST_CODEX_HOME/AGENTS.md.bak" "$TEST_CODEX_HOME/AGENTS.md"
 

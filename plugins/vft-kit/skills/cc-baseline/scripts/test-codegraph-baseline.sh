@@ -18,6 +18,7 @@ output="$(HOME="$tmp/home" PATH="$tmp/bin:$PATH" bash "$DIR/check.sh" 2>&1 || tr
 printf '%s' "$output" | grep -q '✗.*CodeGraph 自动初始化规范'
 printf '%s' "$output" | grep -q 'codegraph sync'
 printf '%s' "$output" | grep -q 'codegraph index -f'
+printf '%s' "$output" | grep -q 'sed -i.bak'
 
 ! grep -q 'volta list all.*@colbymchenry/codegraph' "$DIR/check.sh"
 ! grep -q 'codegraph.*volta install @colbymchenry/codegraph' "$DIR/check.sh"

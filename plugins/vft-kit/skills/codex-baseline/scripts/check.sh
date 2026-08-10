@@ -177,7 +177,7 @@ agents_has_codegraph_policy(){
   agents_has 'codegraph.*自动|\.codegraph.*自动建立|自动.*codegraph.*索引|codegraph.*新项目' || return 1
   agents_has 'codegraph[[:space:]]+sync' || return 1
   agents_has 'codegraph[[:space:]]+index[[:space:]]+-f' || return 1
-  ! agents_has 'codegraph[[:space:]]+update'
+  ! agents_has 'codegraph[[:space:]]+update|codegraph[[:space:]]+init[[:space:]]+--force'
 }
 global_skill_exists(){
   [ -f "$CODEX_HOME/skills/$1/SKILL.md" ] || [ -f "$HOME/.agents/skills/$1/SKILL.md" ]
@@ -363,7 +363,7 @@ agents_has '上下文压缩|压缩取舍|保留决策和状态' && ok "全局规
 agents_has '代理兜底|走代理重试|外网.*代理|127\.0\.0\.1:78|http\.proxy|https_proxy' && ok "全局规范含「外网操作代理兜底」" || bad "代理兜底规范" $'printf \'\\n- 外网操作连不通或慢得反常时，先复用 https_proxy/http_proxy/all_proxy；没有则探测常见本地代理端口，再用 curl -x、git -c http.proxy 或环境变量走代理重试。\\n\' >> ~/.codex/AGENTS.md'
 agents_has_parallel_policy && ok "全局规范含「多 Agent 并行执行」" || bad "多 Agent 并行规范" $'cat >> ~/.codex/AGENTS.md <<\'RULE\'\n\n## 多 Agent 并行执行（默认并行，能加速就上）\n\n收到任务先判断能否拆成至少 2 个互不依赖、边界清晰的工作流；能拆就立即使用 Codex 子 Agent 并行执行，不等用户提醒。数量词（每个、所有、批量、一批、分别、多个、全部、整个）、重复动作、多文件、多模块、多目标调研、批量整改和多视角复核都是触发信号。单个小任务直接处理；强依赖链串行或只并行其中无依赖部分。\n\n编排时连续调用 `spawn_agent` 启动多个子 Agent，不逐个等待；每个子 Agent 只接一个具体、可独立验收的任务，并明确目录、文件或问题边界。子 Agent 与主 Agent 共享工作区，必须分配互不重叠的文件所有权，禁止多个 Agent 同时修改同一文件。主 Agent 同时继续可独立推进的工作，之后用协作工具收集结果；需要补充工作时复用已有 Agent。\n\n主 Agent 负责汇总结论、检查共享工作区改动、处理冲突并运行最终整体验证。子 Agent 回传精炼结论和验证结果，不把大段原始文件内容塞回主上下文。\nRULE'
 if has_cmd codegraph; then
-  agents_has_codegraph_policy && ok "全局规范含「CodeGraph 自动初始化与索引刷新」" || bad "CodeGraph 索引刷新规范" $'sed -i.bak \'s/codegraph update/codegraph sync/g\' ~/.codex/AGENTS.md && printf \'\\n- CodeGraph 完整重建使用 codegraph index -f。\\n\' >> ~/.codex/AGENTS.md'
+  agents_has_codegraph_policy && ok "全局规范含「CodeGraph 自动初始化与索引刷新」" || bad "CodeGraph 索引刷新规范" $'sed -i.bak -e \'s/codegraph update/codegraph sync/g\' -e \'s/codegraph init --force/codegraph index -f/g\' ~/.codex/AGENTS.md && printf \'\\n- 进入代码项目时，没有 .codegraph 就执行 codegraph init；已有索引执行 codegraph sync，完整重建执行 codegraph index -f。\\n\' >> ~/.codex/AGENTS.md'
 else
   ok "CodeGraph 自动初始化规范（codegraph 未装，无需配置）"
 fi
