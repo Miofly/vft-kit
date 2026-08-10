@@ -1,0 +1,4 @@
+interface:
+  display_name: "MasterGo MCP"
+  short_description: "配置、诊断并使用 MasterGo Vibe 与 Magic MCP"
+  default_prompt: "使用 $mastergo-mcp 检查并配置 MasterGo MCP。"
