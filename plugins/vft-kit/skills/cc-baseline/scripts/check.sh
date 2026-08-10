@@ -76,6 +76,15 @@ plugin_installed(){
   done
   return 1
 }
+# Caveman 必须由插件的 SessionStart hook 自动注入，并显式固定用户默认档为 full。
+caveman_default_full(){
+  local config="$HOME/.config/caveman/config.json" plugin_path
+  [ -f "$config" ] || return 1
+  node -e "const j=require(process.argv[1]);process.exit(j.defaultMode==='full'?0:1)" "$config" 2>/dev/null || return 1
+  plugin_path="$(node -e "const j=require(process.argv[1]).plugins||{};const v=Object.entries(j).find(([k])=>k.split('@')[0]==='caveman');const x=v&&Array.isArray(v[1])?v[1][0]:null;process.stdout.write(x&&x.installPath||'')" "$INSTALLED_PLUGINS" 2>/dev/null)"
+  [ -n "$plugin_path" ] || return 1
+  node -e "const j=require(process.argv[1]);const s=JSON.stringify(j.hooks&&j.hooks.SessionStart||[]);process.exit(/caveman-activate/.test(s)?0:1)" "$plugin_path/.claude-plugin/plugin.json" 2>/dev/null
+}
 # 全局 npm 包是否装（查 node_modules 目录，比 npm ls 快）
 npm_g_installed(){ [ -n "$NPM_ROOT" ] && [ -d "$NPM_ROOT/$1" ]; }
 # settings.json 里某个 hook 命令是否含关键字
@@ -293,6 +302,7 @@ for p in superpowers skill-creator code-review frontend-design playwright \
     esac
   fi
 done
+caveman_default_full && ok "Caveman 默认 full 自动启用" || bad "Caveman 默认 full 自动启用" "bash \"$SCRIPT_DIR/install-caveman-default.sh\""
 # 可选插件（装了更好，不装不算故障）
 for p in context7 vercel; do
   if plugin_installed "$p"; then ok "$p"; else opt "$p" "claude plugin install $p@claude-plugins-official"; fi

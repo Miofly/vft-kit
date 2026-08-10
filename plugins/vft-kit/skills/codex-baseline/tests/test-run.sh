@@ -26,10 +26,15 @@ cat > "$TMP_ROOT/agents-ok.sh" <<'EOF'
 printf 'agents-ran\n'
 exit 0
 EOF
-chmod +x "$TMP_ROOT/sync-fails.sh" "$TMP_ROOT/check-fails.sh" "$TMP_ROOT/prep-ok.sh" "$TMP_ROOT/agents-ok.sh"
+cat > "$TMP_ROOT/caveman-ok.sh" <<'EOF'
+#!/usr/bin/env bash
+printf 'caveman-ran\n'
+exit 0
+EOF
+chmod +x "$TMP_ROOT/sync-fails.sh" "$TMP_ROOT/check-fails.sh" "$TMP_ROOT/prep-ok.sh" "$TMP_ROOT/agents-ok.sh" "$TMP_ROOT/caveman-ok.sh"
 
 set +e
-output="$(SYNC_SCRIPT="$TMP_ROOT/sync-fails.sh" IMAGEGEN_PREP_SCRIPT="$TMP_ROOT/prep-ok.sh" IMAGEGEN_AGENTS_SCRIPT="$TMP_ROOT/agents-ok.sh" CHECK_SCRIPT="$TMP_ROOT/check-fails.sh" bash "$RUN_SCRIPT" --health 2>&1)"
+output="$(SYNC_SCRIPT="$TMP_ROOT/sync-fails.sh" IMAGEGEN_PREP_SCRIPT="$TMP_ROOT/prep-ok.sh" IMAGEGEN_AGENTS_SCRIPT="$TMP_ROOT/agents-ok.sh" CAVEMAN_SCRIPT="$TMP_ROOT/caveman-ok.sh" CHECK_SCRIPT="$TMP_ROOT/check-fails.sh" bash "$RUN_SCRIPT" --health 2>&1)"
 status=$?
 set -e
 
@@ -37,6 +42,7 @@ set -e
 grep -Fq 'check-ran' <<< "$output" || { printf 'FAIL: checker did not run\n' >&2; exit 1; }
 grep -Fq 'prep-ran' <<< "$output" || { printf 'FAIL: imagegen prep did not run\n' >&2; exit 1; }
 grep -Fq 'agents-ran' <<< "$output" || { printf 'FAIL: imagegen agents rule did not run\n' >&2; exit 1; }
+grep -Fq 'caveman-ran' <<< "$output" || { printf 'FAIL: Caveman default installer did not run\n' >&2; exit 1; }
 grep -Fq 'check-args:--health' <<< "$output" || { printf 'FAIL: checker arguments were not forwarded\n' >&2; exit 1; }
 grep -Fq '同步异常' <<< "$output" || { printf 'FAIL: sync warning absent\n' >&2; exit 1; }
 

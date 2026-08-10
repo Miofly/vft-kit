@@ -179,6 +179,10 @@ agents_has_codegraph_policy(){
   agents_has 'codegraph[[:space:]]+index[[:space:]]+-f' || return 1
   ! agents_has 'codegraph[[:space:]]+update|codegraph[[:space:]]+init[[:space:]]+--force'
 }
+agents_has_caveman_default(){
+  agents_has 'Caveman.*默认.*full|caveman.*default.*full' || return 1
+  agents_has '新会话|每个会话|SessionStart|session'
+}
 global_skill_exists(){
   [ -f "$CODEX_HOME/skills/$1/SKILL.md" ] || [ -f "$HOME/.agents/skills/$1/SKILL.md" ]
 }
@@ -339,6 +343,7 @@ check_plugin "context-mode@context-mode" required "codex plugin marketplace add 
 
 sec "兼容 Agent Skills"
 global_skill_exists "caveman" && ok "caveman skill" || bad "caveman skill" "npx skills add JuliusBrussee/caveman -a codex"
+agents_has_caveman_default && ok "Caveman 默认 full 自动启用" || bad "Caveman 默认 full 自动启用" "bash \"$SCRIPT_DIR/install-caveman-default.sh\""
 gsap_skills_installed && ok "GSAP 官方 skills（8 项）" || bad "GSAP 官方 skills" "npx skills add https://github.com/greensock/gsap-skills --agent codex"
 global_skill_exists "anysearch" && ok "anysearch skill（联网实时搜索）" || opt "anysearch skill" "bash \"$SCRIPT_DIR/install-anysearch.sh\""
 global_skill_exists "grill-me" && ok "grill-me skill（深度访谈）" || opt "grill-me skill" "npx skills add mattpocock/skills --skill grill-me --agent codex --global --yes"
