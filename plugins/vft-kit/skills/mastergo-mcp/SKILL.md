@@ -1,6 +1,6 @@
 ---
 name: mastergo-mcp
-description: 配置、检查、诊断和使用 MasterGo 官方 Vibe MCP 与 Magic MCP。用户提到 MasterGo MCP、设计稿链接转代码/DSL、读取或修改 MasterGo 画布、同步 HTML、变量/组件操作、未找到活跃连接、30678 端口、MG_MCP_TOKEN，或要给 Claude Code/Codex 安装 MasterGo 时使用。
+description: 配置、检查、诊断和使用 MasterGo 官方 Vibe MCP 与 Magic MCP，并可通过浏览器 window.mg 提取 Canvas 原型。用户提到 MasterGo MCP、设计稿链接转代码/DSL、读取或修改 MasterGo 画布、原型文案/便签/尺寸提取、同步 HTML、变量/组件操作、未找到活跃连接、30678 端口、MG_MCP_TOKEN，或要给 Claude Code/Codex 安装 MasterGo 时使用。
 ---
 
 # MasterGo MCP
@@ -62,6 +62,7 @@ MG_MCP_TOKEN='从安全来源注入' node "$SKILL_DIR/scripts/mastergo-mcp.mjs" 
 3. Vibe 同步接收静态 HTML；先把 Vue/React 页面运行或导出为静态 HTML，不把 `.vue`、`.tsx` 源码直接交给 MCP。
 4. Magic 先取 meta/section，再按需获取 DSL、SVG、文本；避免一次拉完整大 payload。
 5. Vibe 连接失败时停止写操作并修复连接，不得降级为 Magic 假装完成画布修改。
+6. MCP 不适合或不可用但页面已在浏览器加载时，按工作流使用 `window.mg` 只读回退脚本；普通 DOM 抓取无法读取 Canvas 画板。
 
 ## 完成标准
 

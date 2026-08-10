@@ -5,9 +5,15 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import vm from 'node:vm';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const cli = path.resolve(here, '../scripts/mastergo-mcp.mjs');
+
+function runBrowserSnippet(name, mg, transform = (source) => source) {
+  const source = fs.readFileSync(path.resolve(here, `../scripts/${name}`), 'utf8');
+  return vm.runInNewContext(`(${transform(source)})()`, { window: { mg, location: { pathname: '/prototyping/demo' } } });
+}
 
 function fixture(state = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'mastergo-mcp-test-'));
@@ -309,4 +315,84 @@ test('Magic Token 等值时幂等，轮换必须显式 force', () => {
     assert.ok(mutation[1].args.includes(`MG_MCP_TOKEN=${newToken}`));
     assert.doesNotMatch(result.stdout + result.stderr, new RegExp(`${oldToken}|${newToken}`));
   } finally { forced.cleanup(); }
+});
+
+test('浏览器回退脚本枚举画板并过滤连接线', () => {
+  const board = { id: '2:1', name: '登录页', type: 'FRAME', width: 1080, height: 1920 };
+  const connector = { id: '2:2', name: '跳转', type: 'CONNECTOR' };
+  const wrapper = { id: '1:1', name: '原型流程', type: 'FRAME', children: [board, connector] };
+  const result = runBrowserSnippet('enumerate-containers.js', {
+    documentId: 'doc-1',
+    document: { currentPage: { id: '0:1' }, children: [{ id: '0:1', name: '页面 1', children: [wrapper] }] },
+  }, (source) => source.replace('const DRILL_SINGLE_WRAPPER = false;', 'const DRILL_SINGLE_WRAPPER = true;'));
+  assert.equal(result.documentId, 'doc-1');
+  assert.equal(result.pages[0].dug, true);
+  assert.deepEqual(Array.from(result.pages[0].children, (item) => item.name), ['登录页']);
+});
+
+test('浏览器回退脚本按画板提取递归文本', () => {
+  const result = runBrowserSnippet('extract-text.js', {
+    documentId: 'doc-2',
+    document: {
+      children: [{
+        id: '0:1', name: '需求', children: [{
+          id: '1:1', name: '容器', type: 'FRAME', children: [
+            { id: '2:1', name: '首页', type: 'FRAME', children: [{ type: 'TEXT', characters: '欢迎回来' }] },
+            { id: '2:2', name: '批注', type: 'SHAPE_WITH_TEXT', characters: '点击后登录' },
+          ],
+        }],
+      }],
+    },
+  }, (source) => source.replace('const DRILL_SINGLE_WRAPPER = false;', 'const DRILL_SINGLE_WRAPPER = true;'));
+  assert.deepEqual(Array.from(result.pages[0].boards[0].texts), ['欢迎回来']);
+  assert.deepEqual(Array.from(result.pages[0].boards[1].texts), ['点击后登录']);
+});
+
+test('原型单画板默认不误钻层', () => {
+  const singleBoard = {
+    id: '1:1', name: '唯一画板', type: 'FRAME', children: [
+      { id: '2:1', name: '标题', type: 'TEXT', characters: '欢迎' },
+      { id: '2:2', name: '按钮', type: 'TEXT', characters: '开始' },
+    ],
+  };
+  const mg = { documentId: 'doc-3', document: { children: [{ id: '0:1', name: '单页', children: [singleBoard] }] } };
+  const containers = runBrowserSnippet('enumerate-containers.js', mg);
+  assert.equal(containers.pages[0].dug, false);
+  assert.deepEqual(Array.from(containers.pages[0].children, (item) => item.name), ['唯一画板']);
+  assert.deepEqual(Array.from(containers.pages[0].nestedCandidate.children, (item) => item.name), ['标题', '按钮']);
+  const texts = runBrowserSnippet('extract-text.js', mg);
+  assert.equal(texts.pages[0].dug, false);
+  assert.equal(texts.pages[0].boards.length, 1);
+  assert.deepEqual(Array.from(texts.pages[0].boards[0].texts), ['欢迎', '开始']);
+});
+
+test('布局脚本无硬编码画板，并以 bbox 尺寸计算直接子级间距', () => {
+  const board = {
+    id: '9:9', name: '详情页', type: 'FRAME', width: 1080, height: 1920,
+    absoluteBoundingBox: { x: 100, y: 200, width: 1080, height: 1920 },
+    children: [
+      { id: '9:10', name: '头部', type: 'FRAME', absoluteBoundingBox: { x: 124, y: 220, width: 1032, height: 100 } },
+      { id: '9:11', name: '正文', type: 'FRAME', absoluteBoundingBox: { x: 124, y: 340, width: 1032, height: 200 } },
+    ],
+  };
+  const missing = runBrowserSnippet('measure-layout.js', { getNodeById: () => null });
+  assert.match(missing.error, /BOARD_ID/);
+  const result = runBrowserSnippet('measure-layout.js', { getNodeById: (id) => id === board.id ? board : null },
+    (source) => source.replace("const BOARD_ID = '';", "const BOARD_ID = '9:9';"));
+  assert.equal(result.w, 1080);
+  assert.equal(result.blocks[0].w, 1032);
+  assert.equal(result.leftPadding, 24);
+  assert.equal(result.gaps[0].gap, 20);
+
+  const horizontalBoard = {
+    id: '8:8', name: '横排', type: 'FRAME', width: 300, height: 100,
+    absoluteBoundingBox: { x: 0, y: 0, width: 300, height: 100 },
+    children: [
+      { id: '8:9', name: '左', type: 'FRAME', absoluteBoundingBox: { x: 0, y: 0, width: 100, height: 100 } },
+      { id: '8:10', name: '右', type: 'FRAME', absoluteBoundingBox: { x: 200, y: 0, width: 100, height: 100 } },
+    ],
+  };
+  const horizontal = runBrowserSnippet('measure-layout.js', { getNodeById: () => horizontalBoard },
+    (source) => source.replace("const BOARD_ID = '';", "const BOARD_ID = '8:8';"));
+  assert.equal(horizontal.gaps.length, 0);
 });
