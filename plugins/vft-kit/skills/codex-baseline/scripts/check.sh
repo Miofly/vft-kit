@@ -21,6 +21,7 @@ MCP_HEALTH_SCRIPT="${MCP_HEALTH_SCRIPT:-$SCRIPT_DIR/check-mcp-health.mjs}"
 CODEX_STATE_SCRIPT="${CODEX_STATE_SCRIPT:-$SCRIPT_DIR/inspect-codex-state.mjs}"
 CODEX_STATE_NODE="${CODEX_STATE_NODE:-node}"
 RTK_MD="$CODEX_HOME/RTK.md"
+CODEGRAPH_INSTALL='curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh'
 
 pass=0; fail=0; warn=0; declined=0
 
@@ -59,7 +60,6 @@ codex_feature_enabled(){
   codex features list 2>/dev/null | awk -v feature="$1" '$1 == feature && $NF == "true" { found=1 } END { exit found?0:1 }'
 }
 npm_g_installed(){ [ -n "$NPM_ROOT" ] && [ -d "$NPM_ROOT/$1" ]; }
-volta_pkg_installed(){ has_cmd volta && volta list all 2>/dev/null | grep -Fq "package $1"; }
 cfg_has_line(){
   [ -f "$CONFIG" ] || return 1
   grep -Eq "$1" "$CONFIG"
@@ -173,6 +173,12 @@ agents_has_parallel_policy(){
   grep -Eiq '共享.*工作区|文件.*重叠|所有权|同一文件|互不重叠' "$AGENTS" || return 1
   grep -Eiq '主.*汇总|结论汇总|最终验证|整合' "$AGENTS"
 }
+agents_has_codegraph_policy(){
+  agents_has 'codegraph.*自动|\.codegraph.*自动建立|自动.*codegraph.*索引|codegraph.*新项目' || return 1
+  agents_has 'codegraph[[:space:]]+sync' || return 1
+  agents_has 'codegraph[[:space:]]+index[[:space:]]+-f' || return 1
+  ! agents_has 'codegraph[[:space:]]+update'
+}
 global_skill_exists(){
   [ -f "$CODEX_HOME/skills/$1/SKILL.md" ] || [ -f "$HOME/.agents/skills/$1/SKILL.md" ]
 }
@@ -278,12 +284,11 @@ fi
 chromium_installed && ok "Playwright Chromium 内核" || bad "Playwright Chromium 内核" "npx --yes playwright install chromium"
 
 sec "代码与审计 MCP（必需）"
-if volta_pkg_installed "@colbymchenry/codegraph"; then ok "@colbymchenry/codegraph（Volta）"; else bad "@colbymchenry/codegraph" "volta install @colbymchenry/codegraph"; fi
 if npm_g_installed "@danielsogl/lighthouse-mcp"; then ok "@danielsogl/lighthouse-mcp"; else bad "@danielsogl/lighthouse-mcp" "npm i -g @danielsogl/lighthouse-mcp"; fi
-if has_cmd codegraph; then ok "codegraph CLI ($(codegraph -V 2>/dev/null))"; else bad "codegraph CLI" "volta install @colbymchenry/codegraph"; fi
+if has_cmd codegraph; then ok "codegraph CLI ($(codegraph -V 2>/dev/null))"; else bad "codegraph CLI" "$CODEGRAPH_INSTALL"; fi
 if mcp_configured "codegraph"; then
   ok "codegraph MCP 已配置"
-  has_cmd codegraph && ok "codegraph MCP 命令可执行" || bad "codegraph MCP 命令不可执行" "volta install @colbymchenry/codegraph"
+  has_cmd codegraph && ok "codegraph MCP 命令可执行" || bad "codegraph MCP 命令不可执行" "$CODEGRAPH_INSTALL"
   mcp_enabled "codegraph" && ok "codegraph MCP 已启用" || bad "codegraph MCP 已禁用" '删除 [mcp_servers.codegraph] 下的 enabled = false，或改为 enabled = true'
 else
   bad "codegraph MCP" "codex mcp add codegraph -- codegraph serve --mcp"
@@ -358,7 +363,7 @@ agents_has '上下文压缩|压缩取舍|保留决策和状态' && ok "全局规
 agents_has '代理兜底|走代理重试|外网.*代理|127\.0\.0\.1:78|http\.proxy|https_proxy' && ok "全局规范含「外网操作代理兜底」" || bad "代理兜底规范" $'printf \'\\n- 外网操作连不通或慢得反常时，先复用 https_proxy/http_proxy/all_proxy；没有则探测常见本地代理端口，再用 curl -x、git -c http.proxy 或环境变量走代理重试。\\n\' >> ~/.codex/AGENTS.md'
 agents_has_parallel_policy && ok "全局规范含「多 Agent 并行执行」" || bad "多 Agent 并行规范" $'cat >> ~/.codex/AGENTS.md <<\'RULE\'\n\n## 多 Agent 并行执行（默认并行，能加速就上）\n\n收到任务先判断能否拆成至少 2 个互不依赖、边界清晰的工作流；能拆就立即使用 Codex 子 Agent 并行执行，不等用户提醒。数量词（每个、所有、批量、一批、分别、多个、全部、整个）、重复动作、多文件、多模块、多目标调研、批量整改和多视角复核都是触发信号。单个小任务直接处理；强依赖链串行或只并行其中无依赖部分。\n\n编排时连续调用 `spawn_agent` 启动多个子 Agent，不逐个等待；每个子 Agent 只接一个具体、可独立验收的任务，并明确目录、文件或问题边界。子 Agent 与主 Agent 共享工作区，必须分配互不重叠的文件所有权，禁止多个 Agent 同时修改同一文件。主 Agent 同时继续可独立推进的工作，之后用协作工具收集结果；需要补充工作时复用已有 Agent。\n\n主 Agent 负责汇总结论、检查共享工作区改动、处理冲突并运行最终整体验证。子 Agent 回传精炼结论和验证结果，不把大段原始文件内容塞回主上下文。\nRULE'
 if has_cmd codegraph; then
-  agents_has 'codegraph.*自动|\.codegraph.*自动建立|自动.*codegraph.*索引|codegraph.*新项目' && ok "全局规范含「CodeGraph 自动初始化」" || bad "CodeGraph 自动初始化规范" $'printf \'\\n- 进入代码项目时，若项目根目录没有 .codegraph/，先确认位于项目根目录，再自动执行 codegraph init；已有陈旧索引用 codegraph update，非代码项目跳过。\\n\' >> ~/.codex/AGENTS.md'
+  agents_has_codegraph_policy && ok "全局规范含「CodeGraph 自动初始化与索引刷新」" || bad "CodeGraph 索引刷新规范" $'sed -i.bak \'s/codegraph update/codegraph sync/g\' ~/.codex/AGENTS.md && printf \'\\n- CodeGraph 完整重建使用 codegraph index -f。\\n\' >> ~/.codex/AGENTS.md'
 else
   ok "CodeGraph 自动初始化规范（codegraph 未装，无需配置）"
 fi

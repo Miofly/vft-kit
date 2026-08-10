@@ -207,7 +207,10 @@ claudemd_has_agentmemory(){
 claudemd_has_codegraph_auto_init(){
   local f="$HOME/.claude/CLAUDE.md"
   [ -f "$f" ] || return 1
-  grep -Eiq 'codegraph.*自动|\.codegraph.*自动建立|自动.*codegraph.*索引|codegraph.*新项目' "$f"
+  grep -Eiq 'codegraph.*自动|\.codegraph.*自动建立|自动.*codegraph.*索引|codegraph.*新项目' "$f" &&
+    grep -Eiq 'codegraph[[:space:]]+sync' "$f" &&
+    grep -Eiq 'codegraph[[:space:]]+index[[:space:]]+-f' "$f" &&
+    ! grep -Eiq 'codegraph[[:space:]]+update|codegraph[[:space:]]+init[[:space:]]+--force' "$f"
 }
 # 全局 ~/.claude/CLAUDE.md 是否含「context7 官方文档优先」调用场景规范
 # 仅在 context7 已装时才核对：装了文档 MCP 却没告诉 CC 何时查，容易继续凭旧记忆答库/框架/API 用法。
@@ -257,20 +260,18 @@ has_cmd node   && ok "node ($(node -v 2>/dev/null))"        || bad "node"   "装
 has_cmd npm    && ok "npm ($(npm -v 2>/dev/null))"          || bad "npm"    "随 node 安装"
 has_cmd claude && ok "claude ($(claude --version 2>/dev/null|awk '{print $1}'))" || bad "claude" "Claude Code CLI 未装"
 has_cmd rtk    && ok "rtk ($(rtk --version 2>/dev/null))"   || opt "rtk"    "brew install rtk（省 token 命令代理，可选）"
-has_cmd codegraph && ok "codegraph ($(codegraph -V 2>/dev/null))" || bad "codegraph" "volta install @colbymchenry/codegraph（volta 接管才建 shim，npm i -g 会装到版本私有目录导致找不到）"
+has_cmd codegraph && ok "codegraph ($(codegraph --version 2>/dev/null))" || bad "codegraph" "curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh"
 has_cmd brew   && ok "brew"                                 || opt "brew"   "Homebrew 建议装"
 has_cmd jq     && ok "jq"                                   || opt "jq"     "brew install jq"
 has_cmd gh     && ok "gh ($(gh --version 2>/dev/null|head -1|awk '{print $3}'))" || opt "gh"     "brew install gh（GitHub CLI：PR/Actions/仓库操作，可选）"
 
 # ---------- 2. 全局 npm 包（MCP 载体） ----------
 sec "全局 npm 包"
-# codegraph 改用 volta install 检测（volta list all 输出含 package 行才算装好），npm_g_installed 在 volta 机器上不可靠
-volta list all 2>/dev/null | grep -q 'package @colbymchenry/codegraph' && ok "@colbymchenry/codegraph (volta 接管)" || bad "@colbymchenry/codegraph" "volta install @colbymchenry/codegraph（必须走 volta，npm i -g 会装到版本私有目录）"
 npm_g_installed "@danielsogl/lighthouse-mcp"                  && ok "@danielsogl/lighthouse-mcp"                  || bad "@danielsogl/lighthouse-mcp" "npm i -g @danielsogl/lighthouse-mcp"
 
 # ---------- 3. MCP 注册 ----------
 sec "MCP 服务器（已注册到 CC）"
-mcp_registered codegraph           && ok "codegraph"           || bad "codegraph MCP"           "codegraph install -t claude -l global -y"
+mcp_registered codegraph           && ok "codegraph"           || bad "codegraph MCP"           "codegraph install --target=claude --location=global --yes"
 mcp_registered lighthouse-mcp      && ok "lighthouse-mcp"      || bad "lighthouse-mcp MCP"      "claude mcp add lighthouse-mcp -s user -- node \"\$(npm root -g)/@danielsogl/lighthouse-mcp/dist/index.js\""
 mcp_registered agentmemory         && ok "agentmemory"         || bad "agentmemory MCP"         "bash \"$SCRIPT_DIR/install-agentmemory.sh\""
 mcp_registered claude-flow         && ok "ruflo"               || bad "ruflo MCP"               "volta install @claude-flow/cli && claude-flow init && claude mcp add claude-flow -s user -- /Users/\$USER/.volta/bin/claude-flow-mcp（init 只写项目级 ./.mcp.json，必须再 mcp add 注册到 user scope；别用 npx -y ruflo@latest，每会话 spawn 3 进程且不回收）"
@@ -371,7 +372,7 @@ claudemd_has_proxy                 && ok "全局规范含「外网操作代理�
 claudemd_has_parallel_agents       && ok "全局规范含「多 Agent 并行执行」"      || bad "多 Agent 并行规范" $'printf \'\\n## 多 Agent 并行执行（默认并行，能加速就上）\\n\\n### 🚨 铁律：收到任务立即判断能否并行，能并行就立即启动多 Agent，别等用户提醒\\n\\n**自动触发检查（每个任务的第一步）：**\\n\\n1. **数量信号** — 任务涉及 ≥2 个独立对象（文件/模块/功能/站点/问题）？\\n   - ✅ 是 → 继续检查\\n   - ❌ 否 → 串行执行\\n\\n2. **依赖检查** — 这些对象之间有先后依赖吗？\\n   - ✅ 无依赖或部分无依赖 → 并行执行（有依赖的串起来）\\n   - ❌ 强依赖链条 → 串行执行\\n\\n3. **关键词触发（自动识别）** — 任务描述出现这些词立即并行：\\n   - **数量词**：「每个」「所有」「批量」「一批」「分别」「逐个」「多个」\\n   - **具体数字**：「9 个功能」「5 个模块」「3 个文件」\\n   - **重复动作**：「同一套」「相同的」「类似的」「重复」\\n   - **范围词**：「全部」「整个」「所有的」\\n\\n**判定结果：满足 1+2 或出现任一关键词 → 立即启动多 Agent 并行，不问用户**\\n\\n---\\n\\n### 典型并行场景（见到就上）\\n\\n1. **批量 CRUD** — N 个功能/模块的 VO + Controller + Service + Vue（每个一个 Agent）\\n2. **多文件读/改** — 要读/改一批文件、跑一批测试、查一批独立问题（每个文件一个 Agent）\\n3. **大范围调研** — 跨多个子系统/模块摸底（每个子系统一个 Agent）\\n4. **多视角分析** — 多方案对比、交叉验证、对抗式复核（每个视角一个 Agent）\\n5. **迁移/审计** — 批量整改、每个站点/每个组件（每个对象一个 Agent）\\n\\n**核心原则：凡是「同一动作重复施加到 N 个独立对象」就立即扇出，N≥2 就值得并行**\\n\\n---\\n\\n### 怎么做\\n\\n- **立即启动** — 一条消息里同时发多个 Agent 调用（独立任务并发跑，别一个个等）\\n- **任务模板** — 给每个 Agent 相同的任务模板（如「实现 XX 功能的 VO+Controller+Service+Vue」）\\n- **结论汇总** — 主线程只收集各 Agent 的结论，不吞原始文件内容\\n\\n---\\n\\n### 为什么这样做\\n\\n- **速度** — 串行 3 小时 vs 并行 30 分钟，加速比可达 5-10x\\n- **上下文** — 子代理各自独立上下文，主线程不会被大量文件内容挤爆\\n- **用户体验** — 用户等 30 分钟比等 3 小时爽得多\\n\\n---\\n\\n### 唯一例外（才串行）\\n\\n- **单个小任务** — 改一个函数、查一个已知文件、写一个脚本 → 直接自己干\\n- **强依赖链** — A 必须先完成才能开始 B，B 必须完成才能开始 C → 串行或部分并行\\n\\n**记住：默认并行，能加速就上，别等用户提醒！**\\n\' >> ~/.claude/CLAUDE.md'
 # CodeGraph 自动初始化规范：条件必需——仅当 codegraph CLI 已装时才要求（装了却不自动初始化 = 退回慢速搜索）。
 if has_cmd codegraph; then
-  claudemd_has_codegraph_auto_init && ok "全局规范含「CodeGraph 自动初始化」" || bad "CodeGraph 自动初始化规范" $'printf \'\\n## CodeGraph 自动初始化\\n\\n进入新项目时，若发现项目根目录（通过 git 仓库判断或当前工作目录）下没有 `.codegraph/` 目录，自动执行 `codegraph init` 建立代码知识图谱索引。好处：\\n- 从一开始就能用 `codegraph_explore` MCP 工具或 `codegraph explore "<query>"` shell 命令，一次返回相关符号的完整源码 + 调用链\\n- 避免退回到低效的 grep + Read 循环\\n- 动态派发（接口实现、虚函数）的调用路径 grep 跟不动，CodeGraph 能追踪\\n\\n**什么时候建**：识别到这是一个代码项目（有 package.json / pom.xml / Cargo.toml / go.mod 等或明显的源码目录结构）且没有 `.codegraph/` 时，立即初始化。对于非代码目录（纯文档 / 配置仓库 / 个人笔记），跳过。\\n\\n**怎么建**：在项目根目录运行 `codegraph init`（会自动识别语言、扫描源码、建立索引）。索引进 `.codegraph/` 目录（已在 .gitignore 模板中，不入版本控制）。对于大型仓库（10 万+ 行），首次索引可能需要几秒到几十秒；增量更新很快。\\n\\n**注意事项**：\\n- 初始化前先确认是在项目根目录（git 根目录或主 build 文件所在目录），不要在子目录建索引\\n- 如果项目已有 `.codegraph/` 但索引陈旧（代码大改过），用 `codegraph update` 增量更新或 `codegraph init --force` 重建\\n- 非代码项目不要强制建索引（浪费时间且无收益）\\n\' >> ~/.claude/CLAUDE.md'
+  claudemd_has_codegraph_auto_init && ok "全局规范含「CodeGraph 自动初始化」" || bad "CodeGraph 自动初始化规范" $'printf \'\\n## CodeGraph 自动初始化\\n\\n进入代码项目时，先确认位于项目根目录；若没有 `.codegraph/`，自动执行 `codegraph init`，非代码项目跳过。已有索引需要手动刷新时用 `codegraph sync` 增量同步；需要从头重建时用 `codegraph index -f`。\\n\' >> ~/.claude/CLAUDE.md'
 else
   ok "CodeGraph 自动初始化规范（codegraph 未装，无需配置）"
 fi

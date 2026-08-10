@@ -63,11 +63,11 @@ codex-imagegen generate \
 
 | 类别 | 检查项 | 数据来源 |
 |---|---|---|
-| CLI 工具 | `codex` / `node` / `npm` / `git` / `codegraph` 必需；`brew` / `jq` / `gh` / `vercel` / RTK 可选 | `command -v` + `volta list all` + `~/.codex/RTK.md` |
+| CLI 工具 | `codex` / `node` / `npm` / `git` / `codegraph` 必需；`brew` / `jq` / `gh` / `vercel` / RTK 可选 | `command -v` + `~/.codex/RTK.md` |
 | dangerous full access | `approval_policy = "never"` / `sandbox_mode = "danger-full-access"` / hide full-access warning | `~/.codex/config.toml` |
 | 项目与 hooks | `features.hooks = true` / `features.memories = true` / `multi_agent` 实际启用 / `/` 或常用代码根已 trust；集中管版本时可选关闭启动更新检查 | `~/.codex/config.toml` + `codex features list` |
 | Playwright MCP | `playwright` stdio server 已配置且未禁用 / Chromium 内核存在 | `~/.codex/config.toml` + Playwright browser cache |
-| 代码与审计 MCP | `codegraph` 的 Volta 载体、`lighthouse-mcp` 的 npm 载体，以及两者的注册与启用状态，全部必需 | `volta list all` + `$(npm root -g)` + `codex mcp get --json` |
+| 代码与审计 MCP | `codegraph` CLI、`lighthouse-mcp` 的 npm 载体，以及两者的注册与启用状态，全部必需 | `command -v` + `$(npm root -g)` + `codex mcp get --json` |
 | 文档与部署 MCP | OpenAI Developer Docs 必需；Context7 / Vercel 可选 | `codex mcp get --json` |
 | CLI 插件 | github / superpowers / build-web-apps / ponytail / context-mode 必需；GitHub 另检查 `GITHUB_PAT_TOKEN` | `codex plugin list --json`，失败时回退全局 config + cache；环境变量 + `gh auth token` |
 | 兼容 Agent Skills | Caveman 与 GSAP 官方 8 项 skills 必需；AnySearch 与 Grill-me 可选 | `~/.agents/skills` + `~/.codex/skills` |
@@ -83,11 +83,12 @@ codex-imagegen generate \
 - **dangerous full access 是必需项**：脚本把 `approval_policy = "never"` 和 `sandbox_mode = "danger-full-access"` 当作硬失败项。它们是 `--dangerously-bypass-approvals-and-sandbox` 的持久配置等价物。
 - **只检查纯 CLI 能力**：Codex App、`node_repl`、`browser@openai-bundled` 或 `openai-primary-runtime` 文档类插件都不是必需项；但用户显式启用 `node_repl` 且配置的 command 已不存在时，报 `○` 提示删除或禁用这段陈旧配置。
 - **Playwright 必须能启动浏览器**：既检查 `[mcp_servers.playwright]` 的 stdio command 和启用状态，也检查 Chromium 内核；只注册 MCP 但没有浏览器内核仍算缺失。
-- **CodeGraph 与 Lighthouse 已与 CC 基线对齐为必需项**：CodeGraph 检查 Volta 安装态，Lighthouse 检查全局 npm 载体；两者都检查命令、MCP 注册和启用状态，任一缺失都报 `✗`。
+- **CodeGraph 与 Lighthouse 已与 CC 基线对齐为必需项**：CodeGraph 检查 CLI 是否可执行，Lighthouse 检查全局 npm 载体；两者都检查命令、MCP 注册和启用状态，任一缺失都报 `✗`。
 - **MCP 检查覆盖项目 scope**：优先用 `codex mcp get <name> --json` 读取当前目录下 Codex 合并后的实际配置；命令不可用时才回退读取用户级 TOML。
 - **OpenAI Docs / Context7 / Vercel 各走原生接入**：OpenAI Docs 是 `openai-docs` system skill 的必需数据源；Context7 用官方 npm MCP；Vercel 用官方 OAuth HTTP MCP。
-- **Lighthouse 全局 npm 包查目录，不跑 `npm ls -g`**：直接检查 `$(npm root -g)/@danielsogl/lighthouse-mcp`；CodeGraph 由 Volta 管理并通过 `volta list all` 检查。
-- **全局 AGENTS 是个人基线的必需项**：中文回复、可点短链、压缩取舍、代理兜底和多 Agent 并行均为硬检查。codegraph CLI 已装时额外要求自动初始化索引；context7 MCP 已启用或 anysearch skill 已装时，额外要求对应调用场景规范。
+- **Lighthouse 全局 npm 包查目录，不跑 `npm ls -g`**：直接检查 `$(npm root -g)/@danielsogl/lighthouse-mcp`。
+- **CodeGraph 以 CLI 能力为准**：官方 `install.sh` standalone 安装或 npm 安装均可，只要 `codegraph` 可执行即合格。新项目运行 `codegraph init`，增量刷新运行 `codegraph sync`，完整重建运行 `codegraph index -f`；不存在 `codegraph update` 子命令。
+- **全局 AGENTS 是个人基线的必需项**：中文回复、可点短链、压缩取舍、代理兜底和多 Agent 并行均为硬检查。codegraph CLI 已装时额外要求写明 `init` / `sync` / `index -f`，并拒绝旧的 `codegraph update` 规范；context7 MCP 已启用或 anysearch skill 已装时，额外要求对应调用场景规范。
 - **多 Agent 与 CC 基线效果等价、编排接口不同**：Codex 用 `spawn_agent` 等协作工具扇出独立子任务、主 Agent 汇总结果。基线同时要求 `codex features list` 的 `multi_agent` 实际状态为 `true`，以及 AGENTS.md 写明自动触发、并发编排、文件所有权和最终整体验证；只有“可以并行”一句弱提示不算合格。Codex 子 Agent 与主 Agent 共享工作区，因此必须给各 Agent 分配互不重叠的文件或问题边界，主 Agent 负责冲突处理与最终验证。
 - **Claude 插件映射到 Codex 原生能力**：frontend-design → `build-web-apps@openai-api-curated`；remember → `features.memories = true`；code-review → `codex review` + GitHub 插件；playwright → Playwright MCP；skill-creator → system skill。
 - **Ponytail 使用其官方 Codex 插件**：安装后同时获得 skills 与 Codex lifecycle hooks；缺失时按上面的常设授权自动补齐。

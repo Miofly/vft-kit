@@ -63,10 +63,6 @@ printf 'codegraph 1.0.0\n'
 EOF
 cat > "$FAKE_BIN/volta" <<'EOF'
 #!/usr/bin/env bash
-if [ "$1" = "list" ] && [ "$2" = "all" ]; then
-  printf 'package @colbymchenry/codegraph\n'
-  exit 0
-fi
 exit 2
 EOF
 for command_name in brew jq; do
@@ -178,7 +174,7 @@ write_agents() {
       printf '%s\n' '- 多个 subagent 可以并行执行互不依赖的任务。'
     fi
     printf '%s\n' \
-      '- codegraph 新项目自动建立索引。' \
+      '- codegraph 新项目自动执行 codegraph init；已有索引执行 codegraph sync，完整重建执行 codegraph index -f。' \
       '- context7 查询最新官方文档。' \
       '- anysearch 联网搜索优先。' \
       '- 生图使用 codex-imagegen generate。'
@@ -238,14 +234,25 @@ for skill in caveman gsap-core gsap-frameworks gsap-performance gsap-plugins gsa
   mv "$TEST_HOME/.agents/skills/$skill" "$TEST_CODEX_HOME/skills/$skill"
 done
 
+sed -i.bak 's#^- codegraph.*#- 进入代码项目时，没有 .codegraph 就执行 codegraph init；已有陈旧索引用 codegraph update。#' "$TEST_CODEX_HOME/AGENTS.md"
+set +e
+output="$(run_check 2>&1)"
+status=$?
+set -e
+[ "$status" -eq 1 ] || { printf 'FAIL: obsolete CodeGraph update policy should fail\n' >&2; exit 1; }
+grep -Fq 'CodeGraph 索引刷新规范' <<< "$output" || { printf 'FAIL: obsolete CodeGraph policy not reported\n' >&2; exit 1; }
+grep -Fq "sed -i.bak 's/codegraph update/codegraph sync/g'" <<< "$output" || { printf 'FAIL: executable CodeGraph policy repair missing\n' >&2; exit 1; }
+grep -Fq 'codegraph index -f' <<< "$output" || { printf 'FAIL: full CodeGraph rebuild command missing\n' >&2; exit 1; }
+mv "$TEST_CODEX_HOME/AGENTS.md.bak" "$TEST_CODEX_HOME/AGENTS.md"
+
 mv "$FAKE_BIN/codegraph" "$TMP_ROOT/codegraph.disabled"
 set +e
 output="$(run_check 2>&1)"
 status=$?
 set -e
 [ "$status" -eq 1 ] || { printf 'FAIL: missing CodeGraph CLI should fail\n' >&2; exit 1; }
-grep -Fq 'volta install @colbymchenry/codegraph' <<< "$output" || { printf 'FAIL: CodeGraph repair should use Volta\n' >&2; exit 1; }
-grep -Fq 'npm i -g @colbymchenry/codegraph' <<< "$output" && { printf 'FAIL: CodeGraph repair should not use npm global install\n' >&2; exit 1; }
+grep -Fq 'curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh' <<< "$output" || { printf 'FAIL: CodeGraph repair should use the official installer\n' >&2; exit 1; }
+grep -Fq 'volta install @colbymchenry/codegraph' <<< "$output" && { printf 'FAIL: CodeGraph repair should not require Volta\n' >&2; exit 1; }
 mv "$TMP_ROOT/codegraph.disabled" "$FAKE_BIN/codegraph"
 
 set +e
