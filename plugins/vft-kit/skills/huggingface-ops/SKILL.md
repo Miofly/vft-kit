@@ -1,85 +1,53 @@
 ---
 name: huggingface-ops
-description: [TODO: Complete and informative explanation of what the skill does and when to use it. Include WHEN to use this skill - specific scenarios, file types, or tasks that trigger it.]
+description: Use when requests involve Hugging Face or HF Hub models, datasets, Spaces/创空间, repositories, files, uploads, downloads, Variables, Secrets, environment variables, logs, runtime, hardware, storage, restarts, duplication, Jobs, Inference Endpoints, sandboxes, buckets, collections, discussions or PRs, papers, webhooks, cache or sync, authentication, or token verification.
 ---
 
-# Huggingface Ops
+# Hugging Face Ops
 
-## Overview
+## Run operations
 
-[TODO: 1-2 sentences explaining what this skill enables]
+Treat `<skill-dir>` as the directory containing this loaded `SKILL.md`. Always resolve it from the loaded skill path, never from the current working directory.
 
-## Structuring This Skill
+Prefer the official CLI through the pass-through launcher:
 
-[TODO: Choose the structure that best fits this skill's purpose. Common patterns:
+```bash
+bash "<skill-dir>/scripts/hf.sh" [--config <credential.json>] <official hf args>
+```
 
-**1. Workflow-Based** (best for sequential processes)
-- Works well when there are clear step-by-step procedures
-- Example: DOCX skill with "Workflow Decision Tree" -> "Reading" -> "Creating" -> "Editing"
-- Structure: ## Overview -> ## Workflow Decision Tree -> ## Step 1 -> ## Step 2...
+Run the relevant `... --help` before choosing current syntax. Pass arbitrary official subcommands through; do not maintain manual wrappers or catalogs.
 
-**2. Task-Based** (best for tool collections)
-- Works well when the skill offers different operations/capabilities
-- Example: PDF skill with "Quick Start" -> "Merge PDFs" -> "Split PDFs" -> "Extract Text"
-- Structure: ## Overview -> ## Quick Start -> ## Task Category 1 -> ## Task Category 2...
+Resolve credentials in this order: `HF_TOKEN`, explicit `--config <json>` using the first supported field (`token`, `access_token`, `api_token`, or `key`), then the official saved token. Never print token/config contents or secret values.
 
-**3. Reference/Guidelines** (best for standards or specifications)
-- Works well for brand guidelines, coding standards, or requirements
-- Example: Brand styling with "Brand Guidelines" -> "Colors" -> "Typography" -> "Features"
-- Structure: ## Overview -> ## Guidelines -> ## Specifications -> ## Usage...
+Use the SDK only when the CLI lacks the operation. Check current official documentation and the `HfApi` method signature first:
 
-**4. Capabilities-Based** (best for integrated systems)
-- Works well when the skill provides multiple interrelated features
-- Example: Product Management with "Core Capabilities" -> numbered capability list
-- Structure: ## Overview -> ## Core Capabilities -> ### 1. Feature -> ### 2. Feature...
+```bash
+python3 "<skill-dir>/scripts/hf-api.py" [--config <credential.json>] <HfApi method> --kwargs '<JSON object>'
+```
 
-Patterns can be mixed and matched as needed. Most skills combine patterns (e.g., start with task-based, add workflow for complex operations).
+## Quick reference
 
-Delete this entire "Structuring This Skill" section when done - it's just guidance.]
+| Need | Start with; inspect help for exact current syntax |
+| --- | --- |
+| Auth/status | `bash "<skill-dir>/scripts/hf.sh" auth --help`; then inspect `whoami` or token verification |
+| Models/datasets/Spaces/repos | Run launcher with `models --help`; likewise `datasets`, `spaces`, `repos`; list first |
+| Download/upload/sync | Run launcher with `download --help`, `upload --help`, then inspect cache/sync help |
+| Space variables/secrets | Run launcher with `spaces --help`; inspect variable/secret commands and exact Space ID |
+| Logs/runtime/settings | Run launcher with `spaces --help`; inspect logs, runtime, restart, duplicate, hardware, storage |
+| Jobs/Endpoints/sandbox | Run launcher with `jobs --help`; inspect Inference Endpoint and sandbox help |
+| Buckets/collections/discussions/webhooks | Run launcher with `--help`; open the relevant group, including PRs and papers |
+| SDK fallback | `python3 "<skill-dir>/scripts/hf-api.py" list_models --kwargs '{"limit": 5}'` |
 
-## [TODO: Replace with the first main section based on chosen structure]
+## Safety
 
-[TODO: Add content here. See examples in existing skills:
-- Code samples for technical skills
-- Decision trees for complex workflows
-- Concrete examples with realistic user requests
-- References to scripts/templates/references as needed]
+Run read-only inspect/list/log/status/download operations directly. Before delete, move, replace, remote file deletion, paid hardware/storage, or billable Jobs/Endpoints, inspect current state, resolve the exact target, and obtain explicit confirmation unless the current request already names that exact target and action. Verify destructive changes afterward without exposing secrets.
 
-## Resources (optional)
+Warn that Space secret, variable, and hardware changes can restart the Space. Use Variables for non-sensitive values and Secrets for sensitive values. Treat secret listing as key/metadata inspection only; never attempt value readback.
 
-Create only the resource directories this skill actually needs. Delete this section if no resources are required.
+## Common mistakes
 
-### scripts/
-Executable code (Python/Bash/etc.) that can be run directly to perform specific operations.
-
-**Examples from other skills:**
-- PDF skill: `fill_fillable_fields.py`, `extract_form_field_info.py` - utilities for PDF manipulation
-- DOCX skill: `document.py`, `utilities.py` - Python modules for document processing
-
-**Appropriate for:** Python scripts, shell scripts, or any executable code that performs automation, data processing, or specific operations.
-
-**Note:** Scripts may be executed without loading into context, but can still be read by Codex for patching or environment adjustments.
-
-### references/
-Documentation and reference material intended to be loaded into context to inform Codex's process and thinking.
-
-**Examples from other skills:**
-- Product management: `communication.md`, `context_building.md` - detailed workflow guides
-- BigQuery: API reference documentation and query examples
-- Finance: Schema documentation, company policies
-
-**Appropriate for:** In-depth documentation, API references, database schemas, comprehensive guides, or any detailed information that Codex should reference while working.
-
-### assets/
-Files not intended to be loaded into context, but rather used within the output Codex produces.
-
-**Examples from other skills:**
-- Brand styling: PowerPoint template files (.pptx), logo files
-- Frontend builder: HTML/React boilerplate project directories
-- Typography: Font files (.ttf, .woff2)
-
-**Appropriate for:** Templates, boilerplate code, document templates, images, icons, fonts, or any files meant to be copied or used in the final output.
-
----
-
-**Not every skill requires all three types of resources.**
+- Do not use `--token "$(...)"`; argv can leak credentials.
+- Do not hard-code private paths.
+- Do not invent CLI syntax; run `--help`.
+- Do not use the SDK when the CLI covers the operation.
+- Do not reimplement the official clients with raw REST.
