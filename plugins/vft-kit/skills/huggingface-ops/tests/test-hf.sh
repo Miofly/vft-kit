@@ -45,6 +45,9 @@ UNSUPPORTED_CONFIG="$TMP_ROOT/unsupported.json"
 MISSING_CONFIG="$TMP_ROOT/missing.json"
 FAKE_BIN="$TMP_ROOT/bin"
 FAKE_PYTHON="$TMP_ROOT/python"
+HF_FAKE_CAPTURE="$TMP_ROOT/sdk-token"
+HF_STANDARD_TOKEN="$TMP_ROOT/standard-token"
+UV_CAPTURE="$TMP_ROOT/uv-args"
 mkdir -p "$CONFIG_DIR" "$FAKE_BIN" "$FAKE_PYTHON/huggingface_hub"
 
 printf '%s\n' '{"token":"config-token","username":"vftfnn"}' > "$CONFIG"
@@ -64,16 +67,30 @@ EOF
 chmod +x "$FAKE_BIN/hf"
 
 cat > "$FAKE_PYTHON/huggingface_hub/__init__.py" <<'PY'
+import os
+
+
 class HfApi:
     def __init__(self, token=None):
-        self.token = token
+        with open(os.environ["HF_FAKE_CAPTURE"], "w") as capture:
+            capture.write(token or "")
 
     def echo(self, value):
-        return {"token": self.token, "value": value}
+        return {"value": value}
 
     def _private(self):
         return "must not be callable"
 PY
+
+cat > "$FAKE_BIN/uv" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "$*" > "$UV_CAPTURE"
+[ "$1 $2 $3 $4" = 'run --with huggingface-hub python' ] || exit 2
+shift 4
+exec env PYTHONPATH="$HF_BOOTSTRAP_PYTHONPATH" python3 "$@"
+EOF
+chmod +x "$FAKE_BIN/uv"
 
 [ -f "$HF_SH" ] || fail "CLI launcher missing: $HF_SH"
 
@@ -120,26 +137,44 @@ expect_failure 'CLI unsupported config' 1 'config has no supported token field' 
 [ -f "$HF_API" ] || fail "SDK launcher missing: $HF_API"
 
 assert_json_echo() {
-  local label="$1" output="$2" expected_token="$3"
-  JSON_OUTPUT="$output" EXPECTED_TOKEN="$expected_token" python3 - <<'PY' || fail "$label: unexpected JSON: $output"
+  local label="$1" output="$2"
+  JSON_OUTPUT="$output" python3 - <<'PY' || fail "$label: unexpected JSON: $output"
 import json
 import os
 
 value = json.loads(os.environ["JSON_OUTPUT"])
-assert value == {"token": os.environ["EXPECTED_TOKEN"], "value": 42}
+assert value == {"value": 42}
 PY
 }
 
-output="$(env -u HF_TOKEN PYTHONPATH="$FAKE_PYTHON" python3 "$HF_API" --config "$CONFIG" echo --kwargs '{"value":42}')"
-assert_json_echo 'SDK config token' "$output" 'config-token'
+output="$(env -u HF_TOKEN HF_FAKE_CAPTURE="$HF_FAKE_CAPTURE" PYTHONPATH="$FAKE_PYTHON" python3 "$HF_API" --config "$CONFIG" echo --kwargs '{"value":42}')"
+assert_json_echo 'SDK config token' "$output"
+[ "$(< "$HF_FAKE_CAPTURE")" = 'config-token' ] || fail 'SDK config token: constructor did not receive config token'
+assert_not_contains 'SDK config token stdout' "$output" 'config-token'
+assert_not_contains 'SDK config token stdout' "$output" 'env-token'
 
-output="$(HF_TOKEN='env-token' PYTHONPATH="$FAKE_PYTHON" python3 "$HF_API" --config "$CONFIG" echo --kwargs '{"value":42}')"
-assert_json_echo 'SDK environment token precedence' "$output" 'env-token'
+output="$(HF_TOKEN='env-token' HF_FAKE_CAPTURE="$HF_FAKE_CAPTURE" PYTHONPATH="$FAKE_PYTHON" python3 "$HF_API" --config "$CONFIG" echo --kwargs '{"value":42}')"
+assert_json_echo 'SDK environment token precedence' "$output"
+[ "$(< "$HF_FAKE_CAPTURE")" = 'env-token' ] || fail 'SDK environment token precedence: constructor did not receive environment token'
+assert_not_contains 'SDK environment token stdout' "$output" 'config-token'
+assert_not_contains 'SDK environment token stdout' "$output" 'env-token'
+
+printf '%s\n' 'standard-token' > "$HF_STANDARD_TOKEN"
+output="$(env -u HF_TOKEN HF_TOKEN_PATH="$HF_STANDARD_TOKEN" HF_FAKE_CAPTURE="$HF_FAKE_CAPTURE" PYTHONPATH="$FAKE_PYTHON" python3 "$HF_API" echo --kwargs '{"value":42}')"
+assert_json_echo 'SDK standard token path' "$output"
+[ "$(< "$HF_FAKE_CAPTURE")" = 'standard-token' ] || fail 'SDK standard token path: constructor did not receive standard token'
+assert_not_contains 'SDK standard token stdout' "$output" 'standard-token'
+
+output="$(env -u HF_TOKEN -u PYTHONPATH PATH="$FAKE_BIN:$PATH" HF_BOOTSTRAP_PYTHONPATH="$FAKE_PYTHON" HF_FAKE_CAPTURE="$HF_FAKE_CAPTURE" UV_CAPTURE="$UV_CAPTURE" python3 -S "$HF_API" --config "$CONFIG" echo --kwargs '{"value":42}')"
+assert_json_echo 'SDK uv bootstrap' "$output"
+[ -s "$UV_CAPTURE" ] || fail 'SDK uv bootstrap: uv was not invoked'
+[ "$(< "$HF_FAKE_CAPTURE")" = 'config-token' ] || fail 'SDK uv bootstrap: constructor did not receive config token'
+assert_not_contains 'SDK uv bootstrap stdout' "$output" 'config-token'
 
 expect_failure 'SDK private method' 1 'method must be public' \
   env -u HF_TOKEN PYTHONPATH="$FAKE_PYTHON" python3 "$HF_API" --config "$CONFIG" _private
 expect_failure 'SDK missing method' 1 'HfApi method not found: does_not_exist' \
-  env -u HF_TOKEN PYTHONPATH="$FAKE_PYTHON" python3 "$HF_API" --config "$CONFIG" does_not_exist
+  env -u HF_TOKEN HF_FAKE_CAPTURE="$HF_FAKE_CAPTURE" PYTHONPATH="$FAKE_PYTHON" python3 "$HF_API" --config "$CONFIG" does_not_exist
 expect_failure 'SDK non-object kwargs' 1 '--kwargs must be a JSON object' \
   env -u HF_TOKEN PYTHONPATH="$FAKE_PYTHON" python3 "$HF_API" --config "$CONFIG" echo --kwargs '[]'
 expect_failure 'SDK missing config' 1 "config file not found: $MISSING_CONFIG" \
