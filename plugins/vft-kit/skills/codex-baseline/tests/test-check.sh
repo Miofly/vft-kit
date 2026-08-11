@@ -325,8 +325,9 @@ set +e
 output="$(run_check 2>&1)"
 status=$?
 set -e
-[ "$status" -eq 1 ] || { printf 'FAIL: missing plugin cache should fail\n' >&2; exit 1; }
-[ "$(grep -Fc 'superpowers@openai-api-curated' <<< "$output")" -eq 1 ] || { printf 'FAIL: plugin failure should be counted once\n' >&2; exit 1; }
+[ "$status" -eq 0 ] || { printf 'FAIL: missing optional superpowers plugin should not fail\n' >&2; exit 1; }
+grep -Fq 'superpowers@openai-api-curated' <<< "$output" || { printf 'FAIL: optional superpowers plugin should be reported\n' >&2; exit 1; }
+grep -Fq '可选' <<< "$output" || { printf 'FAIL: superpowers plugin should be marked optional\n' >&2; exit 1; }
 
 mkdir -p "$TEST_CODEX_HOME/plugins/cache/openai-api-curated/superpowers/v1"
 rm -rf "$TEST_CODEX_HOME/plugins/cache/context-mode/context-mode"

@@ -377,6 +377,66 @@ curl -X DELETE "$MODELSCOPE_ENDPOINT/openapi/v1/studios/${owner}/${repo}/secrets
 
 > ⚠️ To delete a plaintext variable or a secret, use `DELETE .../variables` or `DELETE .../secrets` and pass `{"key":"..."}` in the **body**, not the `DELETE .../{key}` path form.
 
+#### Quick Reference: Batch Update Secrets
+
+For updating multiple secrets at once (e.g., switching Redis/database endpoints across multiple Studios), use Python with PUT-fallback-POST logic:
+
+```python
+import json, urllib.request
+
+# Secrets to update
+SECRETS = {
+    "REDIS_HOST": "new-redis-host.example.com",
+    "REDIS_PORT": "6379",
+    "REDIS_PASSWORD": "new-password",
+    "REDIS_SSL_ENABLED": "true",
+}
+
+# Studios to update
+STUDIOS = [
+    {"owner": "user1", "repo": "studio1"},
+    {"owner": "user2", "repo": "studio2"},
+]
+
+def call(method, url, token, body):
+    req = urllib.request.Request(url, method=method,
+        data=json.dumps(body).encode(),
+        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return r.status, json.loads(r.read().decode() or "{}")
+    except urllib.error.HTTPError as e:
+        return e.code, json.loads(e.read().decode() or "{}")
+
+# Read token from .secrets/modelscope/<account>.json
+token = json.load(open("/path/to/.secrets/modelscope/account.json"))["api_key"]
+ep = "https://modelscope.cn"
+
+for studio in STUDIOS:
+    repo = f"{studio['owner']}/{studio['repo']}"
+    base = f"{ep}/openapi/v1/studios/{repo}/secrets"
+    print(f"\n===== {repo} =====")
+    
+    for key, value in SECRETS.items():
+        # Try PUT first (update existing), fallback to POST (create new)
+        st, rb = call("PUT", base, token, {"key": key, "value": value})
+        ok = st == 200 and str(rb.get("Code", rb.get("code", 200))) in ("200", "0")
+        
+        if not ok:  # 404 means key doesn't exist, use POST
+            st, rb = call("POST", base, token, {"key": key, "value": value})
+            ok = st == 200
+        
+        print(f"  {'✅' if ok else '❌'} {key:20s} http={st}")
+```
+
+**Common scenarios:**
+
+1. **Switch Redis/database** — update `*_HOST`, `*_PORT`, `*_PASSWORD`, `*_SSL_ENABLED` across all Studios, then redeploy each with `POST .../deploy`
+2. **Rotate API keys** — update `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` etc., no redeploy needed (most apps read env on each request)
+3. **Add new secrets** — batch-add `NEW_FEATURE_TOKEN` to multiple Studios; PUT returns 404 → POST creates it
+
+**After updating secrets:** Changes take effect **only after container restart**. Trigger with `POST .../deploy` for each Studio.
+
 ### Step 7: Deploy the Studio
 
 ```bash

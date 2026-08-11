@@ -1,0 +1,4 @@
+interface:
+  display_name: "CC Switch Add Provider"
+  short_description: "安全新增或修正 CC Switch Claude Code 供应商"
+  default_prompt: "使用 $cc-switch-add-provider 将一个模型接口安全添加到 CC Switch。"
