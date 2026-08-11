@@ -39,19 +39,47 @@ expect_failure() {
   [ "$actual_stderr" = "$expected_stderr" ] || fail "$label: expected stderr '$expected_stderr', got: $actual_stderr"
 }
 
+expect_failure_quickly() {
+  local label="$1" expected_status="$2" expected_stderr="$3"
+  shift 3
+  local actual_stderr actual_stdout status
+  set +e
+  python3 - "$TMP_ROOT/failure.stdout" "$TMP_ROOT/failure.stderr" "$@" <<'PY'
+import subprocess
+import sys
+
+try:
+    with open(sys.argv[1], "w") as stdout, open(sys.argv[2], "w") as stderr:
+        result = subprocess.run(sys.argv[3:], stdout=stdout, stderr=stderr, timeout=3)
+except subprocess.TimeoutExpired:
+    sys.exit(124)
+sys.exit(result.returncode)
+PY
+  status=$?
+  set -e
+  actual_stdout="$(< "$TMP_ROOT/failure.stdout")"
+  actual_stderr="$(< "$TMP_ROOT/failure.stderr")"
+  [ "$status" -eq "$expected_status" ] || fail "$label: expected status $expected_status, got $status"
+  [ -z "$actual_stdout" ] || fail "$label: expected empty stdout, got: $actual_stdout"
+  [ "$actual_stderr" = "$expected_stderr" ] || fail "$label: expected stderr '$expected_stderr', got: $actual_stderr"
+}
+
 CONFIG_DIR="$TMP_ROOT/config fixtures"
 CONFIG="$CONFIG_DIR/hf config.json"
 UNSUPPORTED_CONFIG="$TMP_ROOT/unsupported.json"
+INVALID_CONFIG="$TMP_ROOT/invalid.json"
+NONREGULAR_CONFIG="$TMP_ROOT/config-directory"
 MISSING_CONFIG="$TMP_ROOT/missing.json"
 FAKE_BIN="$TMP_ROOT/bin"
 FAKE_PYTHON="$TMP_ROOT/python"
 HF_FAKE_CAPTURE="$TMP_ROOT/sdk-token"
 HF_STANDARD_TOKEN="$TMP_ROOT/standard-token"
 UV_CAPTURE="$TMP_ROOT/uv-args"
-mkdir -p "$CONFIG_DIR" "$FAKE_BIN" "$FAKE_PYTHON/huggingface_hub"
+mkdir -p "$CONFIG_DIR" "$NONREGULAR_CONFIG" "$FAKE_BIN" "$FAKE_PYTHON/huggingface_hub"
 
 printf '%s\n' '{"token":"config-token","username":"vftfnn"}' > "$CONFIG"
 printf '%s\n' '{"username":"vftfnn"}' > "$UNSUPPORTED_CONFIG"
+printf '%s\n' '{"token":' > "$INVALID_CONFIG"
 
 cat > "$FAKE_BIN/hf" <<'EOF'
 #!/usr/bin/env bash
@@ -72,11 +100,35 @@ import os
 
 class HfApi:
     def __init__(self, token=None):
+        self.token = token
         with open(os.environ["HF_FAKE_CAPTURE"], "w") as capture:
             capture.write(token or "")
 
     def echo(self, value):
         return {"value": value}
+
+    def reflect(self, payload):
+        return payload
+
+    def nested_token(self):
+        return {"nested": [f"prefix-{self.token}-suffix"]}
+
+    def token_error(self):
+        raise RuntimeError(f"failed with {self.token}")
+
+    def cyclic_result(self):
+        value = {}
+        value["self"] = value
+        return value
+
+    def infinite_result(self):
+        value = 0
+        while True:
+            yield value
+            value += 1
+
+    def nan_result(self):
+        return float("nan")
 
     def _private(self):
         return "must not be callable"
@@ -171,15 +223,55 @@ assert_json_echo 'SDK uv bootstrap' "$output"
 [ "$(< "$HF_FAKE_CAPTURE")" = 'config-token' ] || fail 'SDK uv bootstrap: constructor did not receive config token'
 assert_not_contains 'SDK uv bootstrap stdout' "$output" 'config-token'
 
+output="$(HF_TOKEN='env-token' HF_FAKE_CAPTURE="$HF_FAKE_CAPTURE" PYTHONPATH="$FAKE_PYTHON" python3 "$HF_API" nested_token)"
+JSON_OUTPUT="$output" python3 - <<'PY' || fail "SDK nested token redaction: unexpected JSON: $output"
+import json
+import os
+
+assert json.loads(os.environ["JSON_OUTPUT"]) == {"nested": ["prefix-[REDACTED]-suffix"]}
+PY
+assert_not_contains 'SDK nested token redaction' "$output" 'env-token'
+
+output="$(HF_TOKEN='env-token' HF_FAKE_CAPTURE="$HF_FAKE_CAPTURE" PYTHONPATH="$FAKE_PYTHON" python3 "$HF_API" reflect --kwargs '{"payload":{"password":"alternate-token"}}')"
+JSON_OUTPUT="$output" python3 - <<'PY' || fail "SDK kwargs token redaction: unexpected JSON: $output"
+import json
+import os
+
+assert json.loads(os.environ["JSON_OUTPUT"]) == {"password": "[REDACTED]"}
+PY
+assert_not_contains 'SDK kwargs token redaction' "$output" 'alternate-token'
+
 expect_failure 'SDK private method' 1 'method must be public' \
   env -u HF_TOKEN PYTHONPATH="$FAKE_PYTHON" python3 "$HF_API" --config "$CONFIG" _private
 expect_failure 'SDK missing method' 1 'HfApi method not found: does_not_exist' \
   env -u HF_TOKEN HF_FAKE_CAPTURE="$HF_FAKE_CAPTURE" PYTHONPATH="$FAKE_PYTHON" python3 "$HF_API" --config "$CONFIG" does_not_exist
 expect_failure 'SDK non-object kwargs' 1 '--kwargs must be a JSON object' \
   env -u HF_TOKEN PYTHONPATH="$FAKE_PYTHON" python3 "$HF_API" --config "$CONFIG" echo --kwargs '[]'
+expect_failure 'SDK credential kwargs' 1 'credential kwargs are not allowed: token' \
+  env -u HF_TOKEN PYTHONPATH="$FAKE_PYTHON" python3 "$HF_API" --config "$CONFIG" echo --kwargs '{"value":42,"token":"alternate-token"}'
+assert_not_contains 'SDK credential kwargs stderr' "$(< "$TMP_ROOT/failure.stderr")" 'alternate-token'
+expect_failure 'SDK NaN kwargs' 1 '--kwargs must be valid JSON' \
+  env -u HF_TOKEN PYTHONPATH="$FAKE_PYTHON" python3 "$HF_API" --config "$CONFIG" echo --kwargs '{"value":NaN}'
+expect_failure 'SDK Infinity kwargs' 1 '--kwargs must be valid JSON' \
+  env -u HF_TOKEN PYTHONPATH="$FAKE_PYTHON" python3 "$HF_API" --config "$CONFIG" echo --kwargs '{"value":Infinity}'
 expect_failure 'SDK missing config' 1 "config file not found: $MISSING_CONFIG" \
   env -u HF_TOKEN PYTHONPATH="$FAKE_PYTHON" python3 "$HF_API" --config "$MISSING_CONFIG" echo --kwargs '{"value":42}'
+expect_failure 'SDK invalid config JSON' 1 "invalid config JSON: $INVALID_CONFIG" \
+  env -u HF_TOKEN PYTHONPATH="$FAKE_PYTHON" python3 "$HF_API" --config "$INVALID_CONFIG" echo --kwargs '{"value":42}'
+expect_failure 'SDK non-regular config' 1 "cannot read config file: $NONREGULAR_CONFIG" \
+  env -u HF_TOKEN PYTHONPATH="$FAKE_PYTHON" python3 "$HF_API" --config "$NONREGULAR_CONFIG" echo --kwargs '{"value":42}'
 expect_failure 'SDK unsupported config' 1 'config has no supported token field' \
   env -u HF_TOKEN PYTHONPATH="$FAKE_PYTHON" python3 "$HF_API" --config "$UNSUPPORTED_CONFIG" echo --kwargs '{"value":42}'
+expect_failure 'SDK exception token redaction' 1 'failed with [REDACTED]' \
+  env HF_TOKEN='env-token' HF_FAKE_CAPTURE="$HF_FAKE_CAPTURE" PYTHONPATH="$FAKE_PYTHON" python3 "$HF_API" token_error
+assert_not_contains 'SDK exception token redaction' "$(< "$TMP_ROOT/failure.stderr")" 'env-token'
+expect_failure 'SDK cyclic result' 1 'result contains a cycle' \
+  env -u HF_TOKEN HF_FAKE_CAPTURE="$HF_FAKE_CAPTURE" PYTHONPATH="$FAKE_PYTHON" python3 "$HF_API" --config "$CONFIG" cyclic_result
+expect_failure_quickly 'SDK infinite result' 1 'result exceeds serialization limit' \
+  env -u HF_TOKEN HF_FAKE_CAPTURE="$HF_FAKE_CAPTURE" PYTHONPATH="$FAKE_PYTHON" python3 "$HF_API" --config "$CONFIG" infinite_result
+expect_failure 'SDK NaN result' 1 'result contains non-finite float' \
+  env -u HF_TOKEN HF_FAKE_CAPTURE="$HF_FAKE_CAPTURE" PYTHONPATH="$FAKE_PYTHON" python3 "$HF_API" --config "$CONFIG" nan_result
+expect_failure 'SDK uv recursion guard' 1 'huggingface_hub import failed after uv bootstrap' \
+  env -u HF_TOKEN -u PYTHONPATH HF_API_UV_BOOTSTRAPPED=1 python3 -S "$HF_API" --config "$CONFIG" echo --kwargs '{"value":42}'
 
 printf 'PASS: huggingface-ops\n'
