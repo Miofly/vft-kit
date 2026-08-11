@@ -116,6 +116,16 @@ class HfApi:
     def token_error(self):
         raise RuntimeError(f"failed with {self.token}")
 
+    def response_secret_fields(self):
+        return {
+            "token": "server-issued-token",
+            "secret": {"value": "server-issued-secret"},
+            "safe": "visible",
+        }
+
+    def add_space_secret(self, repo_id, key, value):
+        raise RuntimeError(f"failed to update {repo_id}/{key} with {value}")
+
     def cyclic_result(self):
         value = {}
         value["self"] = value
@@ -241,6 +251,29 @@ assert json.loads(os.environ["JSON_OUTPUT"]) == {"password": "[REDACTED]"}
 PY
 assert_not_contains 'SDK kwargs token redaction' "$output" 'alternate-token'
 
+output="$(HF_TOKEN='env-token' HF_FAKE_CAPTURE="$HF_FAKE_CAPTURE" PYTHONPATH="$FAKE_PYTHON" python3 "$HF_API" reflect --kwargs '{"payload":{"secrets":{"REDIS_PASSWORD":"space-secret-value"}}}')"
+JSON_OUTPUT="$output" python3 - <<'PY' || fail "SDK secrets mapping redaction: unexpected JSON: $output"
+import json
+import os
+
+assert json.loads(os.environ["JSON_OUTPUT"]) == {"secrets": "[REDACTED]"}
+PY
+assert_not_contains 'SDK secrets mapping redaction' "$output" 'space-secret-value'
+
+output="$(HF_TOKEN='env-token' HF_FAKE_CAPTURE="$HF_FAKE_CAPTURE" PYTHONPATH="$FAKE_PYTHON" python3 "$HF_API" response_secret_fields)"
+JSON_OUTPUT="$output" python3 - <<'PY' || fail "SDK response field redaction: unexpected JSON: $output"
+import json
+import os
+
+assert json.loads(os.environ["JSON_OUTPUT"]) == {
+    "token": "[REDACTED]",
+    "secret": "[REDACTED]",
+    "safe": "visible",
+}
+PY
+assert_not_contains 'SDK response token field redaction' "$output" 'server-issued-token'
+assert_not_contains 'SDK response secret field redaction' "$output" 'server-issued-secret'
+
 expect_failure 'SDK private method' 1 'method must be public' \
   env -u HF_TOKEN PYTHONPATH="$FAKE_PYTHON" python3 "$HF_API" --config "$CONFIG" _private
 expect_failure 'SDK missing method' 1 'HfApi method not found: does_not_exist' \
@@ -265,6 +298,9 @@ expect_failure 'SDK unsupported config' 1 'config has no supported token field' 
 expect_failure 'SDK exception token redaction' 1 'failed with [REDACTED]' \
   env HF_TOKEN='env-token' HF_FAKE_CAPTURE="$HF_FAKE_CAPTURE" PYTHONPATH="$FAKE_PYTHON" python3 "$HF_API" token_error
 assert_not_contains 'SDK exception token redaction' "$(< "$TMP_ROOT/failure.stderr")" 'env-token'
+expect_failure 'SDK Space secret value redaction' 1 'failed to update vftfnn/wfly-spring/REDIS_PASSWORD with [REDACTED]' \
+  env HF_TOKEN='env-token' HF_FAKE_CAPTURE="$HF_FAKE_CAPTURE" PYTHONPATH="$FAKE_PYTHON" python3 "$HF_API" add_space_secret --kwargs '{"repo_id":"vftfnn/wfly-spring","key":"REDIS_PASSWORD","value":"space-secret-value"}'
+assert_not_contains 'SDK Space secret value redaction' "$(< "$TMP_ROOT/failure.stderr")" 'space-secret-value'
 expect_failure 'SDK cyclic result' 1 'result contains a cycle' \
   env -u HF_TOKEN HF_FAKE_CAPTURE="$HF_FAKE_CAPTURE" PYTHONPATH="$FAKE_PYTHON" python3 "$HF_API" --config "$CONFIG" cyclic_result
 expect_failure_quickly 'SDK infinite result' 1 'result exceeds serialization limit' \

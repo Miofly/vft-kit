@@ -8,6 +8,7 @@ import enum
 import json
 import math
 import os
+import re
 import shutil
 import sys
 from collections.abc import Iterable, Mapping
@@ -21,7 +22,17 @@ class LauncherError(Exception):
 MAX_DEPTH = 32
 MAX_ITEMS = 10_000
 FORBIDDEN_CREDENTIAL_KWARGS = {"token", "access_token", "api_token"}
-SENSITIVE_NAMES = {"token", "secret", "password", "api_key", "access_token", "api_token"}
+SENSITIVE_PARTS = {
+    "token",
+    "tokens",
+    "secret",
+    "secrets",
+    "password",
+    "passwords",
+    "credential",
+    "credentials",
+}
+SENSITIVE_NAMES = {"api_key", "apikey", "access_key", "private_key", "authorization", "cookie"}
 
 
 def parse_args():
@@ -116,16 +127,35 @@ def redact(value, secrets):
     return value
 
 
-def sensitive_values(value):
+def is_sensitive_name(value):
+    if not isinstance(value, str):
+        return False
+    normalized = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", value).replace("-", "_").lower()
+    return normalized in SENSITIVE_NAMES or any(part in SENSITIVE_PARTS for part in normalized.split("_"))
+
+
+def sensitive_values(method, value):
     found = set()
+    secret_method = "secret" in method.lower()
+
+    def collect_strings(item):
+        if isinstance(item, str):
+            if item:
+                found.add(item)
+        elif isinstance(item, Mapping):
+            for nested in item.values():
+                collect_strings(nested)
+        elif isinstance(item, (list, tuple, set)):
+            for nested in item:
+                collect_strings(nested)
 
     def visit(item):
         if isinstance(item, Mapping):
             for key, nested in item.items():
-                if isinstance(key, str) and key.lower() in SENSITIVE_NAMES and isinstance(nested, str):
-                    found.add(nested)
+                if is_sensitive_name(key) or (secret_method and str(key).lower() == "value"):
+                    collect_strings(nested)
                 visit(nested)
-        elif isinstance(item, list):
+        elif isinstance(item, (list, tuple, set)):
             for nested in item:
                 visit(nested)
 
@@ -171,7 +201,9 @@ def json_safe(value, secrets):
                     if index >= MAX_ITEMS:
                         raise LauncherError("result exceeds serialization limit")
                     consume()
-                    result[redact(field.name, secrets)] = walk(getattr(item, field.name), depth + 1)
+                    result[redact(field.name, secrets)] = (
+                        "[REDACTED]" if is_sensitive_name(field.name) else walk(getattr(item, field.name), depth + 1)
+                    )
                 return result
             if isinstance(item, Mapping):
                 result = {}
@@ -179,7 +211,10 @@ def json_safe(value, secrets):
                     if index >= MAX_ITEMS:
                         raise LauncherError("result exceeds serialization limit")
                     consume()
-                    result[redact(str(key), secrets)] = walk(nested, depth + 1)
+                    key_name = str(key)
+                    result[redact(key_name, secrets)] = (
+                        "[REDACTED]" if is_sensitive_name(key_name) else walk(nested, depth + 1)
+                    )
                 return result
             if isinstance(item, Iterable):
                 result = []
@@ -208,7 +243,7 @@ def main():
         kwargs = strict_json_loads(args.kwargs, "--kwargs must be valid JSON")
         if not isinstance(kwargs, dict):
             raise LauncherError("--kwargs must be a JSON object")
-        secrets.update(sensitive_values(kwargs))
+        secrets.update(sensitive_values(args.method, kwargs))
         forbidden = sorted(key for key in kwargs if key.lower() in FORBIDDEN_CREDENTIAL_KWARGS)
         if forbidden:
             raise LauncherError(f"credential kwargs are not allowed: {', '.join(forbidden)}")
