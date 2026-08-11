@@ -42,7 +42,8 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/check.sh
 | 系统配置 | RTK hook / **RTK 压缩豁免（cat/diff/find/grep/curl/head/wc）**〈装了 rtk 才核对，未装整段跳过〉 / claude-hud 状态栏 / cc-switch App / **ruflo daemon** + **ruflo daemon supervisor（launchd 常驻 + `--ttl 0`）**〈装了 ruflo MCP 才核对〉 | `settings.json` 的 `hooks`、`statusLine`；`~/Library/Application Support/rtk/config.toml` 的 `[hooks].exclude_commands`；`/Applications/CC Switch.app`；`pgrep -f "claude-flow.*daemon"`；`~/Library/LaunchAgents/io.ruv.ruflo.daemon.plist` + `launchctl print` + PlistBuddy 查 `--ttl` |
 | 配置基线 | **bypassPermissions** / **bypass 警告已接受（可选）** / **~ 目录已信任** / codegraph 只读白名单 / **Codex API key 启动注入**（`auth.json` 有 key 时必需）/ 全局 CLAUDE.md（必需）/ **全局规范含「始终中文回复」**（必需）/ **全局规范含「代码位置用可点短链」**（必需）/ **全局规范含「上下文压缩取舍规则」**（必需）/ **全局规范含「外网操作代理兜底」**（必需）/ **全局规范含「多 Agent 并行执行」**（必需）/ **CodeGraph 自动初始化规范**（装了 codegraph CLI 时必需）/ **context7 调用规范**（装了 context7 插件时必需）/ **anysearch 调用规范**（装了 anysearch skill 时必需）/ **agentmemory 使用规范**（必需）/ **ruflo swarm 调用规范**（装了 ruflo MCP 时必需）/ **ruflo autopilot 调用规范**（装了 ruflo MCP 时必需）/ **ruflo loop 调用规范**（装了 ruflo MCP 时必需）/ **.claude-flow/config.json**（装了 ruflo MCP 时必需）/ **默认关闭自动更新**（必需）；memory 目录（可选） | `settings.json` 的 `permissions`、`hooks`、`env.DISABLE_AUTOUPDATER`；`~/.claude.json` 的 `bypassPermissionsModeAccepted`、`projects[$HOME].hasTrustDialogAccepted`；`~/.codex/auth.json`、`~/.zshenv`；`~/.claude/CLAUDE.md`（含正文 grep）、`~/.claude/skills/anysearch`、`~/.claude/projects/`、`~/.claude-flow/config.json` |
 
-## 各检查项作用速查（回报缺失项时「作用」列取这里）
+## 各检查项作用速查（回报缺失项时「作用」列取这里）Wfly123.
+
 
 回报 `✗` 时不列修复命令，只按下表给「作用」——一句话讲清这项干什么、缺了什么影响，让用户判断要不要补。
 
