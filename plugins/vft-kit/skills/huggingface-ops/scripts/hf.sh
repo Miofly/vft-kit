@@ -65,10 +65,16 @@ PY
 fi
 
 if command -v hf >/dev/null 2>&1; then
-  exec hf "${forward[@]}"
+  if ((${#forward[@]})); then
+    exec hf "${forward[@]}"
+  fi
+  exec hf
 fi
 if command -v uvx >/dev/null 2>&1; then
-  exec uvx --from huggingface-hub hf "${forward[@]}"
+  if ((${#forward[@]})); then
+    exec uvx --from huggingface-hub hf "${forward[@]}"
+  fi
+  exec uvx --from huggingface-hub hf
 fi
 
 printf '%s\n' 'hf/uvx not found' >&2

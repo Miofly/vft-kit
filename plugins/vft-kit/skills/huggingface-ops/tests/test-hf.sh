@@ -76,7 +76,6 @@ class HfApi:
 PY
 
 [ -f "$HF_SH" ] || fail "CLI launcher missing: $HF_SH"
-[ -f "$HF_API" ] || fail "SDK launcher missing: $HF_API"
 
 output="$(HF_TOKEN='env-token' PATH="$FAKE_BIN:$PATH" bash "$HF_SH" --config "$CONFIG" spaces list --search 'two words;still-one')"
 assert_line 'CLI environment token precedence' "$output" 'token=env-token'
@@ -109,10 +108,16 @@ assert_line 'CLI escaped config value' "$output" 'arg[1]=official-config'
 assert_line 'CLI escaped third argument' "$output" 'arg[2]=spaces'
 assert_line 'CLI escaped fourth argument' "$output" 'arg[3]=list'
 
+output="$(HF_TOKEN='env-token' PATH="$FAKE_BIN:$PATH" bash "$HF_SH")"
+assert_line 'CLI no arguments' "$output" 'argc=0'
+assert_not_contains 'CLI no argument boundary' "$output" 'arg[0]'
+
 expect_failure 'CLI missing config' 1 "config file not found: $MISSING_CONFIG" \
   env -u HF_TOKEN PATH="$FAKE_BIN:$PATH" bash "$HF_SH" --config "$MISSING_CONFIG" repos list
 expect_failure 'CLI unsupported config' 1 'config has no supported token field' \
   env -u HF_TOKEN PATH="$FAKE_BIN:$PATH" bash "$HF_SH" --config "$UNSUPPORTED_CONFIG" repos list
+
+[ -f "$HF_API" ] || fail "SDK launcher missing: $HF_API"
 
 assert_json_echo() {
   local label="$1" output="$2" expected_token="$3"
