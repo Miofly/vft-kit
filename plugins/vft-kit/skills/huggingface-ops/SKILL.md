@@ -40,7 +40,7 @@ python3 "<skill-dir>/scripts/hf-api.py" [--config <credential.json>] <HfApi meth
 
 ## Safety
 
-Run read-only inspect/list/log/status/download operations directly. Before delete, move, replace, remote file deletion, paid hardware/storage, or billable Jobs/Endpoints, inspect current state, resolve the exact target, and obtain explicit confirmation unless the current request already names that exact target and action. Verify destructive changes afterward without exposing secrets.
+Run read-only inspect/list/log/status/download operations directly. Before delete, move, replace, remote file deletion, paid hardware/storage, or billable Jobs/Endpoints, inspect current state, resolve the exact target, and obtain explicit confirmation unless the current request already names that exact target and action. For every mutation, inspect current state first and verify resulting state afterward; for Secrets, verify key/metadata/restart status only, never value readback.
 
 Warn that Space secret, variable, and hardware changes can restart the Space. Use Variables for non-sensitive values and Secrets for sensitive values. Treat secret listing as key/metadata inspection only; never attempt value readback.
 
