@@ -1,0 +1,4 @@
+interface:
+  display_name: "Chrome Web Store Publish"
+  short_description: "用资料模板自动预检并填写 Chrome 扩展商店信息"
+  default_prompt: "Use $chrome-web-store-publish to preflight this Chrome extension and save a verified Chrome Web Store draft using my publishing profile."
