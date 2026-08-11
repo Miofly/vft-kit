@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hugging Face Ops"
+  short_description: "管理 Hugging Face Hub、Space、仓库与计算资源"
+  default_prompt: "使用 $huggingface-ops 检查并操作 Hugging Face 资源。"
