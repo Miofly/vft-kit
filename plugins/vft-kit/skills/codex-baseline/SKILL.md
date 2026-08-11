@@ -1,6 +1,6 @@
 ---
 name: codex-baseline
-description: 一键核对本机 Codex CLI 是否符合「装配基线」——核对 CLI、dangerous full access、项目信任、hooks、Memories、稳定版 multi-agent、Playwright、CodeGraph/Lighthouse/OpenAI Docs MCP、Context7/Vercel 可选 MCP、GitHub/Superpowers/Build Web Apps/Ponytail/Context Mode 插件、Caveman/GSAP/AnySearch/Grill-me skills、RTK Codex 指令、图片生成 CLI 与全局 AGENTS 规范。MCP 与插件检查读取 Codex 合并后的真实状态，覆盖用户和项目 scope；支持 `--health` 实连 stdio MCP。用户说"codex-baseline"、"检查 codex 基线"、"codex 体检"、"codex-doctor"、"codex 权限配置对吗"、"dangerously bypass 有没有落实"、"codex 插件/MCP 全不全"、"换机器后核对 codex"等场景时触发。
+description: 一键核对本机 Codex CLI 是否符合「装配基线」——核对 CLI、dangerous full access、项目信任、hooks、Memories、稳定版 multi-agent、Playwright、CodeGraph/Lighthouse/OpenAI Docs MCP、Context7/Vercel 可选 MCP、GitHub/Build Web Apps/Ponytail/Context Mode 必需插件、Superpowers 可选插件、Caveman/GSAP/AnySearch/Grill-me skills、RTK Codex 指令、图片生成 CLI 与全局 AGENTS 规范。MCP 与插件检查读取 Codex 合并后的真实状态，覆盖用户和项目 scope；支持 `--health` 实连 stdio MCP。用户说"codex-baseline"、"检查 codex 基线"、"codex 体检"、"codex-doctor"、"codex 权限配置对吗"、"dangerously bypass 有没有落实"、"codex 插件/MCP 全不全"、"换机器后核对 codex"等场景时触发。
 ---
 
 # codex-baseline —— Codex 装配基线核对
@@ -69,7 +69,7 @@ codex-imagegen generate \
 | Playwright MCP | `playwright` stdio server 已配置且未禁用 / Chromium 内核存在 | `~/.codex/config.toml` + Playwright browser cache |
 | 代码与审计 MCP | `codegraph` CLI、`lighthouse-mcp` 的 npm 载体，以及两者的注册与启用状态，全部必需 | `command -v` + `$(npm root -g)` + `codex mcp get --json` |
 | 文档与部署 MCP | OpenAI Developer Docs 必需；Context7 / Vercel 可选 | `codex mcp get --json` |
-| CLI 插件 | github / superpowers / build-web-apps / ponytail / context-mode 必需；GitHub 另检查 `GITHUB_PAT_TOKEN` | `codex plugin list --json`，失败时回退全局 config + cache；环境变量 + `gh auth token` |
+| CLI 插件 | github / build-web-apps / ponytail / context-mode 必需，superpowers 可选；GitHub 另检查 `GITHUB_PAT_TOKEN` | `codex plugin list --json`，失败时回退全局 config + cache；环境变量 + `gh auth token` |
 | 兼容 Agent Skills | Caveman skill + 全局默认 full 托管块必需；GSAP 官方 8 项 skills 必需；AnySearch 与 Grill-me 可选 | `~/.agents/skills` + `~/.codex/skills` + `~/.codex/AGENTS.md` |
 | 系统 skills | openai-docs / imagegen / skill-creator / plugin-creator / skill-installer | `~/.codex/skills/.system` |
 | 图片生成 CLI/API | imagegen CLI 脚本 / 专用 venv / `openai` + `pillow` / `codex-imagegen` / `OPENAI_API_KEY` 注入源 | `~/.codex/skills/.system/imagegen` + `~/.codex/venvs/imagegen-cli` + `~/.local/bin/codex-imagegen` |

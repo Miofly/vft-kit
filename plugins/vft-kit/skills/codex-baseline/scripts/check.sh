@@ -336,7 +336,7 @@ if github_plugin_active; then
     bad "GITHUB_PAT_TOKEN 未注入" '先运行 gh auth login；再执行: printf '\''\nexport GITHUB_PAT_TOKEN="$(gh auth token 2>/dev/null)"\n'\'' >> ~/.zshrc；然后重启 Codex'
   fi
 fi
-check_plugin "superpowers@openai-api-curated" required "codex plugin add superpowers@openai-api-curated"
+check_plugin "superpowers@openai-api-curated" optional "codex plugin add superpowers@openai-api-curated"
 check_plugin "build-web-apps@openai-api-curated" required "codex plugin add build-web-apps@openai-api-curated"
 check_plugin "ponytail@ponytail" required "codex plugin marketplace add DietrichGebert/ponytail；再运行 codex plugin add ponytail@ponytail"
 check_plugin "context-mode@context-mode" required "codex plugin marketplace add https://github.com/mksglu/claude-context-mode.git；再运行 codex plugin add context-mode@context-mode"
