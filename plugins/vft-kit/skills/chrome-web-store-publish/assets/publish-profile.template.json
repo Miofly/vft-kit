@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "publisher": {
+    "developerName": "",
+    "publisherId": "",
+    "dashboardUrl": ""
+  },
+  "listing": {
+    "category": "",
+    "homepageUrl": "",
+    "supportUrl": "",
+    "privacyPolicyUrl": "",
+    "descriptions": {}
+  },
+  "assets": {
+    "icon": "",
+    "screenshots": [],
+    "smallPromo": "",
+    "marqueePromo": ""
+  },
+  "distribution": {
+    "payment": "free",
+    "visibility": "public",
+    "regions": "all",
+    "publishAfterApproval": "manual"
+  },
+  "legalProfile": {
+    "traderStatus": "preserve",
+    "publicEmail": "preserve",
+    "postalAddress": "preserve"
+  },
+  "privacy": {
+    "userDataCategories": [],
+    "limitedUseConfirmations": []
+  },
+  "testInstructions": ""
+}
