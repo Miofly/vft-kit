@@ -30,8 +30,8 @@ python3 "<skill-dir>/scripts/hf-api.py" [--config <credential.json>] <HfApi meth
 | Need | Start with; inspect help for exact current syntax |
 | --- | --- |
 | Auth/status | `bash "<skill-dir>/scripts/hf.sh" auth --help`; then inspect `whoami` or token verification |
-| Models/datasets/Spaces/repos | Run launcher with `models --help`; likewise `datasets`, `spaces`, `repos`; list first |
-| Download/upload/sync | Run launcher with `download --help`, `upload --help`, then inspect cache/sync help |
+| Models/datasets/Spaces/repos | Run launcher with each group's `--help`; use its available read-only list/info command |
+| Download/upload/sync | Run launcher with `download --help`, `upload --help`, or `cache --help`; run top-level `--help`, then current `cp`/`sync` group help for transfers |
 | Space variables/secrets | Run launcher with `spaces --help`; inspect variable/secret commands and exact Space ID |
 | Logs/runtime/settings | Run launcher with `spaces --help`; inspect logs, runtime, restart, duplicate, hardware, storage |
 | Jobs/Endpoints/sandbox | Run launcher with `jobs --help`; inspect Inference Endpoint and sandbox help |
@@ -40,7 +40,7 @@ python3 "<skill-dir>/scripts/hf-api.py" [--config <credential.json>] <HfApi meth
 
 ## Safety
 
-Run read-only inspect/list/log/status/download operations directly. Before delete, move, replace, remote file deletion, paid hardware/storage, or billable Jobs/Endpoints, inspect current state, resolve the exact target, and obtain explicit confirmation unless the current request already names that exact target and action. For every mutation, inspect current state first and verify resulting state afterward; for Secrets, verify key/metadata/restart status only, never value readback.
+Run remote read/list/inspect/log/status operations directly. Before download, inspect the local destination and collision state; verify downloaded files afterward. Before delete, move, replace, remote file deletion, paid hardware/storage, or billable Jobs/Endpoints, inspect current state, resolve the exact target, and obtain explicit confirmation unless the current request already names that exact target and action. For every mutation, inspect current state first and verify resulting state afterward; for Secrets, verify key/metadata/restart status only, never value readback.
 
 Warn that Space secret, variable, and hardware changes can restart the Space. Use Variables for non-sensitive values and Secrets for sensitive values. Treat secret listing as key/metadata inspection only; never attempt value readback.
 
