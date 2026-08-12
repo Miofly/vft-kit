@@ -1,0 +1,5 @@
+interface:
+  display_name: "GitHub Ops"
+  short_description: "通过 gh 安全管理仓库、Actions 与 Secrets"
+  default_prompt: "使用 $github-ops 检查并操作 GitHub 仓库。"
+
