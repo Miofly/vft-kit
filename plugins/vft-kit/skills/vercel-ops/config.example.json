@@ -1,0 +1,16 @@
+{
+  "default": {
+    "access_token": "your-vercel-token-here",
+    "team_id": "team_xxxxxxxxxxxxx",
+    "team_slug": "your-team-slug"
+  },
+  "production": {
+    "access_token": "vcp_production_token_here",
+    "team_id": "team_production_xxxxx",
+    "team_slug": "prod-team"
+  },
+  "personal": {
+    "access_token": "vcp_personal_token_here",
+    "team_id": null
+  }
+}
