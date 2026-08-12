@@ -42,20 +42,25 @@ node "$KMCTL" enable <UID> true
 
 ## 新增定时 Shell 宏
 
-先 dry-run 检查结构和命令文本，再导入。默认导入后保持禁用，目标为全局宏组；只有用户明确要求立即生效时才加 `--enable`。
+**必须先检查是否存在私有层 Skill**。若 `vft-ai:keyboard-maestro-private` 存在，优先读取并遵循其中的固定宏组、前置宏等规则；否则根据用户环境（截图、明确指示）确定目标宏组。
+
+先 dry-run 检查结构和命令文本，再导入。默认导入后保持禁用；只有用户明确要求立即生效时才加 `--enable`。
 
 ```bash
+# 先 dry-run 验证
 node "$KMCTL" add-daily-shell \
   --name '每日任务' \
   --command '/absolute/path/to/task.sh' \
   --time 09:00 \
+  --group 'target-group' \
   --dry-run
 
+# 确认无误后正式创建
 node "$KMCTL" add-daily-shell \
   --name '每日任务' \
   --command '/absolute/path/to/task.sh' \
   --time 09:00 \
-  --group 'Global Macro Group'
+  --group 'target-group'
 ```
 
 - `--days` 是周位掩码，默认 `127`（每天）；这是 KM 11.0.3 实机格式。
