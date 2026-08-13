@@ -283,17 +283,17 @@ sec "MCP 服务器（已注册到 CC）"
 mcp_registered codegraph           && ok "codegraph"           || bad "codegraph MCP"           "codegraph install --target=claude --location=global --yes"
 mcp_registered lighthouse-mcp      && ok "lighthouse-mcp"      || bad "lighthouse-mcp MCP"      "claude mcp add lighthouse-mcp -s user -- node \"\$(npm root -g)/@danielsogl/lighthouse-mcp/dist/index.js\""
 mcp_registered agentmemory         && ok "agentmemory"         || bad "agentmemory MCP"         "bash \"$SCRIPT_DIR/install-agentmemory.sh\""
-mcp_registered claude-flow         && ok "ruflo"               || bad "ruflo MCP"               "volta install @claude-flow/cli && claude-flow init && claude mcp add claude-flow -s user -- /Users/\$USER/.volta/bin/claude-flow-mcp（init 只写项目级 ./.mcp.json，必须再 mcp add 注册到 user scope；别用 npx -y ruflo@latest，每会话 spawn 3 进程且不回收）"
+# ruflo 改为可选（用户可能不需要 swarm/autopilot 等高级协作功能）
+mcp_registered claude-flow         && ok "ruflo（可选）"       || opt "ruflo MCP"               "volta install @claude-flow/cli && claude-flow init && claude mcp add claude-flow -s user -- /Users/\$USER/.volta/bin/claude-flow-mcp（init 只写项目级 ./.mcp.json，必须再 mcp add 注册到 user scope；别用 npx -y ruflo@latest，每会话 spawn 3 进程且不回收）"
 
 # ---------- 4. 插件（默认必备集） ----------
 sec "插件（默认必备集）"
 # 精简后的默认必备插件清单（用户指定）：核心工作流 + 自研 + 反过度工程
 for p in superpowers skill-creator code-review frontend-design playwright \
-         claude-hud remember typescript-lsp jdtls-lsp \
+         remember typescript-lsp jdtls-lsp \
          claude-md-management context-mode ponytail caveman gsap-skills; do
   if plugin_installed "$p"; then ok "$p"; else
     case "$p" in
-      claude-hud)                     bad "$p" "claude plugin marketplace add jarrodwatts/claude-hud && claude plugin install claude-hud@claude-hud";;
       context-mode)                   bad "$p" "claude plugin marketplace add mksglu/claude-context-mode && claude plugin install context-mode@context-mode";;
       ponytail)                       bad "$p" "claude plugin marketplace add DietrichGebert/ponytail && claude plugin install ponytail@ponytail（两条要分开发）";;
       caveman)                        bad "$p" "claude plugin marketplace add JuliusBrussee/caveman && claude plugin install caveman@caveman（两条要分开发，省 65% 输出 token）";;
@@ -302,6 +302,8 @@ for p in superpowers skill-creator code-review frontend-design playwright \
     esac
   fi
 done
+# claude-hud 改为可选（可能与其它 statusLine 冲突，如 ruflo statusline / island-statusline）
+plugin_installed claude-hud && ok "claude-hud（可选状态栏）" || opt "claude-hud" "claude plugin marketplace add jarrodwatts/claude-hud && claude plugin install claude-hud@claude-hud"
 caveman_default_full && ok "Caveman 默认 full 自动启用" || bad "Caveman 默认 full 自动启用" "bash \"$SCRIPT_DIR/install-caveman-default.sh\""
 # 可选插件（装了更好，不装不算故障）
 for p in context7 vercel; do
@@ -343,14 +345,15 @@ if has_cmd rtk; then
 else
   opt "RTK（hook + 压缩豁免）"    "brew install rtk && rtk init -g --auto-patch（未装 rtk，跳过）"
 fi
-statusline_uses_hud             && ok "状态栏 statusLine（claude-hud）"      || bad "claude-hud 状态栏" "在 CC 里运行 /claude-hud:setup（或让现有 statusLine 委托给 claude-hud）"
+# statusLine 改为可选（用户可能用 ruflo statusline 或其它替代方案）
+statusline_uses_hud             && ok "状态栏 statusLine（claude-hud）"      || opt "claude-hud 状态栏" "在 CC 里运行 /claude-hud:setup（或让现有 statusLine 委托给 claude-hud）"
 [ -d "/Applications/CC Switch.app" ] && ok "cc-switch App"                  || opt "cc-switch App"    "brew install --cask cc-switch"
-# ruflo daemon（后台进程）+ launchd supervisor：ruflo MCP 已注册后必需
+# ruflo daemon（后台进程）+ launchd supervisor：改为可选（ruflo MCP 已注册时建议装，但非强制）
 # 两项分开报：daemon 在跑 ≠ 能常驻。裸 `daemon start` 默认 TTL 12h 到点自退，且不随开机启动，
-# 每天要手动重开——所以 supervisor（launchd 常驻 + 崩溃重启 + --ttl 0）是必需项而非可选。
+# 每天要手动重开——所以 supervisor（launchd 常驻 + 崩溃重启 + --ttl 0）是建议项。
 if mcp_registered claude-flow; then
-  pgrep -f "claude-flow.*daemon|ruflo.*daemon" >/dev/null 2>&1 && ok "ruflo daemon（学习循环 + autopilot + 后台 worker）" || bad "ruflo daemon" "claude-flow daemon start（想常驻见下一项 supervisor）"
-  ruflo_supervisor_ok && ok "ruflo daemon supervisor（launchd 常驻 + --ttl 0）" || bad "ruflo daemon supervisor" "bash \"$SCRIPT_DIR/install-ruflo-supervisor.sh\"（在仓库根装 launchd unit 并补 --ttl 0，避免 12h 自退与开机不启）"
+  pgrep -f "claude-flow.*daemon|ruflo.*daemon" >/dev/null 2>&1 && ok "ruflo daemon（学习循环 + autopilot + 后台 worker）" || opt "ruflo daemon" "claude-flow daemon start（想常驻见下一项 supervisor）"
+  ruflo_supervisor_ok && ok "ruflo daemon supervisor（launchd 常驻 + --ttl 0）" || opt "ruflo daemon supervisor" "bash \"$SCRIPT_DIR/install-ruflo-supervisor.sh\"（在仓库根装 launchd unit 并补 --ttl 0，避免 12h 自退与开机不启）"
 else
   ok "ruflo daemon（ruflo MCP 未注册，无需配置）"
 fi
