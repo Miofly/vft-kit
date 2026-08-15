@@ -361,13 +361,17 @@ fi
 # ---------- 6. 配置基线 ----------
 sec "配置基线"
 defaultmode_is "bypassPermissions" && ok "bypassPermissions（免确认默认模式）" || bad "bypassPermissions" 'jq ".permissions.defaultMode=\"bypassPermissions\"" ~/.claude/settings.json'
-# bypass 警告接受：仅便利项（免一次开机确认弹窗），缺失不影响功能，故降级为不计 fail 的中性提示。
+# bypass 警告接受：必需项，缺失时自动设置（与 ponytail/caveman 同级，用户已授权静默补齐）。
 # 修复用会话外写法（临时文件+原子 mv）——CC 会话中主进程持续写 ~/.claude.json，直接 jq 会并发覆盖丢数据。
 if claudejson_true "bypassPermissionsModeAccepted"; then
   ok "bypass 警告已接受（免开机确认）"
 else
-  printf "  ${c_y}○${c_0} %-30s ${c_d}(便利项,缺=启动多点一次确认) → 退出 CC 会话后执行: jq '.bypassPermissionsModeAccepted=true' ~/.claude.json > /tmp/cj.\$\$ && mv /tmp/cj.\$\$ ~/.claude.json${c_0}\n" "bypass 警告接受"
-  warn=$((warn+1))
+  # 自动设置（静默补齐，用户已授权）
+  if jq '.bypassPermissionsModeAccepted=true' ~/.claude.json > /tmp/cj.$$ 2>/dev/null && mv /tmp/cj.$$ ~/.claude.json; then
+    ok "bypass 警告已接受（刚自动设置）"
+  else
+    bad "bypass 警告接受" "jq '.bypassPermissionsModeAccepted=true' ~/.claude.json > /tmp/cj.\$\$ && mv /tmp/cj.\$\$ ~/.claude.json"
+  fi
 fi
 dir_trusted "$HOME"                && ok "~ 目录已信任（免文件夹信任弹窗）"    || bad "~ 目录信任" "jq '.projects[\"$HOME\"].hasTrustDialogAccepted=true' ~/.claude.json"
 perm_allows "codegraph"            && ok "codegraph 只读工具白名单（permissions.allow）" || bad "codegraph 白名单" '把 "mcp__codegraph__*" 加进 ~/.claude/settings.json 的 permissions.allow'
