@@ -35,6 +35,8 @@ Combine a cream paper canvas, dark ink outlines, offset hard shadows, oversized 
   --border: 2.5px solid var(--ink);
   --frame-border: 3px solid var(--frame-ink);
   --frame-shadow: 7px 8px 0 #111;
+  --card-shadow: 5px 6px 0 var(--ink);
+  --card-shadow-hover: 7px 8px 0 var(--ink);
   --shadow-sm: 3px 3px 0 var(--ink);
   --shadow-md: 6px 6px 0 var(--ink);
   --shadow-lg: 9px 10px 0 var(--ink);
@@ -76,7 +78,7 @@ Hero size: `clamp(74px, 11.5vw, 170px)` with tight line-height. Use the decorati
 - Dense content wall: four columns on wide screens, two where content permits, one on narrow screens.
 - Major structural frames such as the hero, control deck, and primary content sections must use a 2.5–3px high-contrast ink outline plus a zero-blur hard shadow offset about 6–8px right and 7–9px down. Both the right and bottom shadow faces must remain visibly exposed without becoming a dominant black slab; reserve enough surrounding gutter to prevent clipping. Keep this distinct from the smaller cards' diagonal offset hard shadows.
 - In dark mode, retain a clearly contrasting frame outline and keep the right-and-bottom slab near black; do not soften either into low-contrast tonal shadows.
-- Cards: 12–20px radius, 2–2.5px ink border, 5–10px zero-blur shadow.
+- Cards: 12–20px radius, 2–2.5px ink border, and a smaller zero-blur hard shadow—about 5px right / 6px down at rest, growing to 7–8px right / 8–9px down on hover.
 - Rotate only stamps, tape, notes, and selected cards by roughly `-3deg` to `3deg`; remove most rotation on narrow screens.
 - Use structural labels, rankings, dividers, and issue metadata to encode real content, not as empty decoration.
 
@@ -120,10 +122,13 @@ Decouple text, structural frames, and internal controls. Main text may stay warm
   --blue: #687dff;
   --green: #43c884;
   --shadow: #050506;
+  --frame-shadow: 7px 8px 0 var(--shadow);
+  --card-shadow: 5px 6px 0 var(--shadow);
+  --card-shadow-hover: 7px 8px 0 var(--shadow);
 }
 ```
 
-Keep the same zero-blur right-bottom frame shadow geometry used in light mode. A near-black shadow remains legible only when the page canvas and module surface differ enough; verify both the right and bottom faces visually rather than merely checking `box-shadow` in computed CSS. Do not compensate for a disappearing shadow by making it thicker.
+Keep the same single-layer zero-blur right-bottom shadow geometry used in light mode for both structural frames and content cards. Make it legible through three luminance levels: a neutral near-black canvas, a visibly lighter charcoal module surface, and a darker near-black shadow. Keep only the structural border warm gray. Never wrap the shadow in a bright outline or add a contrasting second shadow; that creates an unwanted double-line or neon effect.
 
 ### Scroll surfaces
 
