@@ -365,16 +365,43 @@ const commands = {
         const projectId = args._[2];
         if (!projectId) throw new Error('Project ID required');
 
+        // 获取项目的 Git 配置
+        const project = await api.get(`/v9/projects/${projectId}`);
+
+        if (!project.link) {
+          throw new Error(`Project ${projectId} has no Git integration. Use deploy hooks or link a repository first.`);
+        }
+
+        // 构建 Git source
+        const gitSource = {
+          type: project.link.type,  // "github" | "gitlab" | "bitbucket"
+          repoId: project.link.repoId,
+          ref: args.ref || project.link.productionBranch || 'main',
+        };
+
+        // 允许用户覆盖（高级用法）
+        if (args['git-source']) {
+          Object.assign(gitSource, JSON.parse(args['git-source']));
+        }
+
         const body = {
-          name: projectId,
-          target: args.target || 'preview',
-          ...(args['git-source'] && { gitSource: JSON.parse(args['git-source']) }),
+          name: project.name,  // 项目名称（必需）
+          project: projectId,  // 项目 ID
+          target: args.target || 'production',
+          gitSource: gitSource,
         };
 
         const deployment = await api.post('/v13/deployments', body);
+
         console.log('✓ Deployment created');
         console.log(`ID: ${deployment.id}`);
-        console.log(`URL: ${deployment.url}`);
+        console.log(`URL: https://${deployment.url}`);
+        console.log(`Status: ${deployment.readyState || 'QUEUED'}`);
+
+        if (args.json) {
+          console.log(JSON.stringify(deployment, null, 2));
+        }
+
         break;
       }
 
