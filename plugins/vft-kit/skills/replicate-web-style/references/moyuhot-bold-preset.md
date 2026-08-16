@@ -22,8 +22,18 @@ Combine a cream paper canvas, dark ink outlines, offset hard shadows, oversized 
   --pink-soft: #ffd7e5;
   --blue-soft: #dbe2ff;
   --green-soft: #d7f1df;
+  --frame-ink: var(--ink);
+  --control-ink: var(--ink);
+  --on-accent: var(--ink);
+  --text-soft: #574f46;
+  --muted: #776b5f;
+  --placeholder: #9a8c7b;
+  --scroll-track: var(--paper-deep);
+  --scroll-thumb: var(--pink);
+  --scroll-thumb-hover: var(--blue);
+  --scroll-edge: #fffaf0;
   --border: 2.5px solid var(--ink);
-  --frame-border: 3px solid var(--ink);
+  --frame-border: 3px solid var(--frame-ink);
   --frame-shadow: 7px 8px 0 #111;
   --shadow-sm: 3px 3px 0 var(--ink);
   --shadow-md: 6px 6px 0 var(--ink);
@@ -79,6 +89,73 @@ Hero size: `clamp(74px, 11.5vw, 170px)` with tight line-height. Use the decorati
 - Modal: centered paper/white panel, dark overlay, thick border, 10px hard shadow, obvious close control, short entrance.
 - Select popover: treat teleported dropdowns as separate themed surfaces; give the trigger enough width for its longest value, use a 2px ink outline and compact hard shadow on the menu, and keep selected/hover rows fully readable rather than truncated.
 - Text-field focus: preserve the outer ink frame, switch the complete field surface to a deliberate accent such as yellow, and grow its hard shadow. Remove nested browser/library focus rings that draw a second inset rectangle.
+
+### Form controls
+
+Use warm neutrals that belong to the paper palette: body and selected text use `--ink`, supporting text and control icons use `--text-soft` or `--muted`, and placeholders use `--placeholder`. Keep placeholder contrast readable and do not dim it again with low opacity. Avoid inherited cool slate/blue-gray component defaults.
+
+Apply focus to the complete control wrapper with `:focus-within`: retain the ink border, use an accent surface such as `--yellow`, and increase the hard shadow. Remove the inner input's native/library outline and shadow only after the wrapper provides an equally obvious keyboard focus state. Check text, placeholder, clear/search icons, and select carets together in light and dark modes.
+
+### Dark adaptation
+
+The Bold reference is light-first. When a target must support dark mode, preserve its geometry and editorial hierarchy instead of mechanically inverting every light token. Use a neutral near-black canvas, a clearly lighter charcoal surface, and one raised surface; avoid covering the whole page with a purple tint unless the reference explicitly does so.
+
+Decouple text, structural frames, and internal controls. Main text may stay warm and bright, major frame outlines should use a quieter warm mid-tone, and internal controls should use a still lower-contrast border. Wide bands such as table or section headers use restrained antique gold rather than the full light-mode yellow. Reserve saturated pink, blue, and green for selected, actionable, or status-bearing elements.
+
+```css
+.zine-page.is-dark {
+  --paper: #101116;
+  --paper-deep: #202128;
+  --surface: #18191f;
+  --surface-raised: #202128;
+  --ink: #f3ead8;
+  --text-soft: #c7bcaa;
+  --muted: #968d7e;
+  --placeholder: #8f877a;
+  --frame-ink: #9b8f78;
+  --control-ink: #6f685b;
+  --on-accent: #17130d;
+  --yellow: #b7862d;
+  --pink: #ff4f8b;
+  --blue: #687dff;
+  --green: #43c884;
+  --shadow: #050506;
+}
+```
+
+Keep the same zero-blur right-bottom frame shadow geometry used in light mode. A near-black shadow remains legible only when the page canvas and module surface differ enough; verify both the right and bottom faces visually rather than merely checking `box-shadow` in computed CSS. Do not compensate for a disappearing shadow by making it thicker.
+
+### Scroll surfaces
+
+Theme the element that actually owns `overflow: auto|scroll`, not merely an outer dialog or card. Use both Firefox and WebKit rules; keep a roughly 10px visual width, a paper-toned track, an accent thumb, a contrasting hover state, and a surface-colored thumb border.
+
+```css
+.zine-scroll {
+  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+  scrollbar-width: auto;
+}
+.zine-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+.zine-scroll::-webkit-scrollbar-track { background: var(--scroll-track); }
+.zine-scroll::-webkit-scrollbar-thumb {
+  border: 2px solid var(--scroll-edge);
+  border-radius: 999px;
+  background: var(--scroll-thumb);
+}
+.zine-scroll::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb-hover); }
+
+html.dark .zine-page,
+.zine-page.is-dark {
+  --text-soft: #c7bcaa;
+  --muted: #968d7e;
+  --placeholder: #8f877a;
+  --scroll-track: #202128;
+  --scroll-thumb: #ff4f8b;
+  --scroll-thumb-hover: #687dff;
+  --scroll-edge: #18191f;
+}
+```
+
+Do not accept browser-blue scroll thumbs, `scrollbar-width: thin` when the reference calls for a visible tactile control, or low-contrast gray-on-gray dark scrollbars. Verify the thumb color at rest and hover, then scroll to both ends with mouse/trackpad and keyboard.
 
 ## Motion
 
