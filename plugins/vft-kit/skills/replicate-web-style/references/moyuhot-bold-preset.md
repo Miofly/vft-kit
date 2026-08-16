@@ -23,6 +23,8 @@ Combine a cream paper canvas, dark ink outlines, offset hard shadows, oversized 
   --blue-soft: #dbe2ff;
   --green-soft: #d7f1df;
   --border: 2.5px solid var(--ink);
+  --frame-border: 3px solid var(--ink);
+  --frame-shadow: 7px 8px 0 #111;
   --shadow-sm: 3px 3px 0 var(--ink);
   --shadow-md: 6px 6px 0 var(--ink);
   --shadow-lg: 9px 10px 0 var(--ink);
@@ -59,8 +61,11 @@ Hero size: `clamp(74px, 11.5vw, 170px)` with tight line-height. Use the decorati
 
 - Desktop page width: approximately 1380px with compact outer gutters.
 - Hero: asymmetric two-column composition near `1.55fr / .9fr`; mobile becomes one column.
+- Keep about 28–40px of visible vertical space between the hero title treatment and its lead. Handwritten glyphs, rotated words, and highlight strips must not intrude into the lead's breathing room.
 - Statistics: four equal cards; `<=1100px` becomes two; `<=640px` becomes one.
 - Dense content wall: four columns on wide screens, two where content permits, one on narrow screens.
+- Major structural frames such as the hero, control deck, and primary content sections must use a 2.5–3px high-contrast ink outline plus a zero-blur hard shadow offset about 6–8px right and 7–9px down. Both the right and bottom shadow faces must remain visibly exposed without becoming a dominant black slab; reserve enough surrounding gutter to prevent clipping. Keep this distinct from the smaller cards' diagonal offset hard shadows.
+- In dark mode, retain a clearly contrasting frame outline and keep the right-and-bottom slab near black; do not soften either into low-contrast tonal shadows.
 - Cards: 12–20px radius, 2–2.5px ink border, 5–10px zero-blur shadow.
 - Rotate only stamps, tape, notes, and selected cards by roughly `-3deg` to `3deg`; remove most rotation on narrow screens.
 - Use structural labels, rankings, dividers, and issue metadata to encode real content, not as empty decoration.
@@ -72,6 +77,8 @@ Hero size: `clamp(74px, 11.5vw, 170px)` with tight line-height. Use the decorati
 - Metric card: pastel surface, oversized number, tiny monospaced label, optional miniature line/bar mark.
 - Content card: platform-colored header, compact icon or letter mark, ranked rows, timestamps, and a hard-shadow hover lift.
 - Modal: centered paper/white panel, dark overlay, thick border, 10px hard shadow, obvious close control, short entrance.
+- Select popover: treat teleported dropdowns as separate themed surfaces; give the trigger enough width for its longest value, use a 2px ink outline and compact hard shadow on the menu, and keep selected/hover rows fully readable rather than truncated.
+- Text-field focus: preserve the outer ink frame, switch the complete field surface to a deliberate accent such as yellow, and grow its hard shadow. Remove nested browser/library focus rings that draw a second inset rectangle.
 
 ## Motion
 
