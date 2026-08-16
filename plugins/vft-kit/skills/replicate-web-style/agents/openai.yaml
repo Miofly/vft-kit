@@ -1,0 +1,4 @@
+interface:
+  display_name: "网页风格高保真复刻"
+  short_description: "从参考网站或源码完整复刻字体、配色、排版、响应式与动效"
+  default_prompt: "使用 $replicate-web-style 将这个现有网页高保真改造成参考站点的视觉风格。"
