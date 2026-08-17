@@ -13,6 +13,122 @@ description: >-
 
 # 信息图生成器（HTML + puppeteer）
 
+## ⚠️ 工具路由优先级（必读）
+
+**在执行任何图表生成前，先按以下决策树路由到正确工具：**
+
+### 1. diagram-design 优先（已安装时）
+
+如果 diagram-design 插件已安装，**以下类型必须优先使用 diagram-design**：
+
+#### A. 技术图表（diagram-design 专长）
+- **架构图** / 系统设计图 / 组件关系图
+- **流程图** / 决策树 / 审批流
+- **时序图** / 消息流 / API 交互
+- **状态机** / 状态转换图
+- **ER 图** / 数据模型 / 实体关系
+- **泳道图** / 跨职能流程
+- **树形图** / 组织架构 / 分类层级
+- **高层架构图** / 端到端技术栈
+- **数据流图** / ETL 流程 / 数据管道
+
+#### B. 业务分析图表（diagram-design 专长）
+- **四象限图** / 2×2 矩阵 / 定位分析
+- **时间线** / 项目里程碑 / 发展历程
+- **甘特图** / 项目进度 / 任务排期
+- **循环图** / 飞轮 / 闭环流程
+- **金字塔 / 漏斗图** / 层级关系 / 转化漏斗
+- **韦恩图** / 集合关系 / 重叠分析
+
+#### C. 可导入重绘（diagram-design 独有）
+- 用户提供 **draw.io** / **Mermaid** 源文件 → 必须用 diagram-design 重绘
+
+**判断方式**：用户需求包含以上关键词（架构/流程/时序/状态/ER/泳道/四象限/时间线/甘特/循环/金字塔/漏斗/韦恩/组织架构等）时，直接路由到 diagram-design。
+
+**使用方法**：
+```
+"画一个系统架构图：前端、后端、数据库、Redis"
+"画一个用户注册流程图，包含邮箱验证和手机验证两个分支"
+"画一个四象限图，横轴是影响力，纵轴是难度"
+"把这个 Mermaid 图重新画成适合 PPT 的版本"
+```
+
+**品牌配置**（可选，60 秒）：
+```
+"onboard diagram-design to https://yoursite.com"
+```
+
+### 2. co-infographic-generator 使用场景（本 skill）
+
+**只有以下场景才使用本 skill（HTML+CSS+puppeteer）：**
+
+#### A. 信息图（本 skill 专长）
+- **KPI 看板** / 成果指标展示 / 数据大屏
+- **并列卡片** / 要点罗列 / 特性展示
+- **A/B 对比图** / 前后对比 / 方案比较
+- **步骤流程**（仅简单线性步骤，无分支决策）
+- **成就展示** / 里程碑卡片
+
+#### B. 需要特殊视觉效果时
+- 需要**渐变质感** / **玻璃拟态** / **光晕效果**
+- 需要**自定义配色风格**（科技青/暖金高端/靛紫品红等）
+- 需要**品牌定制排版**，diagram-design 27 种类型覆盖不了
+
+#### C. diagram-design 未安装时的降级方案
+- 如果 diagram-design 未安装，且用户需求是技术图表，**先提示用户安装 diagram-design**：
+  ```
+  "检测到您需要画 [架构图/流程图等]，推荐使用 diagram-design 插件（27 种专业图表，自动品牌配色）。
+  是否现在安装？安装命令：bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/install-diagram-design.sh"
+  ```
+- 用户拒绝安装或紧急需求时，才降级到本 skill。
+
+### 3. multi-chart-draw 使用场景
+
+**纯数据统计图表**才使用 multi-chart-draw（ECharts）：
+- 柱状图 / 折线图 / 饼图 / 散点图
+- 需要**交互式图表**（缩放、hover 提示、图例筛选）
+- 需要**大数据量可视化**（几百上千个数据点）
+
+### 检查 diagram-design 是否已安装
+
+执行前先检查：
+```bash
+if [ -d "$HOME/.claude/plugins/cache/diagram-design" ] || \
+   claude plugin list 2>/dev/null | grep -q "diagram-design"; then
+  echo "diagram-design 已安装，优先使用"
+else
+  echo "diagram-design 未安装，考虑提示用户或降级到 co-infographic-generator"
+fi
+```
+
+### 路由决策流程图
+
+```
+用户需求
+    │
+    ├─ 技术图表（架构/流程/时序/状态/ER/泳道等）? 
+    │   └─ YES → diagram-design 已安装?
+    │       ├─ YES → 使用 diagram-design ✅
+    │       └─ NO  → 提示安装 → 用户同意? 
+    │           ├─ YES → 安装后使用 diagram-design ✅
+    │           └─ NO  → 降级到 co-infographic-generator ⚠️
+    │
+    ├─ 业务分析图表（四象限/时间线/甘特/循环/金字塔/韦恩）?
+    │   └─ YES → diagram-design 已安装?
+    │       ├─ YES → 使用 diagram-design ✅
+    │       └─ NO  → 提示安装或降级 ⚠️
+    │
+    ├─ 信息图（KPI看板/并列卡片/对比图/简单步骤）?
+    │   └─ YES → 使用 co-infographic-generator（本 skill）✅
+    │
+    ├─ 纯数据统计（柱/折/饼/散点，需交互）?
+    │   └─ YES → 使用 multi-chart-draw ✅
+    │
+    └─ 不确定? → 优先尝试 diagram-design（覆盖面最广）
+```
+
+---
+
 ## 它解决什么问题
 
 把一段结构化内容（表格、要点、流程、成果数字）变成一张**风格统一、中文准确、高大上**的 PNG 图片。

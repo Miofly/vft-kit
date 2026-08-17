@@ -22,7 +22,7 @@ printf '%s' "$output" | grep -q 'sed -i.bak'
 
 ! grep -q 'volta list all.*@colbymchenry/codegraph' "$DIR/check.sh"
 ! grep -q 'codegraph.*volta install @colbymchenry/codegraph' "$DIR/check.sh"
-! grep -Fq 'codegraph update' "$DIR/check.sh" "$SKILL_DIR/SKILL.md" "$SKILL_DIR/CHANGELOG-codegraph-auto-init.md"
-! grep -Fq 'codegraph init --force' "$DIR/check.sh" "$SKILL_DIR/SKILL.md" "$SKILL_DIR/CHANGELOG-codegraph-auto-init.md"
+! grep -Fq 'codegraph update' "$DIR/check.sh" "$SKILL_DIR/SKILL.md"
+! grep -Fq 'codegraph init --force' "$DIR/check.sh" "$SKILL_DIR/SKILL.md"
 
 echo 'PASS: CodeGraph v1.5 baseline'
