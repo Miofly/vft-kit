@@ -15,6 +15,7 @@ Use this checklist before editing and during final browser verification.
 - Record every font role, face, weight, style, line-height, letter-spacing, and fallback.
 - Record container widths, grid columns, gaps, section spacing, card padding, and density.
 - Record hover, focus-visible, active, disabled, loading, empty, error, and modal states.
+- Identify the real scroll owner and shared shell surfaces outside the page root, including route loading and back-to-top controls.
 - Record breakpoint behavior rather than merely shrinking desktop dimensions.
 
 ## Implementation
@@ -33,6 +34,8 @@ Use this checklist before editing and during final browser verification.
 - Verify desktop, tablet, and mobile with no horizontal overflow or clipped text.
 - Compare matching reference/target screenshots for hierarchy, geometry, typography, density, and color.
 - Exercise navigation, links, controls, hover, keyboard focus, loading, empty/error states, and dialogs.
+- Confirm shared loading copy matches the active workflow, then scroll and click back-to-top on the actual scroll owner.
+- Leave the themed route and verify shared shell markers and presentation return to their defaults.
 - Check computed font families, network requests, console errors, and reduced-motion mode.
 - Treat screenshot diff thresholds as a signal, then perform a human visual review; dynamic content must be masked or stabilized.
 

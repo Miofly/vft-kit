@@ -15,10 +15,11 @@ Reproduce a reference site's visual system without replacing the target's busine
 2. Inspect the reference in a real browser at desktop and mobile sizes. When source is available, trace the page route, global styles, font declarations, components, breakpoints, keyframes, and reduced-motion handling.
 3. Capture a baseline screenshot of the target before editing. List the visible states that must remain functional: loading, empty, error, hover, focus, active, modal, and data refresh.
 4. Extract the reference into six layers: palette and texture; typography; borders/radii/shadows; layout and density; component states; motion and breakpoints. Put reusable values behind a page-scoped root class or existing theme tokens.
-5. Reuse the target's components, icons, dependencies, and DOM semantics. Change structure only where the reference's information hierarchy cannot be expressed by the existing markup. Do not replace state management, API calls, routes, or accessibility semantics for visual convenience.
-6. Copy font assets only when redistribution is permitted. Preserve their license file, preload only critical faces, use `font-display: swap`, provide fallbacks, and confirm computed fonts in the browser.
-7. Implement desktop first, then collapse deliberately at the reference breakpoints. Remove decorative rotation where narrow layouts need stable scanning.
-8. Implement motion last. Match easing, duration, transform, and shadow changes; respect `prefers-reduced-motion`; avoid layout-triggering animation when transforms suffice.
+5. Match the requested theme scope. Do not add a dark/light, classic/redesign, or other secondary mode unless the target already requires it. For a single-theme migration, remove obsolete page-level toggles and conditional branches instead of hiding the controls with CSS.
+6. Reuse the target's components, icons, dependencies, and DOM semantics. Change structure only where the reference's information hierarchy cannot be expressed by the existing markup. Do not replace state management, API calls, routes, or accessibility semantics for visual convenience.
+7. Copy font assets only when redistribution is permitted. Preserve their license file, preload only critical faces, use `font-display: swap`, provide fallbacks, and confirm computed fonts in the browser.
+8. Implement desktop first, then collapse deliberately at the reference breakpoints. Remove decorative rotation where narrow layouts need stable scanning.
+9. Implement motion last. Match easing, duration, transform, and shadow changes; respect `prefers-reduced-motion`; avoid layout-triggering animation when transforms suffice.
 
 When the target imports or renders VFT components, read [references/vft-component-adapter.md](references/vft-component-adapter.md) completely before editing. Use it to inventory nested controls, map supported theme hooks, and verify in-root plus teleported states.
 
