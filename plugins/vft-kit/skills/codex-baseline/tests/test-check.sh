@@ -133,7 +133,7 @@ for skill in openai-docs imagegen skill-creator plugin-creator skill-installer; 
 done
 mkdir -p "$TEST_CODEX_HOME/skills/anysearch"
 : > "$TEST_CODEX_HOME/skills/anysearch/SKILL.md"
-for skill in caveman gsap-core gsap-frameworks gsap-performance gsap-plugins gsap-react gsap-scrolltrigger gsap-timeline gsap-utils; do
+for skill in caveman gsap-core gsap-frameworks gsap-performance gsap-plugins gsap-react gsap-scrolltrigger gsap-timeline gsap-utils animate review-animations apple-design; do
   mkdir -p "$TEST_CODEX_HOME/skills/$skill"
   : > "$TEST_CODEX_HOME/skills/$skill/SKILL.md"
 done
@@ -214,6 +214,11 @@ grep -Fq 'context7 官方文档优先' <<< "$output" || { printf 'FAIL: context7
 grep -Fq 'anysearch 联网搜索优先' <<< "$output" || { printf 'FAIL: anysearch AGENTS check missing\n' >&2; exit 1; }
 grep -Fq 'Caveman 默认 full 自动启用' <<< "$output" || { printf 'FAIL: Caveman default activation check missing\n' >&2; exit 1; }
 grep -Fq 'grill-me skill' <<< "$output" || { printf 'FAIL: optional grill-me skill check missing\n' >&2; exit 1; }
+grep -Fq 'diagram-design@diagram-design' <<< "$output" || { printf 'FAIL: optional diagram-design plugin check missing\n' >&2; exit 1; }
+grep -Fq 'understand-anything skills' <<< "$output" || { printf 'FAIL: optional understand-anything check missing\n' >&2; exit 1; }
+grep -Fq 'pm-skills' <<< "$output" || { printf 'FAIL: optional pm-skills check missing\n' >&2; exit 1; }
+grep -Fq 'Emil 动效 skills（必装 3 项）' <<< "$output" || { printf 'FAIL: required Emil skills check missing\n' >&2; exit 1; }
+grep -Fq 'Emil 扩展 skills' <<< "$output" || { printf 'FAIL: optional Emil skills check missing\n' >&2; exit 1; }
 grep -Fq 'context-mode@context-mode' <<< "$output" || { printf 'FAIL: required context-mode plugin check missing\n' >&2; exit 1; }
 grep -Fq 'npx skills add mattpocock/skills --skill grill-me --agent codex --global --yes' <<< "$output" || { printf 'FAIL: grill-me Codex install command missing\n' >&2; exit 1; }
 grep -Fq 'Codex Memories' <<< "$output" && { printf 'FAIL: enabled memories reported missing\n' >&2; exit 1; }
@@ -223,8 +228,18 @@ grep -Fq 'Vercel MCP 已配置' <<< "$output" || { printf 'FAIL: resolved projec
 grep -Fq 'GITHUB_PAT_TOKEN 已注入' <<< "$output" || { printf 'FAIL: injected GitHub token not detected\n' >&2; exit 1; }
 grep -Fq 'node_repl command 不存在' <<< "$output" && { printf 'FAIL: disabled node_repl should be ignored\n' >&2; exit 1; }
 
+mkdir -p "$TEST_HOME/.agents/skills/understand"
+: > "$TEST_HOME/.agents/skills/understand/SKILL.md"
+cat > "$TEST_HOME/.agents/.skill-lock.json" <<'EOF'
+{"version":1,"skills":{"create-prd":{"source":"phuryn/pm-skills"}}}
+EOF
+output="$(run_check)"
+grep -F 'understand-anything skills（代码知识图谱）' <<< "$output" | grep -Fq '✓' || { printf 'FAIL: installed understand-anything not detected\n' >&2; exit 1; }
+grep -F 'pm-skills（产品工作流）' <<< "$output" | grep -Fq '✓' || { printf 'FAIL: installed pm-skills source not detected\n' >&2; exit 1; }
+rm -rf "$TEST_HOME/.agents"
+
 mkdir -p "$TEST_HOME/.agents/skills"
-for skill in caveman gsap-core gsap-frameworks gsap-performance gsap-plugins gsap-react gsap-scrolltrigger gsap-timeline gsap-utils; do
+for skill in caveman gsap-core gsap-frameworks gsap-performance gsap-plugins gsap-react gsap-scrolltrigger gsap-timeline gsap-utils animate review-animations apple-design; do
   mv "$TEST_CODEX_HOME/skills/$skill" "$TEST_HOME/.agents/skills/$skill"
 done
 set +e
@@ -232,7 +247,7 @@ output="$(run_check 2>&1)"
 status=$?
 set -e
 [ "$status" -eq 0 ] || { printf 'FAIL: compatible skills under ~/.agents/skills should pass\n' >&2; exit 1; }
-for skill in caveman gsap-core gsap-frameworks gsap-performance gsap-plugins gsap-react gsap-scrolltrigger gsap-timeline gsap-utils; do
+for skill in caveman gsap-core gsap-frameworks gsap-performance gsap-plugins gsap-react gsap-scrolltrigger gsap-timeline gsap-utils animate review-animations apple-design; do
   mv "$TEST_HOME/.agents/skills/$skill" "$TEST_CODEX_HOME/skills/$skill"
 done
 

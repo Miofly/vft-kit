@@ -139,6 +139,8 @@ Keep the same single-layer zero-blur right-bottom shadow geometry used in light 
 
 Theme the element that actually owns `overflow: auto|scroll`, not merely an outer dialog or card. Use both Firefox and WebKit rules; keep a roughly 10px visual width, a paper-toned track, an accent thumb, a contrasting hover state, and a surface-colored thumb border.
 
+For dense editorial lists inside cards or dialogs, match the compact reference treatment instead: a 6px ink thumb, transparent track, and pill radius. Keep this separate from the wider page or application scrollbar, and still provide both Firefox and WebKit declarations.
+
 ```css
 .zine-scroll {
   scrollbar-color: var(--scroll-thumb) var(--scroll-track);

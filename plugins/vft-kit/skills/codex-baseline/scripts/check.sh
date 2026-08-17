@@ -186,6 +186,13 @@ agents_has_caveman_default(){
 global_skill_exists(){
   [ -f "$CODEX_HOME/skills/$1/SKILL.md" ] || [ -f "$HOME/.agents/skills/$1/SKILL.md" ]
 }
+missing_global_skills(){
+  local skill missing=""
+  for skill in "$@"; do
+    global_skill_exists "$skill" || missing="${missing}${missing:+, }$skill"
+  done
+  printf '%s' "$missing"
+}
 gsap_skills_installed(){
   local skill
   for skill in gsap-core gsap-frameworks gsap-performance gsap-plugins gsap-react gsap-scrolltrigger gsap-timeline gsap-utils; do
@@ -340,6 +347,7 @@ check_plugin "superpowers@openai-api-curated" optional "codex plugin add superpo
 check_plugin "build-web-apps@openai-api-curated" required "codex plugin add build-web-apps@openai-api-curated"
 check_plugin "ponytail@ponytail" required "codex plugin marketplace add DietrichGebert/ponytail；再运行 codex plugin add ponytail@ponytail"
 check_plugin "context-mode@context-mode" required "codex plugin marketplace add https://github.com/mksglu/claude-context-mode.git；再运行 codex plugin add context-mode@context-mode"
+check_plugin "diagram-design@diagram-design" optional "codex plugin marketplace add cathrynlavery/diagram-design；再运行 codex plugin add diagram-design@diagram-design"
 
 sec "兼容 Agent Skills"
 global_skill_exists "caveman" && ok "caveman skill" || bad "caveman skill" "npx skills add JuliusBrussee/caveman -a codex"
@@ -347,6 +355,26 @@ agents_has_caveman_default && ok "Caveman 默认 full 自动启用" || bad "Cave
 gsap_skills_installed && ok "GSAP 官方 skills（8 项）" || bad "GSAP 官方 skills" "npx skills add https://github.com/greensock/gsap-skills --agent codex"
 global_skill_exists "anysearch" && ok "anysearch skill（联网实时搜索）" || opt "anysearch skill" "bash \"$SCRIPT_DIR/install-anysearch.sh\""
 global_skill_exists "grill-me" && ok "grill-me skill（深度访谈）" || opt "grill-me skill" "npx skills add mattpocock/skills --skill grill-me --agent codex --global --yes"
+emil_required_missing="$(missing_global_skills animate review-animations apple-design)"
+if [ -z "$emil_required_missing" ]; then
+  ok "Emil 动效 skills（必装 3 项）"
+else
+  bad "Emil 动效 skills（缺 ${emil_required_missing}）" "npx skills add emilkowalski/skills --skill animate --skill review-animations --skill apple-design --agent codex --global --yes"
+fi
+emil_optional_missing="$(missing_global_skills animation-vocabulary ask-sonner emil-design-eng find-animation-opportunities improve-animations pick-ui-library prototype)"
+if [ -z "$emil_optional_missing" ]; then
+  ok "Emil 扩展 skills（可选 7 项）"
+else
+  opt "Emil 扩展 skills（缺 ${emil_optional_missing}）" "按项目用 npx skills add emilkowalski/skills --skill <name> --agent codex --global --yes 单独安装"
+fi
+global_skill_exists "understand" && ok "understand-anything skills（代码知识图谱）" || opt "understand-anything skills" "curl -fsSL https://raw.githubusercontent.com/Egonex-AI/Understand-Anything/main/install.sh | bash -s codex（首次全量分析耗 token）"
+if global_skill_exists "create-prd" || {
+  [ -f "$HOME/.agents/.skill-lock.json" ] && "$CODEX_STATE_NODE" -e 'const j=require(process.argv[1]);process.exit(Object.values(j.skills||{}).some(v=>v.source==="phuryn/pm-skills")?0:1)' "$HOME/.agents/.skill-lock.json" 2>/dev/null
+}; then
+  ok "pm-skills（产品工作流）"
+else
+  opt "pm-skills" "npx skills add phuryn/pm-skills --agent codex --global --yes"
+fi
 
 sec "系统 skills"
 for s in openai-docs imagegen skill-creator plugin-creator skill-installer; do
