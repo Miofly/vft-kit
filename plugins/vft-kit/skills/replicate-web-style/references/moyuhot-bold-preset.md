@@ -84,6 +84,8 @@ Hero size: `clamp(74px, 11.5vw, 170px)` with tight line-height. Use the decorati
 
 ## Components
 
+When the target uses VFT, apply the complete [VFT component style adapter](vft-component-adapter.md). The rules below define the Bold visual treatment; the adapter defines VFT anatomy, Teleport hooks, and state coverage.
+
 - Top bar: narrow issue strip, date/status metadata, compact pill navigation, active item in inverted ink/paper colors.
 - Hero: three-line handwritten title, yellow taped highlight, pink offset phrase, short editorial lead, right-side note or almanac card.
 - Metric card: pastel surface, oversized number, tiny monospaced label, optional miniature line/bar mark.

@@ -20,6 +20,8 @@ Reproduce a reference site's visual system without replacing the target's busine
 7. Implement desktop first, then collapse deliberately at the reference breakpoints. Remove decorative rotation where narrow layouts need stable scanning.
 8. Implement motion last. Match easing, duration, transform, and shadow changes; respect `prefers-reduced-motion`; avoid layout-triggering animation when transforms suffice.
 
+When the target imports or renders VFT components, read [references/vft-component-adapter.md](references/vft-component-adapter.md) completely before editing. Use it to inventory nested controls, map supported theme hooks, and verify in-root plus teleported states.
+
 For the MoyuHot Bold / Chinese handwritten zine direction, read [references/moyuhot-bold-preset.md](references/moyuhot-bold-preset.md) completely and copy the licensed fonts from `assets/fonts/` into the target's public asset directory.
 
 ## Fidelity Gate
