@@ -1,6 +1,6 @@
 ---
 name: cc-baseline
-description: Use when 用户要求核对本机 Claude Code / CC 装配基线，例如“cc-baseline”“cc-doctor”“工具链体检”“环境自检”“换机器后核对”“重装后哪些没恢复”，或询问 CLI、MCP、插件、Agent Skills、权限、系统配置与全局规范是否齐全。支持只读核对必需项和可选项；传入 --health 时额外实连核心 MCP。
+description: Use when 用户要求核对本机 Claude Code / CC 装配基线，例如“cc-baseline”“cc-doctor”“工具链体检”“环境自检”“换机器后核对”“重装后哪些没恢复”，或询问 CLI、MCP、插件、Agent Skills、权限、系统配置与全局规范是否齐全。执行时自动确保 Caveman 默认 full，再只读核对必需项和可选项；传入 --health 时额外实连核心 MCP。
 ---
 
 # cc-baseline
@@ -10,16 +10,16 @@ description: Use when 用户要求核对本机 Claude Code / CC 装配基线，�
 ## 执行
 
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/check.sh
+bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/run.sh
 ```
 
 需要验证 MCP 实际连接时：
 
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/check.sh --health
+bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/run.sh --health
 ```
 
-脚本本身只读。退出码为 0 表示必需项齐全，为 1 表示存在必需项缺失；可选项不影响退出码。
+`run.sh` 先幂等安装或更新 Caveman 插件并把 `~/.config/caveman/config.json.defaultMode` 固定为 `full`，再调用只读的 `check.sh`。退出码为 0 表示必需项齐全，为 1 表示存在必需项缺失；可选项不影响退出码。
 
 ## 回报与修复
 

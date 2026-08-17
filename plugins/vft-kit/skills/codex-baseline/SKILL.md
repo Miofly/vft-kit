@@ -21,7 +21,7 @@ bash ${CODEX_PLUGIN_ROOT:-${VFT_PLUGIN_ROOT:-.}}/skills/codex-baseline/scripts/r
 bash ${CODEX_PLUGIN_ROOT:-${VFT_PLUGIN_ROOT:-.}}/skills/codex-baseline/scripts/run.sh --health
 ```
 
-`run.sh` 会执行已授权的常设维护：同步 CC-Switch 认证、准备 imagegen CLI、维护 imagegen 与 Caveman 默认 full 的全局 AGENTS 托管块。不得输出完整 Key。其余检查只读。
+`run.sh` 会执行已授权的常设维护：同步 CC-Switch 认证、准备 imagegen CLI、维护 imagegen 与 Caveman 默认 full 的全局 AGENTS 托管块。Caveman 规则写入当前实际生效文件：存在 `~/.codex/AGENTS.override.md` 时写 override，否则写 `~/.codex/AGENTS.md`。不得输出完整 Key。其余检查只读。
 
 输出含 `✓` 已满足、`✗` 必需项缺失、`○` 可选提醒、`⊘` 通过 `CODEX_BASELINE_SKIP` 声明的刻意不装。只有必需项缺失时退出码为 1。
 
@@ -44,7 +44,7 @@ bash ${CODEX_PLUGIN_ROOT:-${VFT_PLUGIN_ROOT:-.}}/skills/codex-baseline/scripts/r
 | Agent Skills | Caveman + 默认 full、GSAP 8 项、Emil 3 项 | AnySearch、Grill-me、Understand Anything、PM Skills、Emil 其余 7 项 |
 | 系统 skills | openai-docs、imagegen、skill-creator、plugin-creator、skill-installer | - |
 | 图片生成 | imagegen 脚本、专用 venv、依赖、`codex-imagegen`、认证注入源 | - |
-| 全局 AGENTS | 中文回复、可点短链、压缩取舍、代理兜底、多 Agent 并行、Caveman、生图规则 | Context7 / AnySearch 已安装时才检查对应调用规则 |
+| 全局 AGENTS | `AGENTS.md` 中的中文回复、可点短链、压缩取舍、代理兜底、多 Agent 并行、生图规则；Caveman 额外检查实际生效文件 | Context7 / AnySearch 已安装时才检查对应调用规则 |
 
 Codex 原生 `features.memories = true` 已承担跨会话回忆，不叠加 agentmemory MCP。
 
