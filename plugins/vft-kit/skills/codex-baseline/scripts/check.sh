@@ -9,6 +9,13 @@ for arg in "$@"; do [ "$arg" = "--health" ] && HEALTH=1; done
 CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
 CONFIG="$CODEX_HOME/config.toml"
 AGENTS="$CODEX_HOME/AGENTS.md"
+if [ -n "${CODEX_AGENTS:-}" ]; then
+  ACTIVE_AGENTS="$CODEX_AGENTS"
+elif [ -f "$CODEX_HOME/AGENTS.override.md" ]; then
+  ACTIVE_AGENTS="$CODEX_HOME/AGENTS.override.md"
+else
+  ACTIVE_AGENTS="$AGENTS"
+fi
 PLUGIN_CACHE="$CODEX_HOME/plugins/cache"
 SYSTEM_SKILLS="$CODEX_HOME/skills/.system"
 NPM_ROOT="$(npm root -g 2>/dev/null || printf '')"
@@ -180,8 +187,9 @@ agents_has_codegraph_policy(){
   ! agents_has 'codegraph[[:space:]]+update|codegraph[[:space:]]+init[[:space:]]+--force'
 }
 agents_has_caveman_default(){
-  agents_has 'Caveman.*默认.*full|caveman.*default.*full' || return 1
-  agents_has '新会话|每个会话|SessionStart|session'
+  [ -f "$ACTIVE_AGENTS" ] || return 1
+  grep -Eq 'Caveman.*默认.*full|caveman.*default.*full' "$ACTIVE_AGENTS" || return 1
+  grep -Eq '新会话|每个会话|SessionStart|session' "$ACTIVE_AGENTS"
 }
 global_skill_exists(){
   [ -f "$CODEX_HOME/skills/$1/SKILL.md" ] || [ -f "$HOME/.agents/skills/$1/SKILL.md" ]

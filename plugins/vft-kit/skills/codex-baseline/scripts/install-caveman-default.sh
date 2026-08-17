@@ -2,7 +2,13 @@
 set -euo pipefail
 
 CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
-AGENTS="${CODEX_AGENTS:-$CODEX_HOME/AGENTS.md}"
+if [ -n "${CODEX_AGENTS:-}" ]; then
+  AGENTS="$CODEX_AGENTS"
+elif [ -f "$CODEX_HOME/AGENTS.override.md" ]; then
+  AGENTS="$CODEX_HOME/AGENTS.override.md"
+else
+  AGENTS="$CODEX_HOME/AGENTS.md"
+fi
 START_MARKER='<!-- >>> vft-kit caveman default full >>> -->'
 END_MARKER='<!-- <<< vft-kit caveman default full <<< -->'
 

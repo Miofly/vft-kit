@@ -228,6 +228,20 @@ grep -Fq 'Vercel MCP 已配置' <<< "$output" || { printf 'FAIL: resolved projec
 grep -Fq 'GITHUB_PAT_TOKEN 已注入' <<< "$output" || { printf 'FAIL: injected GitHub token not detected\n' >&2; exit 1; }
 grep -Fq 'node_repl command 不存在' <<< "$output" && { printf 'FAIL: disabled node_repl should be ignored\n' >&2; exit 1; }
 
+cp "$TEST_CODEX_HOME/AGENTS.md" "$TEST_CODEX_HOME/AGENTS.override.md"
+sed -i.bak '/Caveman 默认 full 自动启用/d' "$TEST_CODEX_HOME/AGENTS.override.md"
+rm "$TEST_CODEX_HOME/AGENTS.override.md.bak"
+set +e
+output="$(run_check 2>&1)"
+status=$?
+set -e
+[ "$status" -eq 1 ] || { printf 'FAIL: active AGENTS.override.md without Caveman rule should fail\n' >&2; exit 1; }
+grep -Fq 'Caveman 默认 full 自动启用' <<< "$output" || { printf 'FAIL: active override Caveman gap not reported\n' >&2; exit 1; }
+cp "$TEST_CODEX_HOME/AGENTS.md" "$TEST_CODEX_HOME/AGENTS.override.md"
+output="$(run_check)"
+grep -Fq 'Caveman 默认 full 自动启用' <<< "$output" || { printf 'FAIL: active override Caveman rule not detected\n' >&2; exit 1; }
+rm "$TEST_CODEX_HOME/AGENTS.override.md"
+
 mkdir -p "$TEST_HOME/.agents/skills/understand"
 : > "$TEST_HOME/.agents/skills/understand/SKILL.md"
 cat > "$TEST_HOME/.agents/.skill-lock.json" <<'EOF'

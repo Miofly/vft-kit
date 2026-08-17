@@ -19,7 +19,8 @@ EOF
 output="$(HOME="$home" bash "$DIR/check.sh" 2>&1 || true)"
 grep -q '✗.*Caveman 默认 full 自动启用' <<< "$output"
 
-printf '%s\n' '{"defaultMode":"full"}' > "$home/.config/caveman/config.json"
+HOME="$home" bash "$DIR/install-caveman-default.sh"
+node -e "const j=require(process.argv[1]);process.exit(j.defaultMode==='full'?0:1)" "$home/.config/caveman/config.json"
 output="$(HOME="$home" bash "$DIR/check.sh" 2>&1 || true)"
 grep -q '✓.*Caveman 默认 full 自动启用' <<< "$output"
 
