@@ -91,6 +91,7 @@ When the target uses VFT, apply the complete [VFT component style adapter](vft-c
 - Metric card: pastel surface, oversized number, tiny monospaced label, optional miniature line/bar mark.
 - Content card: platform-colored header, compact icon or letter mark, ranked rows, timestamps, and a hard-shadow hover lift.
 - Modal: centered paper/white panel, dark overlay, thick border, 10px hard shadow, obvious close control, short entrance.
+- System chrome: adapt shared scrollbars, route loading, and back-to-top controls only through an explicit page/theme marker. Use a compact ink-outlined sticker surface with a single hard shadow for back-to-top, preserve a clear focus outline, and keep non-Bold pages unchanged.
 - Select popover: treat teleported dropdowns as separate themed surfaces; give the trigger enough width for its longest value, use a 2px ink outline and compact hard shadow on the menu, and keep selected/hover rows fully readable rather than truncated.
 - Text-field focus: preserve the outer ink frame, switch the complete field surface to a deliberate accent such as yellow, and grow its hard shadow. Remove nested browser/library focus rings that draw a second inset rectangle.
 
@@ -102,7 +103,7 @@ Apply focus to the complete control wrapper with `:focus-within`: retain the ink
 
 ### Dark adaptation
 
-The Bold reference is light-first. When a target must support dark mode, preserve its geometry and editorial hierarchy instead of mechanically inverting every light token. Use a neutral near-black canvas, a clearly lighter charcoal surface, and one raised surface; avoid covering the whole page with a purple tint unless the reference explicitly does so.
+The Bold reference is light-first. Skip this section for a light-only target; do not add a theme toggle or dark token branch. When a target must support dark mode, preserve its geometry and editorial hierarchy instead of mechanically inverting every light token. Use a neutral near-black canvas, a clearly lighter charcoal surface, and one raised surface; avoid covering the whole page with a purple tint unless the reference explicitly does so.
 
 Decouple text, structural frames, and internal controls. Main text may stay warm and bright, major frame outlines should use a quieter warm mid-tone, and internal controls should use a still lower-contrast border. Wide bands such as table or section headers use restrained antique gold rather than the full light-mode yellow. Reserve saturated pink, blue, and green for selected, actionable, or status-bearing elements.
 
