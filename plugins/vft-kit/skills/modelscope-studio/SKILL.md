@@ -3,7 +3,8 @@ name: ms-studio-deploy
 description: >-
   Use when the user wants to deploy, update, inspect, or repair a ModelScope Studio; manage its variables or secrets;
   or inspect, start, open, or stop a ModelScope Notebook / PAI-DSW environment. Supports Gradio, Streamlit,
-  Docker, static websites, Studio OpenAPI operations, and authenticated Notebook browser-session operations.
+  Docker, static websites, Studio OpenAPI operations, authenticated Notebook browser-session operations, persistent
+  workspace file transfer, and CPU-prepare/GPU-run workflows.
   Not applicable to: Hub repository management, model/dataset operations, MCP/skill management, model training, or model evaluation.
 ---
 
@@ -43,6 +44,10 @@ User wants to...
 Notebook is a separate product surface from Studio. Its `/api/v1/notebooks*` endpoints require the ModelScope
 web-login cookie; a valid `MODELSCOPE_API_KEY` alone returns `401 user not logged in`. Read
 `references/notebook-dsw.md` completely before inspecting or changing a Notebook instance.
+
+Default to the reference's fast API-first automation workflow. Once task scope and resource-cost authorization are
+clear, carry the Notebook operation through file transfer, execution, verification, resource switching, and cleanup
+without pausing between ordinary reversible steps.
 
 Never omit, forge, replay, log, or persist `CaptchaVerify`. Starting a free instance requires the fresh value
 issued by ModelScope's safety-verification widget. If a slider or other verification appears, hand the same

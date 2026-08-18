@@ -21,6 +21,24 @@ session. Do not extract, print, or persist the login cookie.
 5. Poll the instance list until it reaches `Running` or a terminal failure state.
 6. Return the instance ID, status, image, and opening URL without exposing session credentials.
 
+## Fast Automation Contract
+
+After the user has authorized the task and any resource cost, complete ordinary Notebook operations end to end.
+Do not pause for each reversible step.
+
+1. Reuse one named ego-browser task space and its authenticated tab. Do not open parallel login sessions.
+2. Use `browserFetch` against the authenticated web APIs for state reads and writes; use the rendered UI only when
+   the API contract is unknown or ModelScope requires interactive verification.
+3. Batch specs, images, and instance-list reads. Poll transitions every 3-5 seconds instead of repeatedly taking
+   full-page snapshots.
+4. After a selection or navigation rerenders the page, reacquire the target with a stable selector. Never reuse an
+   old snapshot ref. Accelerator radios have stable values such as `input[type="radio"][value="GPU"]`.
+5. Verify every mutation from the API or remote filesystem before reporting success.
+6. Pause only for a fresh CAPTCHA, explicit paid-resource authorization, or an unclear destructive target.
+
+If a task space was handed to the user, do not seize it back. Resume only after the user confirms completion, then
+use the ego-browser takeover flow for that same task space.
+
 Browser-side reads can use the page's existing cookie:
 
 ```javascript
@@ -42,6 +60,10 @@ const [specs, images, instances] = await Promise.all([
 | List current/history instances | GET | `/api/v1/notebooks?Channel=dsw` |
 | Start an instance | POST | `/api/v1/notebooks` |
 | Stop an instance | PUT | `/api/v1/notebooks/stop` |
+
+Do not guess mutation request bodies. Read the current frontend request or let the UI submit the operation, then
+poll `GET /api/v1/notebooks?Channel=dsw` by instance ID. Instance IDs and image versions are runtime state and must
+not be stored in a skill.
 
 The web application currently sends this start payload:
 
@@ -65,6 +87,91 @@ Treat `Failed`, `Stopped`, and `Deleted` as terminal for the current attempt and
 
 Do not start a paid resource without explicit user authorization. A displayed quota does not prove the next
 instance is free; trust the current spec response and page labels.
+
+## CPU Prepare, GPU Run
+
+Use the cheapest suitable resource for each stage:
+
+- CPU: dependency checks, source upload, model download, preprocessing, config generation, syntax checks, and
+  persistent-cache preparation.
+- GPU: CUDA-only model loading, inference, training, and GPU result verification.
+
+Put all cross-stage artifacts under `/mnt/workspace`. Before stopping CPU, verify the script, required model config
+and weight shards, log completion marker, and hashes where a local source file is available. Then stop CPU, select a
+currently available free GPU, start it, run only the GPU stage, verify the output, and stop GPU unless the user asks
+to keep it running. Never start GPU for a CPU-only task.
+
+Make stages explicit and rerunnable, for example `JOB_STAGE=prepare` and `JOB_STAGE=run`. A rerun must resume or
+skip completed downloads rather than duplicate them.
+
+## Workspace File Transfer
+
+ModelScope has two distinct file surfaces:
+
+- `/mnt/workspace`: the persistent filesystem mounted into the active DSW instance.
+- ModelScope Workspace gallery files: managed by `/api/v1/gallery/editor/files*`; uploading here does not prove the
+  file exists under `/mnt/workspace`.
+
+The authenticated gallery upload flow is:
+
+1. `POST /api/v1/gallery/editor/files/upload` with `{"FileNames":["name"]}`.
+2. Read `Data.Urls[0].Url` without printing it.
+3. `PUT` bytes to that signed URL as `application/octet-stream`.
+
+The download flow is `POST /api/v1/gallery/editor/files/download?Channel=dsw` with the same `FileNames` body, then
+fetch the returned signed URL. Signed URLs are temporary credentials: never log or persist them.
+
+For a small script that must exist in `/mnt/workspace`, writing base64-decoded bytes through the DSW terminal is
+more reliable than pasting into Monaco. For larger artifacts, use a short-lived signed transfer. Always compare
+byte count or SHA-256 after transfer.
+
+## Terminal Automation
+
+Code Workspace is a virtualized IDE. Treat its terminal/editor surface as visual UI:
+
+- If the iframe viewport is `0x0`, set CDP device metrics and verify dimensions before coordinate input.
+- Do not paste substantial source into Monaco without a tiny write/readback probe.
+- Redirect diagnostics to a uniquely named text file when terminal canvas output is hard to inspect.
+- Start long CPU work with a detached command:
+
+```bash
+nohup env JOB_STAGE=prepare python /mnt/workspace/job.py \
+  > /mnt/workspace/job-prepare.log 2>&1 < /dev/null &
+echo $! > /mnt/workspace/job-prepare.pid
+```
+
+Immediately verify both the PID file and `pgrep -af`. Before retrying, confirm the prior PID is gone; duplicate
+downloaders can corrupt or waste the same target. Monitor a completion marker plus artifact growth, not progress-bar
+text alone. Remove only task-owned probes and failed partial artifacts after the final verification.
+
+## Model Downloads In DSW
+
+Prefer ModelScope's native downloader inside DSW. External Hugging Face endpoints may be unreachable even when
+the matching ModelScope repository is available.
+
+For repositories that contain multiple checkpoints, always restrict the download to the files required by the
+runtime. For example, a Diffusers pipeline usually needs its component directories but not every root-level
+checkpoint:
+
+```python
+from modelscope import snapshot_download
+
+snapshot_download(
+    model_id="<modelscope-owner>/<model>",
+    local_dir="/mnt/workspace/models/<model>",
+    allow_patterns=[
+        "model_index.json",
+        "scheduler/*",
+        "text_encoder/*",
+        "tokenizer/*",
+        "transformer/*",
+        "vae/*",
+    ],
+)
+```
+
+Keep model files under `/mnt/workspace` so CPU preparation can be reused after switching the instance to GPU.
+Verify the model config and required weight shards before stopping the CPU instance.
 
 ## Browser Handoff
 
