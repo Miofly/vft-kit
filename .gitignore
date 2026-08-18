@@ -9,6 +9,7 @@ build/
 *.tsbuildinfo
 .cache/
 .code-review-graph/
+__pycache__/
 
 # 运行时 / 本地产物
 *.log
