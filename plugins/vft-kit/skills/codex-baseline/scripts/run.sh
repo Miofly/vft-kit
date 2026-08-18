@@ -3,11 +3,16 @@
 set -u
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+RTK_SCRIPT="${RTK_SCRIPT:-$SCRIPT_DIR/install-rtk.sh}"
 SYNC_SCRIPT="${SYNC_SCRIPT:-$SCRIPT_DIR/sync-cc-switch-openai-env.sh}"
 IMAGEGEN_PREP_SCRIPT="${IMAGEGEN_PREP_SCRIPT:-$SCRIPT_DIR/prepare-imagegen-cli-env.sh}"
 IMAGEGEN_AGENTS_SCRIPT="${IMAGEGEN_AGENTS_SCRIPT:-$SCRIPT_DIR/install-imagegen-agents-rule.sh}"
 CAVEMAN_SCRIPT="${CAVEMAN_SCRIPT:-$SCRIPT_DIR/install-caveman-default.sh}"
 CHECK_SCRIPT="${CHECK_SCRIPT:-$SCRIPT_DIR/check.sh}"
+
+if ! bash "$RTK_SCRIPT"; then
+  printf '  ○ RTK 自动安装异常；继续执行基线检查\n' >&2
+fi
 
 if ! bash "$SYNC_SCRIPT"; then
   printf '  ○ CC-Switch OpenAI 环境同步异常；继续执行只读基线检查\n' >&2

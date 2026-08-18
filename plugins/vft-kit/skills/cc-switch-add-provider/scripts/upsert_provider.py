@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import os
 import shutil
@@ -134,15 +135,23 @@ def backup_database(conn: sqlite3.Connection, db_path: Path) -> Path:
 
 
 def build_configs(
-    existing: sqlite3.Row | None, data: ProviderInput, normalized_base: str
+    existing: sqlite3.Row | None,
+    data: ProviderInput,
+    normalized_base: str,
+    seed_settings: dict | None = None,
 ) -> tuple[str, str]:
     settings = (
-        parse_json(existing["settings_config"], "settings_config") if existing else {}
+        parse_json(existing["settings_config"], "settings_config")
+        if existing
+        else copy.deepcopy(seed_settings or {})
     )
     meta = parse_json(existing["meta"], "meta") if existing else {}
     env = settings.get("env")
     if not isinstance(env, dict):
         env = {}
+        settings["env"] = env
+    elif not existing:
+        env = {key: value for key, value in env.items() if not key.startswith("ANTHROPIC_")}
         settings["env"] = env
     env.pop("ANTHROPIC_AUTH_TOKEN", None)
     env.pop("ANTHROPIC_API_KEY", None)
@@ -150,7 +159,7 @@ def build_configs(
     env["ANTHROPIC_BASE_URL"] = normalized_base
     for key in MODEL_KEYS:
         env[key] = data.model
-    settings["model"] = "sonnet"
+    settings["model"] = "opus"
     meta.update(
         {
             "apiFormat": data.api_format,
@@ -195,7 +204,14 @@ def upsert_provider(db_path: Path, data: ProviderInput, dry_run: bool = False) -
                 "backup": None,
             }
 
-        settings_config, meta = build_configs(existing, data, normalized_base)
+        seed_settings = None
+        if not existing:
+            current = next((row for row in rows if row["is_current"]), None)
+            if current:
+                seed_settings = parse_json(current["settings_config"], "settings_config")
+        settings_config, meta = build_configs(
+            existing, data, normalized_base, seed_settings
+        )
         backup_path = backup_database(conn, db_path)
         conn.execute("BEGIN IMMEDIATE")
         if existing:
@@ -289,7 +305,12 @@ def create_test_database(path: Path) -> None:
                         "ANTHROPIC_AUTH_TOKEN": "old-secret",
                         "ANTHROPIC_BASE_URL": "https://example.com/v1",
                         "ANTHROPIC_MODEL": "model-a",
+                        "DISABLE_AUTOUPDATER": "1",
                     },
+                    "enabledPlugins": {"example@plugin": True},
+                    "hooks": {"SessionStart": []},
+                    "permissions": {"defaultMode": "bypassPermissions"},
+                    "statusLine": {"type": "command", "command": "statusline"},
                     "keep": {"unknown": True},
                 }
             ),
@@ -325,6 +346,7 @@ def self_test() -> None:
         assert settings["keep"]["unknown"] is True
         assert settings["env"]["ANTHROPIC_BASE_URL"] == "https://example.com"
         assert settings["env"]["ANTHROPIC_AUTH_TOKEN"] == "new-secret"
+        assert settings["model"] == "opus"
         assert meta["apiFormat"] == "openai_chat" and meta["keep"] is True
         conn.close()
 
@@ -337,6 +359,18 @@ def self_test() -> None:
             "another-secret",
         )
         assert upsert_provider(db_path, created)["action"] == "create"
+        conn = sqlite3.connect(db_path)
+        row = conn.execute(
+            "SELECT settings_config FROM providers WHERE name='Provider B'"
+        ).fetchone()
+        settings = json.loads(row[0])
+        assert settings["enabledPlugins"] == {"example@plugin": True}
+        assert settings["hooks"] == {"SessionStart": []}
+        assert settings["permissions"]["defaultMode"] == "bypassPermissions"
+        assert settings["statusLine"]["command"] == "statusline"
+        assert settings["env"]["DISABLE_AUTOUPDATER"] == "1"
+        assert settings["model"] == "opus"
+        conn.close()
         try:
             upsert_provider(
                 db_path,

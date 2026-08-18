@@ -18,6 +18,19 @@ elif [ "$has_hook" -eq 0 ]; then
   claude plugin update caveman@caveman
 fi
 
+if ! claude plugin list --json 2>/dev/null | node -e '
+let input="";
+process.stdin.on("data", chunk => input += chunk);
+process.stdin.on("end", () => {
+  try {
+    const json = JSON.parse(input);
+    const plugins = Array.isArray(json) ? json : (Array.isArray(json.plugins) ? json.plugins : []);
+    process.exit(plugins.some(plugin => plugin.id === "caveman@caveman" && plugin.enabled === true) ? 0 : 1);
+  } catch { process.exit(1); }
+});'; then
+  claude plugin enable caveman@caveman --scope user
+fi
+
 node <<'NODE'
 const fs = require('fs');
 const path = require('path');

@@ -19,25 +19,27 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/run.sh
 bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/run.sh --health
 ```
 
-`run.sh` 先幂等安装或更新 Caveman 插件并把 `~/.config/caveman/config.json.defaultMode` 固定为 `full`，再调用只读的 `check.sh`。退出码为 0 表示必需项齐全，为 1 表示存在必需项缺失；可选项不影响退出码。
+`run.sh` 先在 RTK 缺失时通过 Homebrew 直接安装，再幂等安装或更新并启用 Caveman 插件，把 `~/.config/caveman/config.json.defaultMode` 固定为 `full`，最后调用只读的 `check.sh`。退出码为 0 表示必需项齐全，为 1 表示存在必需项缺失；可选项不影响退出码。
+
+启动 skill 后立即新建一个子 Agent，与主线程的 baseline 检查并行。子 Agent 只读核对已安装 Claude Code 插件的当前版本与 marketplace/上游最新版本，不执行 update、install、uninstall、enable 或 cache 刷新。主线程完成检查后收集其结果：有更新候选时列出“插件｜当前版本｜最新版本”，询问用户是否更新；无候选时只报告已是最新。子 Agent 不可用时由主线程完成同一只读检查，不阻塞 baseline。
 
 ## 回报与修复
 
-- 用“项 | 作用”表格回报缺失项，不向用户倾倒脚本中的长修复命令。
+- 用“项 | 作用”表格回报缺失必需项；**未安装的可选项也必须一并列出**（项 | 作用 | 适合场景），让用户知道还有哪些可装，装不装由用户选。不向用户倾倒脚本中的长修复命令。
 - 用户确认补齐后，执行对应检查行给出的命令并重跑检查。
-- Ponytail 缺失和 Caveman 默认 full 缺失已获长期授权，可直接补齐；其他项目先回报。
+- RTK、Ponytail 和 Caveman 默认 full 缺失已获长期授权，可直接补齐；其他项目先回报。
 - MCP、插件或全局规范变更后提醒用户新开 Claude Code 会话。
 
 ## 基线
 
 | 类别 | 必需 | 可选 |
 |---|---|---|
-| CLI | node、npm、claude、codegraph、code-review-graph | rtk、brew、jq、gh |
+| CLI | node、npm、claude、rtk、codegraph、code-review-graph | brew、jq、gh |
 | npm | `@danielsogl/lighthouse-mcp` | - |
 | MCP | codegraph、code-review-graph、lighthouse-mcp | - |
 | 插件 | superpowers、skill-creator、code-review、frontend-design、playwright、typescript-lsp、jdtls-lsp、claude-md-management、context-mode、ponytail、caveman、gsap-skills | claude-hud、context7、vercel、grill-me、understand-anything、diagram-design、pm-skills |
 | Agent Skills | Emil 的 animate、review-animations、apple-design | AnySearch、Emil 其余 7 项 |
-| 系统 | bypassPermissions、信任目录、CodeGraph 白名单、关闭自动更新、全局 CLAUDE.md | RTK hook、claude-hud 状态栏、CC Switch、项目 memory 目录 |
+| 系统 | bypassPermissions、信任目录、CodeGraph 白名单、关闭自动更新、全局 CLAUDE.md | claude-hud 状态栏、CC Switch、项目 memory 目录 |
 | 全局规范 | 中文回复、可点短链、压缩取舍、代理兜底、多 Agent 并行、Code Review Graph 优先 | context7 / AnySearch 已安装时才检查对应调用规则 |
 
 Claude Code 2.1.59 起默认提供 auto memory，项目记忆位于 `~/.claude/projects/<project>/memory/`。不要再叠加 `remember` 插件或 agentmemory MCP；只有用户明确需要外部向量检索服务时才单独评估。
@@ -80,6 +82,5 @@ npx skills add emilkowalski/skills \
 
 - CodeGraph 以 CLI 可执行为准；新项目用 `codegraph init`，增量刷新用 `codegraph sync`，完整重建用 `codegraph index -f`。
 - 所有代码审查优先通过 code-review-graph MCP 获取最小上下文、影响半径和相关测试，再按结果读取源码；图谱首次建立或完整重建用 `code-review-graph build`，日常刷新用 `code-review-graph update`，状态检查用 `code-review-graph status`。
-- RTK 未安装或未启用 hook 时只提示；hook 已启用但缺少 `cat/diff/find/grep/curl/head/wc` 豁免时才算故障。
 - 插件检查读取 `installed_plugins.json`，覆盖 user、project 和 local scope。
 - `--health` 只实连 codegraph、code-review-graph、lighthouse 和 Playwright，不启动额外常驻服务。
