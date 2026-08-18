@@ -23,7 +23,7 @@ bash ${CODEX_PLUGIN_ROOT:-${VFT_PLUGIN_ROOT:-.}}/skills/codex-baseline/scripts/r
 
 `run.sh` 会执行已授权的常设维护：RTK 缺失时通过 Homebrew 直接安装、同步 CC-Switch 认证、准备 imagegen CLI、缺失时安装 Caveman Codex skills，并维护 imagegen 与 Caveman 默认 full 的全局 AGENTS 托管块。Caveman 规则写入当前实际生效文件：存在 `~/.codex/AGENTS.override.md` 时写 override，否则写 `~/.codex/AGENTS.md`。不得输出完整 Key。其余检查只读。
 
-启动 skill 后立即新建一个子 Agent，与主线程的 baseline 检查并行。子 Agent 只读核对已安装 Codex 插件的当前版本与 marketplace/上游最新版本，不执行 upgrade、add、remove 或 cache 刷新。主线程完成检查后收集其结果：有更新候选时列出“插件｜当前版本｜最新版本”，询问用户是否更新；无候选时只报告已是最新。子 Agent 不可用时由主线程完成同一只读检查，不阻塞 baseline。
+启动 skill 后立即新建一个子 Agent，与主线程的 baseline 检查并行，并把本 skill 的绝对目录传给它。子 Agent 只读运行 `node <SKILL_DIR>/scripts/check-versions.mjs`，不得自行拼装版本检查命令，也不得执行 upgrade、add、remove 或 cache 刷新。脚本按 SemVer 数字段比较 Codex CLI、RTK、CodeGraph、code-review-graph，以及 Git marketplace 安装的第三方 Codex 插件；OpenAI 内置、本地 bundled 和本地开发插件不进入外部版本审计。单项默认超时 10 秒、总计 45 秒，失败或无公开上游时输出“无法判断”。主线程仅在结果含 `VERSION_AUDIT_DONE` 时视为审计完成；子 Agent 不可用、超时或缺少完成标记时，由主线程运行同一脚本兜底，不阻塞 baseline。CLI 或插件有更新候选时列出“项｜当前版本｜最新版本”并询问是否更新；均无候选时只报告已是最新，同时保留所有“无法判断”项。
 
 输出含 `✓` 已满足、`✗` 必需项缺失、`○` 可选提醒、`⊘` 通过 `CODEX_BASELINE_SKIP` 声明的刻意不装。只有必需项缺失时退出码为 1。
 
@@ -39,9 +39,9 @@ bash ${CODEX_PLUGIN_ROOT:-${VFT_PLUGIN_ROOT:-.}}/skills/codex-baseline/scripts/r
 
 | 类别 | 必需 | 可选 |
 |---|---|---|
-| CLI | codex、node、npm、git、rtk、codegraph、code-review-graph | brew、jq、gh、vercel |
+| CLI | codex、node、npm、git、rtk、codegraph、code-review-graph | brew、jq、gh |
 | 权限与项目 | dangerous full access、隐藏警告、hooks、Memories、multi_agent、信任目录 | 关闭启动更新检查 |
-| MCP | Playwright、CodeGraph、code-review-graph、Lighthouse、OpenAI Developer Docs | Context7、Vercel |
+| MCP | Playwright、CodeGraph、code-review-graph、Lighthouse、OpenAI Developer Docs | Context7 |
 | 插件 | GitHub、Build Web Apps、Ponytail、Context Mode | Superpowers、Diagram Design |
 | Agent Skills | Caveman + 默认 full、GSAP 8 项、Emil 3 项 | AnySearch、Grill-me、Understand Anything、PM Skills、Emil 其余 7 项 |
 | 系统 skills | openai-docs、imagegen、skill-creator、plugin-creator、skill-installer | - |

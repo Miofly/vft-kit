@@ -313,7 +313,6 @@ has_cmd git   && ok "git ($(git --version 2>/dev/null | awk '{print $3}'))" || b
 has_cmd brew  && ok "brew"                                                   || opt "brew" "安装 Homebrew（用于补齐常用 CLI）"
 has_cmd jq    && ok "jq"                                                   || opt "jq" "brew install jq"
 has_cmd gh    && ok "gh ($(gh --version 2>/dev/null | head -1 | awk '{print $3}'))" || opt "gh" "brew install gh（GitHub CLI：PR/Actions/仓库操作，可选）"
-has_cmd vercel && ok "vercel ($(vercel --version 2>/dev/null | head -1))" || opt "vercel CLI" "npm i -g vercel"
 has_cmd rtk && ok "RTK ($(rtk --version 2>/dev/null))" || bad "RTK" "brew install rtk"
 if has_cmd rtk; then
   rtk_codex_ready && ok "RTK Codex 指令已接入" || opt "RTK Codex 指令" "rtk init --codex --global"
@@ -390,13 +389,6 @@ if mcp_configured "context7"; then
 else
   opt "context7 MCP" "codex mcp add context7 -- npx -y @upstash/context7-mcp@latest"
 fi
-if mcp_configured "vercel"; then
-  ok "Vercel MCP 已配置"
-  mcp_enabled "vercel" && ok "Vercel MCP 已启用" || opt "Vercel MCP 已禁用" '删除 [mcp_servers.vercel] 下的 enabled = false，或改为 enabled = true'
-else
-  opt "Vercel MCP" "codex mcp add vercel --url https://mcp.vercel.com"
-fi
-
 sec "CLI 插件（合并 scope 后 installed + enabled）"
 check_plugin "github@openai-api-curated" required "codex plugin add github@openai-api-curated"
 if github_plugin_active; then

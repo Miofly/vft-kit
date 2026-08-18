@@ -276,7 +276,7 @@ done
 plugin_installed claude-hud && ok "claude-hud（可选状态栏）" || opt "claude-hud" "claude plugin marketplace add jarrodwatts/claude-hud && claude plugin install claude-hud@claude-hud"
 caveman_default_full && ok "Caveman 默认 full 自动启用" || bad "Caveman 默认 full 自动启用" "bash \"$SCRIPT_DIR/install-caveman-default.sh\""
 # 可选插件（装了更好，不装不算故障）
-for p in context7 vercel; do
+for p in context7; do
   if plugin_installed "$p"; then ok "$p"; else opt "$p" "claude plugin install $p@claude-plugins-official"; fi
 done
 # 可选 skill：anysearch（AI Agent 联网实时搜索，装到 ~/.claude/skills/anysearch）
