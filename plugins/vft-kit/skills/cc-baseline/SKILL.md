@@ -84,4 +84,4 @@ npx skills add emilkowalski/skills \
 - 所有代码审查优先通过 code-review-graph MCP 获取最小上下文、影响半径和相关测试，再按结果读取源码；图谱首次建立或完整重建用 `code-review-graph build`，日常刷新用 `code-review-graph update`，状态检查用 `code-review-graph status`。
 - 插件检查读取 `installed_plugins.json`，覆盖 user、project 和 local scope。
 - `--health` 只实连 codegraph、code-review-graph、lighthouse 和 Playwright，不启动额外常驻服务。
-- 文本检索一律走 `rg` 或 `/usr/bin/grep`（绝对路径），裸 `grep` 会被 rtk hook 改写走代理，报选项错或漏匹配（rtk 未配 `exclude_commands` 豁免时必现）。例：`(rg -l "关键字" dir 2>/dev/null || /usr/bin/grep -rl "关键字" dir)`。`scripts/*.sh` 内部 grep 跑在子 shell、不经过 hook，不受影响。
+- 文本检索一律走 `rg` 或 `/usr/bin/grep`（绝对路径）。裸 `grep` 会被 Claude Code shell 快照注入的 `grep` shell 函数劫持（转发 claude 二进制内置 ugrep，本机派发坏，报 `error: unknown option '-G'`）；与 rtk 无关——rtk hook 不改写 grep。例：`(rg -l "关键字" dir 2>/dev/null || /usr/bin/grep -rl "关键字" dir)`。`scripts/*.sh` 内部 grep 跑在子 shell，不受该函数影响。
