@@ -69,6 +69,10 @@ cat > "$FAKE_BIN/volta" <<'EOF'
 #!/usr/bin/env bash
 exit 2
 EOF
+cat > "$FAKE_BIN/rtk" <<'EOF'
+#!/usr/bin/env bash
+[ "$1" = "--version" ] && printf 'rtk 1.0.0\n'
+EOF
 for command_name in brew jq; do
   cat > "$FAKE_BIN/$command_name" <<'EOF'
 #!/usr/bin/env bash
@@ -153,9 +157,6 @@ mkdir -p \
   "$TEST_HOME/Library/Caches/ms-playwright/chromium-fixture" \
   "$TEST_CODEX_HOME/venvs/imagegen-cli/bin"
 mkdir -p "$TMP_ROOT/mcp-json"
-cat > "$TMP_ROOT/mcp-json/vercel.json" <<'EOF'
-{"name":"vercel","enabled":true,"transport":{"type":"streamable_http","url":"https://mcp.vercel.com"}}
-EOF
 cat > "$TMP_ROOT/mcp-json/playwright.json" <<'EOF'
 {"name":"playwright","enabled":true,"transport":{"type":"stdio","command":"fixture-playwright","args":[]}}
 EOF
@@ -263,7 +264,7 @@ grep -Fq 'npx skills add mattpocock/skills --skill grill-me --agent codex --glob
 grep -Fq 'Codex Memories' <<< "$output" && { printf 'FAIL: enabled memories reported missing\n' >&2; exit 1; }
 grep -Fq 'Codex multi_agent' <<< "$output" && { printf 'FAIL: enabled multi_agent reported missing\n' >&2; exit 1; }
 grep -Fq 'OpenAI Developer Docs MCP 已配置' <<< "$output" || { printf 'FAIL: docs MCP check missing\n' >&2; exit 1; }
-grep -Fq 'Vercel MCP 已配置' <<< "$output" || { printf 'FAIL: resolved project-scope MCP state not used\n' >&2; exit 1; }
+grep -Fiq 'vercel' <<< "$output" && { printf 'FAIL: Vercel should not be managed by the baseline\n' >&2; exit 1; }
 grep -Fq 'GITHUB_PAT_TOKEN 已注入' <<< "$output" || { printf 'FAIL: injected GitHub token not detected\n' >&2; exit 1; }
 grep -Fq 'node_repl command 不存在' <<< "$output" && { printf 'FAIL: disabled node_repl should be ignored\n' >&2; exit 1; }
 

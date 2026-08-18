@@ -1,17 +1,15 @@
 ---
 name: ms-studio-deploy
 description: >-
-  Deploy a local project to a ModelScope Studio. Supports Gradio, Streamlit, Docker, and static website types.
-  Covers creation, code sync, deployment, log monitoring, plaintext/secret variable management, and automatic diagnosis and repair.
-  Use when the user mentions deploying to ModelScope, Studio, the ModelScope community, ModelScope, Studio deployment, Gradio deployment, Streamlit deployment,
-  Docker deployment, FastAPI deployment, or static website deployment, or wants to publish a local app, web app, or API service to the cloud.
-  Also applies when the user encounters a Studio build failure or runtime error and needs to inspect logs, wants to update an already-deployed Studio, or wants to manage a Studio's plaintext variables or secrets.
+  Use when the user wants to deploy, update, inspect, or repair a ModelScope Studio; manage its variables or secrets;
+  or inspect, start, open, or stop a ModelScope Notebook / PAI-DSW environment. Supports Gradio, Streamlit,
+  Docker, static websites, Studio OpenAPI operations, and authenticated Notebook browser-session operations.
   Not applicable to: Hub repository management, model/dataset operations, MCP/skill management, model training, or model evaluation.
 ---
 
-# ModelScope Studio Deployment
+# ModelScope Studio Deployment and Notebook Operations
 
-> Verified live against ModelScope OpenAPI ｜ modelscope 1.37.1 / modelscope_hub 0.1.2 (2026-06-29)
+> Studio OpenAPI verified 2026-06-29; authenticated Notebook web API verified 2026-08-18.
 
 Deploy a local project to a ModelScope Studio. **This Skill uses OpenAPI as the source of truth**, with the `ms` CLI as an equivalent convenience alias, `modelscope_hub.HubApi` as the API-first Python client, and MCP tools as optional.
 
@@ -33,9 +31,22 @@ User wants to...
 │   ├── Plaintext variables: GET/POST/PUT/DELETE /studios/{o}/{r}/variables
 │   └── Secrets: GET/POST/PUT/DELETE /studios/{o}/{r}/secrets (or ms secret ...)
 │
+├── Inspect/start/stop a Notebook or PAI-DSW environment
+│   └── Follow "Notebook / PAI-DSW" and references/notebook-dsw.md
+│
 └── Repository file management / model & dataset operations
     └── hand off → ms-hub
 ```
+
+## Notebook / PAI-DSW
+
+Notebook is a separate product surface from Studio. Its `/api/v1/notebooks*` endpoints require the ModelScope
+web-login cookie; a valid `MODELSCOPE_API_KEY` alone returns `401 user not logged in`. Read
+`references/notebook-dsw.md` completely before inspecting or changing a Notebook instance.
+
+Never omit, forge, replay, log, or persist `CaptchaVerify`. Starting a free instance requires the fresh value
+issued by ModelScope's safety-verification widget. If a slider or other verification appears, hand the same
+browser session to the user and resume only after they confirm completion.
 
 ## Personalization (optional)
 
@@ -523,6 +534,7 @@ Prerequisite: you must complete Alibaba Cloud account binding and pass real-name
 Consult when you run into problems or need more detail:
 
 - `references/openapi-studio-endpoints.md` — detailed Studios OpenAPI endpoint parameters (source-of-truth specification)
+- `references/notebook-dsw.md` — authenticated Notebook / PAI-DSW endpoints, start payload, states, and captcha boundary
 - `references/docker-templates.md` — Dockerfile templates for the Docker type (FastAPI, Node.js, Golang, etc.)
 - `references/troubleshooting.md` — deployment-failure troubleshooting process, common errors, and fixes
 

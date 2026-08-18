@@ -21,7 +21,7 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/run.sh --health
 
 `run.sh` 先在 RTK 缺失时通过 Homebrew 直接安装，再幂等安装或更新并启用 Caveman 插件，把 `~/.config/caveman/config.json.defaultMode` 固定为 `full`，最后调用只读的 `check.sh`。退出码为 0 表示必需项齐全，为 1 表示存在必需项缺失；可选项不影响退出码。
 
-启动 skill 后立即新建一个子 Agent，与主线程的 baseline 检查并行。子 Agent 只读核对已安装 Claude Code 插件的当前版本与 marketplace/上游最新版本，不执行 update、install、uninstall、enable 或 cache 刷新。主线程完成检查后收集其结果：有更新候选时列出“插件｜当前版本｜最新版本”，询问用户是否更新；无候选时只报告已是最新。子 Agent 不可用时由主线程完成同一只读检查，不阻塞 baseline。
+启动 skill 后立即新建一个子 Agent，与主线程的 baseline 检查并行。子 Agent 只读比较 `claude --version` 与 `npm view @anthropic-ai/claude-code version --registry=https://registry.npmjs.org`，按 SemVer 数字段（禁止字符串排序）判断 Claude Code CLI 是否有新版本；同时核对已安装 Claude Code 插件的当前版本与 marketplace/上游最新版本，不执行 update、install、uninstall、enable 或 cache 刷新。主线程完成检查后收集其结果：CLI 有新版本时列出“Claude Code｜当前版本｜最新版本”，插件有更新候选时列出“插件｜当前版本｜最新版本”，询问用户是否更新；均无候选时只报告已是最新。本地或上游命令失败、输出为空、版本无法解析时必须报告“无法判断”，不得当作已是最新。子 Agent 不可用时由主线程完成同一只读检查，不阻塞 baseline。
 
 ## 回报与修复
 
@@ -37,7 +37,7 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/run.sh --health
 | CLI | node、npm、claude、rtk、codegraph、code-review-graph | brew、jq、gh |
 | npm | `@danielsogl/lighthouse-mcp` | - |
 | MCP | codegraph、code-review-graph、lighthouse-mcp | - |
-| 插件 | superpowers、skill-creator、code-review、frontend-design、playwright、typescript-lsp、jdtls-lsp、claude-md-management、context-mode、ponytail、caveman、gsap-skills | claude-hud、context7、vercel、grill-me、understand-anything、diagram-design、pm-skills |
+| 插件 | superpowers、skill-creator、code-review、frontend-design、playwright、typescript-lsp、jdtls-lsp、context-mode、ponytail、caveman、gsap-skills | claude-hud、context7、grill-me、understand-anything、diagram-design、pm-skills |
 | Agent Skills | Emil 的 animate、review-animations、apple-design | AnySearch、Emil 其余 7 项 |
 | 系统 | bypassPermissions、信任目录、CodeGraph 白名单、关闭自动更新、全局 CLAUDE.md | claude-hud 状态栏、CC Switch、项目 memory 目录 |
 | 全局规范 | 中文回复、可点短链、压缩取舍、代理兜底、多 Agent 并行、Code Review Graph 优先 | context7 / AnySearch 已安装时才检查对应调用规则 |
@@ -84,3 +84,4 @@ npx skills add emilkowalski/skills \
 - 所有代码审查优先通过 code-review-graph MCP 获取最小上下文、影响半径和相关测试，再按结果读取源码；图谱首次建立或完整重建用 `code-review-graph build`，日常刷新用 `code-review-graph update`，状态检查用 `code-review-graph status`。
 - 插件检查读取 `installed_plugins.json`，覆盖 user、project 和 local scope。
 - `--health` 只实连 codegraph、code-review-graph、lighthouse 和 Playwright，不启动额外常驻服务。
+- 文本检索一律走 `rg` 或 `/usr/bin/grep`（绝对路径），裸 `grep` 会被 rtk hook 改写走代理，报选项错或漏匹配（rtk 未配 `exclude_commands` 豁免时必现）。例：`(rg -l "关键字" dir 2>/dev/null || /usr/bin/grep -rl "关键字" dir)`。`scripts/*.sh` 内部 grep 跑在子 shell、不经过 hook，不受影响。
