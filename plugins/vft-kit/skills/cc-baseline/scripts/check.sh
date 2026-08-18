@@ -221,6 +221,20 @@ claudemd_has_codegraph_auto_init(){
     grep -Eiq 'codegraph[[:space:]]+index[[:space:]]+-f' "$f" &&
     ! grep -Eiq 'codegraph[[:space:]]+update|codegraph[[:space:]]+init[[:space:]]+--force' "$f"
 }
+# 全局 ~/.claude/CLAUDE.md 是否含「所有 code review 先走 Code Review Graph」规范。
+claudemd_has_code_review_graph(){
+  local f="$HOME/.claude/CLAUDE.md"
+  [ -f "$f" ] || return 1
+  grep -Eiq '所有.*代码审查|all.*code reviews?' "$f" &&
+    grep -Eiq 'code-review-graph' "$f" &&
+    grep -Eiq '最小上下文|minimal context' "$f" &&
+    grep -Eiq '影响半径|impact radius' "$f" &&
+    grep -Eiq '相关测试|relevant tests' "$f" &&
+    grep -Eiq '再.*读取源码|before.*source' "$f" &&
+    grep -Eiq 'code-review-graph[[:space:]]+build' "$f" &&
+    grep -Eiq 'code-review-graph[[:space:]]+update' "$f" &&
+    grep -Eiq 'code-review-graph[[:space:]]+status' "$f"
+}
 # 全局 ~/.claude/CLAUDE.md 是否含「context7 官方文档优先」调用场景规范
 # 仅在 context7 已装时才核对：装了文档 MCP 却没告诉 CC 何时查，容易继续凭旧记忆答库/框架/API 用法。
 claudemd_has_context7(){
@@ -240,6 +254,7 @@ has_cmd npm    && ok "npm ($(npm -v 2>/dev/null))"          || bad "npm"    "随
 has_cmd claude && ok "claude ($(claude --version 2>/dev/null|awk '{print $1}'))" || bad "claude" "Claude Code CLI 未装"
 has_cmd rtk    && ok "rtk ($(rtk --version 2>/dev/null))"   || opt "rtk"    "brew install rtk（省 token 命令代理，可选）"
 has_cmd codegraph && ok "codegraph ($(codegraph --version 2>/dev/null))" || bad "codegraph" "curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh"
+has_cmd code-review-graph && ok "code-review-graph ($(code-review-graph --version 2>/dev/null))" || bad "code-review-graph" "pipx install code-review-graph"
 has_cmd brew   && ok "brew"                                 || opt "brew"   "Homebrew 建议装"
 has_cmd jq     && ok "jq"                                   || opt "jq"     "brew install jq"
 has_cmd gh     && ok "gh ($(gh --version 2>/dev/null|head -1|awk '{print $3}'))" || opt "gh"     "brew install gh（GitHub CLI：PR/Actions/仓库操作，可选）"
@@ -251,6 +266,7 @@ npm_g_installed "@danielsogl/lighthouse-mcp"                  && ok "@danielsogl
 # ---------- 3. MCP 注册 ----------
 sec "MCP 服务器（已注册到 CC）"
 mcp_registered codegraph           && ok "codegraph"           || bad "codegraph MCP"           "codegraph install --target=claude --location=global --yes"
+mcp_registered code-review-graph   && ok "code-review-graph MCP" || bad "code-review-graph MCP"   "claude mcp add code-review-graph -s user -- code-review-graph serve"
 mcp_registered lighthouse-mcp      && ok "lighthouse-mcp"      || bad "lighthouse-mcp MCP"      "claude mcp add lighthouse-mcp -s user -- node \"\$(npm root -g)/@danielsogl/lighthouse-mcp/dist/index.js\""
 
 # ---------- 4. 插件（默认必备集） ----------
@@ -364,6 +380,7 @@ if has_cmd codegraph; then
 else
   ok "CodeGraph 自动初始化规范（codegraph 未装，无需配置）"
 fi
+claudemd_has_code_review_graph      && ok "Code Review Graph 优先规范" || bad "Code Review Graph 优先规范" $'printf \'\\n## Code Review Graph 优先\\n所有代码审查（code review）优先用 code-review-graph MCP 获取最小上下文、影响半径和相关测试，再按结果读取源码。首次建立或完整重建图谱用 `code-review-graph build`，日常增量刷新用 `code-review-graph update`，检查图谱状态用 `code-review-graph status`。\\n\' >> ~/.claude/CLAUDE.md'
 # context7 调用场景规范：条件必需——仅当 context7 插件已装时才要求（装了不告诉 CC 何时查文档 = 仍可能凭旧记忆回答）。
 if plugin_installed context7; then
   claudemd_has_context7           && ok "全局规范含「context7 官方文档优先」" || bad "context7 调用规范" $'printf \'\\n## 库/框架/SDK/API 用法优先查 context7\\n涉及库、框架、SDK、API、CLI 或云服务的用法、配置、版本迁移、报错排查、接入步骤时，优先用 context7 查询当前官方文档与示例；没有匹配文档或 context7 不可用时再回退内置知识或网页搜索。\\n\' >> ~/.claude/CLAUDE.md'
@@ -384,6 +401,7 @@ if [ "$HEALTH" -eq 1 ]; then
   MCP_HEALTH="$(claude mcp list 2>/dev/null || echo '')"
   # 核心 MCP：<名字正则> <显示名>
   mcp_healthy '^codegraph:'           && ok "codegraph 已连接"           || bad "codegraph 未连"           "codegraph serve --mcp 起不来，检查 codegraph install / 重启 CC"
+  mcp_healthy '^code-review-graph:'   && ok "code-review-graph 已连接"   || bad "code-review-graph 未连"   "检查 code-review-graph serve，重跑 claude mcp add"
   mcp_healthy '^lighthouse-mcp:'      && ok "lighthouse-mcp 已连接"      || bad "lighthouse-mcp 未连"      "检查 dist/index.js 路径，重跑 claude mcp add"
   mcp_healthy ':playwright:'          && ok "playwright 已连接（插件 MCP）" || bad "playwright 未连"        "npx @playwright/mcp@latest 起不来；先装浏览器 npx playwright install chromium"
 else

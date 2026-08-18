@@ -32,13 +32,13 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/cc-baseline/scripts/run.sh --health
 
 | 类别 | 必需 | 可选 |
 |---|---|---|
-| CLI | node、npm、claude、codegraph | rtk、brew、jq、gh |
+| CLI | node、npm、claude、codegraph、code-review-graph | rtk、brew、jq、gh |
 | npm | `@danielsogl/lighthouse-mcp` | - |
-| MCP | codegraph、lighthouse-mcp | - |
+| MCP | codegraph、code-review-graph、lighthouse-mcp | - |
 | 插件 | superpowers、skill-creator、code-review、frontend-design、playwright、typescript-lsp、jdtls-lsp、claude-md-management、context-mode、ponytail、caveman、gsap-skills | claude-hud、context7、vercel、grill-me、understand-anything、diagram-design、pm-skills |
 | Agent Skills | Emil 的 animate、review-animations、apple-design | AnySearch、Emil 其余 7 项 |
 | 系统 | bypassPermissions、信任目录、CodeGraph 白名单、关闭自动更新、全局 CLAUDE.md | RTK hook、claude-hud 状态栏、CC Switch、项目 memory 目录 |
-| 全局规范 | 中文回复、可点短链、压缩取舍、代理兜底、多 Agent 并行 | context7 / AnySearch 已安装时才检查对应调用规则 |
+| 全局规范 | 中文回复、可点短链、压缩取舍、代理兜底、多 Agent 并行、Code Review Graph 优先 | context7 / AnySearch 已安装时才检查对应调用规则 |
 
 Claude Code 2.1.59 起默认提供 auto memory，项目记忆位于 `~/.claude/projects/<project>/memory/`。不要再叠加 `remember` 插件或 agentmemory MCP；只有用户明确需要外部向量检索服务时才单独评估。
 
@@ -79,6 +79,7 @@ npx skills add emilkowalski/skills \
 ## 约束
 
 - CodeGraph 以 CLI 可执行为准；新项目用 `codegraph init`，增量刷新用 `codegraph sync`，完整重建用 `codegraph index -f`。
+- 所有代码审查优先通过 code-review-graph MCP 获取最小上下文、影响半径和相关测试，再按结果读取源码；图谱首次建立或完整重建用 `code-review-graph build`，日常刷新用 `code-review-graph update`，状态检查用 `code-review-graph status`。
 - RTK 未安装或未启用 hook 时只提示；hook 已启用但缺少 `cat/diff/find/grep/curl/head/wc` 豁免时才算故障。
 - 插件检查读取 `installed_plugins.json`，覆盖 user、project 和 local scope。
-- `--health` 只实连 codegraph、lighthouse 和 Playwright，不启动额外常驻服务。
+- `--health` 只实连 codegraph、code-review-graph、lighthouse 和 Playwright，不启动额外常驻服务。
