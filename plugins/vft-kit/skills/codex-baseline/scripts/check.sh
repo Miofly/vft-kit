@@ -314,10 +314,9 @@ has_cmd brew  && ok "brew"                                                   || 
 has_cmd jq    && ok "jq"                                                   || opt "jq" "brew install jq"
 has_cmd gh    && ok "gh ($(gh --version 2>/dev/null | head -1 | awk '{print $3}'))" || opt "gh" "brew install gh（GitHub CLI：PR/Actions/仓库操作，可选）"
 has_cmd vercel && ok "vercel ($(vercel --version 2>/dev/null | head -1))" || opt "vercel CLI" "npm i -g vercel"
+has_cmd rtk && ok "RTK ($(rtk --version 2>/dev/null))" || bad "RTK" "brew install rtk"
 if has_cmd rtk; then
   rtk_codex_ready && ok "RTK Codex 指令已接入" || opt "RTK Codex 指令" "rtk init --codex --global"
-else
-  opt "RTK" "brew install rtk && rtk init --codex --global"
 fi
 
 sec "dangerous full access 权限基线"
@@ -416,7 +415,7 @@ check_plugin "context-mode@context-mode" required "codex plugin marketplace add 
 check_plugin "diagram-design@diagram-design" optional "codex plugin marketplace add cathrynlavery/diagram-design；再运行 codex plugin add diagram-design@diagram-design"
 
 sec "兼容 Agent Skills"
-global_skill_exists "caveman" && ok "caveman skill" || bad "caveman skill" "npx skills add JuliusBrussee/caveman -a codex"
+global_skill_exists "caveman" && ok "caveman skill" || bad "caveman skill" "npx --yes skills add JuliusBrussee/caveman --agent codex --global --yes"
 agents_has_caveman_default && ok "Caveman 默认 full 自动启用" || bad "Caveman 默认 full 自动启用" "bash \"$SCRIPT_DIR/install-caveman-default.sh\""
 gsap_skills_installed && ok "GSAP 官方 skills（8 项）" || bad "GSAP 官方 skills" "npx skills add https://github.com/greensock/gsap-skills --agent codex"
 global_skill_exists "anysearch" && ok "anysearch skill（联网实时搜索）" || opt "anysearch skill" "bash \"$SCRIPT_DIR/install-anysearch.sh\""

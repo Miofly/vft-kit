@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # cc-baseline —— 核对本机 Claude Code 是否符合装配基线。
-# 分六类逐项体检：CLI 工具 / 全局 npm 包 / MCP 注册 / 插件 / 系统配置(RTK hook、状态栏、App) / 配置基线。
+# 分六类逐项体检：CLI 工具 / 全局 npm 包 / MCP 注册 / 插件 / 系统配置 / 配置基线。
 # 只读，不改任何东西；缺什么就打印对应的修复命令。
 # 退出码：所有「必需」项齐全=0；有必需项缺失=1。可选项缺失不影响退出码。
 set -uo pipefail
@@ -81,26 +81,13 @@ caveman_default_full(){
   local config="$HOME/.config/caveman/config.json" plugin_path
   [ -f "$config" ] || return 1
   node -e "const j=require(process.argv[1]);process.exit(j.defaultMode==='full'?0:1)" "$config" 2>/dev/null || return 1
+  node -e "const j=require(process.argv[1]);process.exit(j.enabledPlugins&&j.enabledPlugins['caveman@caveman']===true?0:1)" "$SETTINGS" 2>/dev/null || return 1
   plugin_path="$(node -e "const j=require(process.argv[1]).plugins||{};const v=Object.entries(j).find(([k])=>k.split('@')[0]==='caveman');const x=v&&Array.isArray(v[1])?v[1][0]:null;process.stdout.write(x&&x.installPath||'')" "$INSTALLED_PLUGINS" 2>/dev/null)"
   [ -n "$plugin_path" ] || return 1
   node -e "const j=require(process.argv[1]);const s=JSON.stringify(j.hooks&&j.hooks.SessionStart||[]);process.exit(/caveman-activate/.test(s)?0:1)" "$plugin_path/.claude-plugin/plugin.json" 2>/dev/null
 }
 # 全局 npm 包是否装（查 node_modules 目录，比 npm ls 快）
 npm_g_installed(){ [ -n "$NPM_ROOT" ] && [ -d "$NPM_ROOT/$1" ]; }
-# settings.json 里某个 hook 命令是否含关键字
-hook_has(){
-  [ -f "$SETTINGS" ] || return 1
-  node -e "const s=require('$SETTINGS');process.exit(new RegExp(process.argv[1],'i').test(JSON.stringify(s.hooks||{}))?0:1)" "$1" 2>/dev/null
-}
-# RTK 配置里 [hooks].exclude_commands 是否已排除「压缩会致错」的命令(cat/diff/find/grep/curl/head/wc)
-# 见 SKILL.md：这七条命令过 RTK 压缩会静默出错(截断文件/坏 patch/漏文件/截断行漏匹配/假 JSON/取错数)，必须原样透传。
-RTK_CONFIG="$HOME/Library/Application Support/rtk/config.toml"
-rtk_excludes_verbatim(){
-  [ -f "$RTK_CONFIG" ] || return 1
-  local line; line=$(grep -E '^[[:space:]]*exclude_commands' "$RTK_CONFIG" 2>/dev/null) || return 1
-  local cmd
-  for cmd in cat diff find grep curl head wc; do printf '%s' "$line" | grep -q "\"$cmd\"" || return 1; done
-}
 # statusLine 最终是否渲染 claude-hud——含直接引用与委托链（如 island-statusline → *-delegate → claude-hud）。
 # 只 grep command 字符串本身、其指向的脚本、及同目录的 *statusline*/*delegate* 伴生脚本，不整目录扫。
 statusline_uses_hud(){
@@ -252,7 +239,7 @@ sec "CLI 工具"
 has_cmd node   && ok "node ($(node -v 2>/dev/null))"        || bad "node"   "装 Node 22.x"
 has_cmd npm    && ok "npm ($(npm -v 2>/dev/null))"          || bad "npm"    "随 node 安装"
 has_cmd claude && ok "claude ($(claude --version 2>/dev/null|awk '{print $1}'))" || bad "claude" "Claude Code CLI 未装"
-has_cmd rtk    && ok "rtk ($(rtk --version 2>/dev/null))"   || opt "rtk"    "brew install rtk（省 token 命令代理，可选）"
+has_cmd rtk    && ok "rtk ($(rtk --version 2>/dev/null))"   || bad "rtk"    "brew install rtk"
 has_cmd codegraph && ok "codegraph ($(codegraph --version 2>/dev/null))" || bad "codegraph" "curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh"
 has_cmd code-review-graph && ok "code-review-graph ($(code-review-graph --version 2>/dev/null))" || bad "code-review-graph" "pipx install code-review-graph"
 has_cmd brew   && ok "brew"                                 || opt "brew"   "Homebrew 建议装"
@@ -326,21 +313,6 @@ fi
 
 # ---------- 5. 系统配置 ----------
 sec "系统配置"
-# rtk 是可选安装，分级自洽：
-#   未装 rtk               → opt（整段跳过，不算故障）
-#   装了但没挂 hook        → opt（装了没启用命令压缩，是用户选择，不算故障）
-#   挂了 hook 但豁免不全    → bad（rtk 真在拦命令却配错 = 静默数据损坏，必须硬报）
-if has_cmd rtk; then
-  if hook_has "rtk"; then
-    ok "RTK hook（PreToolUse Bash 命令优化）"
-    # 修复命令整行替换 exclude_commands，兼容「空数组 / 已有部分值 / 已满」任意现状
-    rtk_excludes_verbatim       && ok "RTK 压缩豁免（cat/diff/find/grep/curl/head/wc 原样透传）" || bad "RTK 压缩豁免"    'rtk config --create 2>/dev/null; sed -i "" '"'"'s/^[[:space:]]*exclude_commands[[:space:]]*=.*/exclude_commands = ["cat", "diff", "find", "grep", "curl", "head", "wc"]/'"'"' "$HOME/Library/Application Support/rtk/config.toml"'
-  else
-    opt "RTK hook（+ 压缩豁免）"  "rtk init -g --auto-patch（装了 rtk 但未挂 hook，命令压缩未启用）"
-  fi
-else
-  opt "RTK（hook + 压缩豁免）"    "brew install rtk && rtk init -g --auto-patch（未装 rtk，跳过）"
-fi
 # statusLine 可选，避免与用户已有状态栏冲突。
 statusline_uses_hud             && ok "状态栏 statusLine（claude-hud）"      || opt "claude-hud 状态栏" "在 CC 里运行 /claude-hud:setup（或让现有 statusLine 委托给 claude-hud）"
 [ -d "/Applications/CC Switch.app" ] && ok "cc-switch App"                  || opt "cc-switch App"    "brew install --cask cc-switch"

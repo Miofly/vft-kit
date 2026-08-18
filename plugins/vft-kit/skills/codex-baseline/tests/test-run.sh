@@ -10,6 +10,11 @@ cat > "$TMP_ROOT/sync-fails.sh" <<'EOF'
 #!/usr/bin/env bash
 exit 7
 EOF
+cat > "$TMP_ROOT/rtk-ok.sh" <<'EOF'
+#!/usr/bin/env bash
+printf 'rtk-ran\n'
+exit 0
+EOF
 cat > "$TMP_ROOT/check-fails.sh" <<'EOF'
 #!/usr/bin/env bash
 printf 'check-ran\n'
@@ -31,15 +36,16 @@ cat > "$TMP_ROOT/caveman-ok.sh" <<'EOF'
 printf 'caveman-ran\n'
 exit 0
 EOF
-chmod +x "$TMP_ROOT/sync-fails.sh" "$TMP_ROOT/check-fails.sh" "$TMP_ROOT/prep-ok.sh" "$TMP_ROOT/agents-ok.sh" "$TMP_ROOT/caveman-ok.sh"
+chmod +x "$TMP_ROOT/rtk-ok.sh" "$TMP_ROOT/sync-fails.sh" "$TMP_ROOT/check-fails.sh" "$TMP_ROOT/prep-ok.sh" "$TMP_ROOT/agents-ok.sh" "$TMP_ROOT/caveman-ok.sh"
 
 set +e
-output="$(SYNC_SCRIPT="$TMP_ROOT/sync-fails.sh" IMAGEGEN_PREP_SCRIPT="$TMP_ROOT/prep-ok.sh" IMAGEGEN_AGENTS_SCRIPT="$TMP_ROOT/agents-ok.sh" CAVEMAN_SCRIPT="$TMP_ROOT/caveman-ok.sh" CHECK_SCRIPT="$TMP_ROOT/check-fails.sh" bash "$RUN_SCRIPT" --health 2>&1)"
+output="$(RTK_SCRIPT="$TMP_ROOT/rtk-ok.sh" SYNC_SCRIPT="$TMP_ROOT/sync-fails.sh" IMAGEGEN_PREP_SCRIPT="$TMP_ROOT/prep-ok.sh" IMAGEGEN_AGENTS_SCRIPT="$TMP_ROOT/agents-ok.sh" CAVEMAN_SCRIPT="$TMP_ROOT/caveman-ok.sh" CHECK_SCRIPT="$TMP_ROOT/check-fails.sh" bash "$RUN_SCRIPT" --health 2>&1)"
 status=$?
 set -e
 
 [ "$status" -eq 23 ] || { printf 'FAIL: expected checker status 23, got %s\n' "$status" >&2; exit 1; }
 grep -Fq 'check-ran' <<< "$output" || { printf 'FAIL: checker did not run\n' >&2; exit 1; }
+grep -Fq 'rtk-ran' <<< "$output" || { printf 'FAIL: RTK installer did not run\n' >&2; exit 1; }
 grep -Fq 'prep-ran' <<< "$output" || { printf 'FAIL: imagegen prep did not run\n' >&2; exit 1; }
 grep -Fq 'agents-ran' <<< "$output" || { printf 'FAIL: imagegen agents rule did not run\n' >&2; exit 1; }
 grep -Fq 'caveman-ran' <<< "$output" || { printf 'FAIL: Caveman default installer did not run\n' >&2; exit 1; }

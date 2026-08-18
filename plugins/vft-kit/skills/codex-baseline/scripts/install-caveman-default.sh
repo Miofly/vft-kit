@@ -2,6 +2,10 @@
 set -euo pipefail
 
 CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
+if [ ! -f "$CODEX_HOME/skills/caveman/SKILL.md" ] && [ ! -f "$HOME/.agents/skills/caveman/SKILL.md" ]; then
+  npx --yes skills add JuliusBrussee/caveman --agent codex --global --yes
+fi
+
 if [ -n "${CODEX_AGENTS:-}" ]; then
   AGENTS="$CODEX_AGENTS"
 elif [ -f "$CODEX_HOME/AGENTS.override.md" ]; then

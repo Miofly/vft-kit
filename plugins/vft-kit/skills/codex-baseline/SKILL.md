@@ -21,7 +21,9 @@ bash ${CODEX_PLUGIN_ROOT:-${VFT_PLUGIN_ROOT:-.}}/skills/codex-baseline/scripts/r
 bash ${CODEX_PLUGIN_ROOT:-${VFT_PLUGIN_ROOT:-.}}/skills/codex-baseline/scripts/run.sh --health
 ```
 
-`run.sh` 会执行已授权的常设维护：同步 CC-Switch 认证、准备 imagegen CLI、维护 imagegen 与 Caveman 默认 full 的全局 AGENTS 托管块。Caveman 规则写入当前实际生效文件：存在 `~/.codex/AGENTS.override.md` 时写 override，否则写 `~/.codex/AGENTS.md`。不得输出完整 Key。其余检查只读。
+`run.sh` 会执行已授权的常设维护：RTK 缺失时通过 Homebrew 直接安装、同步 CC-Switch 认证、准备 imagegen CLI、缺失时安装 Caveman Codex skills，并维护 imagegen 与 Caveman 默认 full 的全局 AGENTS 托管块。Caveman 规则写入当前实际生效文件：存在 `~/.codex/AGENTS.override.md` 时写 override，否则写 `~/.codex/AGENTS.md`。不得输出完整 Key。其余检查只读。
+
+启动 skill 后立即新建一个子 Agent，与主线程的 baseline 检查并行。子 Agent 只读核对已安装 Codex 插件的当前版本与 marketplace/上游最新版本，不执行 upgrade、add、remove 或 cache 刷新。主线程完成检查后收集其结果：有更新候选时列出“插件｜当前版本｜最新版本”，询问用户是否更新；无候选时只报告已是最新。子 Agent 不可用时由主线程完成同一只读检查，不阻塞 baseline。
 
 输出含 `✓` 已满足、`✗` 必需项缺失、`○` 可选提醒、`⊘` 通过 `CODEX_BASELINE_SKIP` 声明的刻意不装。只有必需项缺失时退出码为 1。
 
@@ -29,7 +31,7 @@ bash ${CODEX_PLUGIN_ROOT:-${VFT_PLUGIN_ROOT:-.}}/skills/codex-baseline/scripts/r
 
 - 用“项 | 作用”表格回报缺失项，不向用户倾倒长修复命令。
 - 用户确认补齐后，执行对应检查行给出的命令并重跑。
-- Ponytail 缺失已获长期授权，可直接分两步补齐 marketplace 和插件；其他项目先回报。
+- RTK 和 Ponytail 缺失已获长期授权，可直接补齐；其他项目先回报。
 - 配置、MCP、插件或全局规范变更后提醒用户新开 Codex 会话。
 - 只有必需项与既有方案明确互斥时才使用 `CODEX_BASELINE_SKIP`。
 
@@ -37,7 +39,7 @@ bash ${CODEX_PLUGIN_ROOT:-${VFT_PLUGIN_ROOT:-.}}/skills/codex-baseline/scripts/r
 
 | 类别 | 必需 | 可选 |
 |---|---|---|
-| CLI | codex、node、npm、git、codegraph、code-review-graph | brew、jq、gh、vercel、RTK |
+| CLI | codex、node、npm、git、rtk、codegraph、code-review-graph | brew、jq、gh、vercel |
 | 权限与项目 | dangerous full access、隐藏警告、hooks、Memories、multi_agent、信任目录 | 关闭启动更新检查 |
 | MCP | Playwright、CodeGraph、code-review-graph、Lighthouse、OpenAI Developer Docs | Context7、Vercel |
 | 插件 | GitHub、Build Web Apps、Ponytail、Context Mode | Superpowers、Diagram Design |

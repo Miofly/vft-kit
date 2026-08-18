@@ -8,16 +8,29 @@ trap 'rm -rf "$TMP_ROOT"' EXIT
 
 TEST_HOME="$TMP_ROOT/home"
 TEST_CODEX_HOME="$TEST_HOME/.codex"
-mkdir -p "$TEST_CODEX_HOME" "$TEST_HOME/.config/caveman"
+TEST_BIN="$TMP_ROOT/bin"
+NPX_LOG="$TMP_ROOT/npx.log"
+mkdir -p "$TEST_CODEX_HOME" "$TEST_HOME/.config/caveman" "$TEST_BIN"
 printf '%s\n' '# global rules' > "$TEST_CODEX_HOME/AGENTS.md"
 printf '%s\n' '# local override' > "$TEST_CODEX_HOME/AGENTS.override.md"
 printf '%s\n' '{"keep":true,"defaultMode":"off"}' > "$TEST_HOME/.config/caveman/config.json"
+cat > "$TEST_BIN/npx" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "$*" >> "$NPX_LOG"
+mkdir -p "$CODEX_HOME/skills/caveman"
+printf '%s\n' '# Caveman' > "$CODEX_HOME/skills/caveman/SKILL.md"
+EOF
+chmod +x "$TEST_BIN/npx"
 
-HOME="$TEST_HOME" CODEX_HOME="$TEST_CODEX_HOME" bash "$INSTALL_SCRIPT"
-HOME="$TEST_HOME" CODEX_HOME="$TEST_CODEX_HOME" bash "$INSTALL_SCRIPT"
+HOME="$TEST_HOME" CODEX_HOME="$TEST_CODEX_HOME" PATH="$TEST_BIN:$PATH" NPX_LOG="$NPX_LOG" bash "$INSTALL_SCRIPT"
+HOME="$TEST_HOME" CODEX_HOME="$TEST_CODEX_HOME" PATH="$TEST_BIN:$PATH" NPX_LOG="$NPX_LOG" bash "$INSTALL_SCRIPT"
 
+[ -f "$TEST_CODEX_HOME/skills/caveman/SKILL.md" ] || { printf 'FAIL: Caveman skill must be installed\n' >&2; exit 1; }
+[ "$(grep -Fc -- '--yes skills add JuliusBrussee/caveman --agent codex --global --yes' "$NPX_LOG")" -eq 1 ] || { printf 'FAIL: Caveman skill must be installed exactly once\n' >&2; exit 1; }
 [ "$(grep -Fc '<!-- >>> vft-kit caveman default full >>> -->' "$TEST_CODEX_HOME/AGENTS.override.md")" -eq 1 ] || { printf 'FAIL: active override must contain one managed block\n' >&2; exit 1; }
 ! grep -Fq 'vft-kit caveman default full' "$TEST_CODEX_HOME/AGENTS.md" || { printf 'FAIL: inactive AGENTS.md should not be modified\n' >&2; exit 1; }
 node -e "const j=require(process.argv[1]);process.exit(j.defaultMode==='full'&&j.keep===true?0:1)" "$TEST_HOME/.config/caveman/config.json"
+grep -Eq 'has_cmd rtk.*\|\| bad "RTK"' "$SKILL_DIR/scripts/check.sh"
 
-printf 'PASS: Codex Caveman default targets active AGENTS file\n'
+printf 'PASS: Codex Caveman installed, default full active, and RTK required\n'
