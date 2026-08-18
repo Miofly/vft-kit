@@ -1,6 +1,6 @@
 ---
 name: codex-baseline
-description: Use when 用户要求核对本机 Codex CLI 装配基线，例如“codex-baseline”“codex-doctor”“Codex 体检”“权限配置对吗”“插件/MCP 全不全”“换机器后核对”，或检查 dangerous full access、项目信任、hooks、Memories、multi-agent、MCP、插件、Agent Skills、图片生成 CLI 与全局 AGENTS 规范。支持 --health 实连 stdio MCP。
+description: Use when 用户要求核对本机 Codex CLI 装配基线，例如“codex-baseline”“codex-doctor”“Codex 体检”“权限配置对吗”“插件/MCP 全不全”“换机器后核对”，或检查 dangerous full access、项目信任、hooks、Memories、multi-agent、CodeGraph、code-review-graph、MCP、插件、Agent Skills、图片生成 CLI 与全局 AGENTS 规范。支持 --health 实连 stdio MCP。
 ---
 
 # codex-baseline
@@ -37,14 +37,14 @@ bash ${CODEX_PLUGIN_ROOT:-${VFT_PLUGIN_ROOT:-.}}/skills/codex-baseline/scripts/r
 
 | 类别 | 必需 | 可选 |
 |---|---|---|
-| CLI | codex、node、npm、git、codegraph | brew、jq、gh、vercel、RTK |
+| CLI | codex、node、npm、git、codegraph、code-review-graph | brew、jq、gh、vercel、RTK |
 | 权限与项目 | dangerous full access、隐藏警告、hooks、Memories、multi_agent、信任目录 | 关闭启动更新检查 |
-| MCP | Playwright、CodeGraph、Lighthouse、OpenAI Developer Docs | Context7、Vercel |
+| MCP | Playwright、CodeGraph、code-review-graph、Lighthouse、OpenAI Developer Docs | Context7、Vercel |
 | 插件 | GitHub、Build Web Apps、Ponytail、Context Mode | Superpowers、Diagram Design |
 | Agent Skills | Caveman + 默认 full、GSAP 8 项、Emil 3 项 | AnySearch、Grill-me、Understand Anything、PM Skills、Emil 其余 7 项 |
 | 系统 skills | openai-docs、imagegen、skill-creator、plugin-creator、skill-installer | - |
 | 图片生成 | imagegen 脚本、专用 venv、依赖、`codex-imagegen`、认证注入源 | - |
-| 全局 AGENTS | `AGENTS.md` 中的中文回复、可点短链、压缩取舍、代理兜底、多 Agent 并行、生图规则；Caveman 额外检查实际生效文件 | Context7 / AnySearch 已安装时才检查对应调用规则 |
+| 全局 AGENTS | `AGENTS.md` 中的中文回复、可点短链、压缩取舍、代理兜底、多 Agent 并行、code-review-graph review-first/索引维护、生图规则；Caveman 额外检查实际生效文件 | Context7 / AnySearch 已安装时才检查对应调用规则 |
 
 Codex 原生 `features.memories = true` 已承担跨会话回忆，不叠加 agentmemory MCP。
 
@@ -86,4 +86,6 @@ npx skills add emilkowalski/skills \
 - Claude 专属的 statusLine、permissions 白名单、LSP 插件和 RTK Claude hook 不迁移。
 - Claude 插件优先映射到 Codex 原生能力：remember 对应 Memories，code-review 对应 `codex review` + GitHub，frontend-design 对应 Build Web Apps。
 - CodeGraph 新项目用 `codegraph init`，增量刷新用 `codegraph sync`，完整重建用 `codegraph index -f`。
+- code-review-graph 用 `pipx install code-review-graph` 安装，再用 `codex mcp add code-review-graph -- code-review-graph serve` 注册用户级 MCP；项目首次建图、增量更新、状态检查分别用 `build`、`update`、`status`。
+- 所有 code review 先通过 code-review-graph 获取最小审查上下文、影响半径和相关测试，再按需读取源码，避免无差别扫描。
 - `--health` 只对已启用的 stdio MCP 做真实 `initialize` 握手，并回收子进程。

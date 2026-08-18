@@ -61,6 +61,10 @@ cat > "$FAKE_BIN/codegraph" <<'EOF'
 #!/usr/bin/env bash
 printf 'codegraph 1.0.0\n'
 EOF
+cat > "$FAKE_BIN/code-review-graph" <<'EOF'
+#!/usr/bin/env bash
+printf 'code-review-graph 2.3.7\n'
+EOF
 cat > "$FAKE_BIN/volta" <<'EOF'
 #!/usr/bin/env bash
 exit 2
@@ -92,6 +96,12 @@ command = "fixture-playwright"
 
 [mcp_servers.codegraph]
 command = "codegraph"
+
+[mcp_servers.code-review-graph]
+command = "code-review-graph"
+args = ["serve"]
+type = "stdio"
+enabled = true
 
 [mcp_servers.lighthouse-mcp]
 command = "node"
@@ -146,6 +156,25 @@ mkdir -p "$TMP_ROOT/mcp-json"
 cat > "$TMP_ROOT/mcp-json/vercel.json" <<'EOF'
 {"name":"vercel","enabled":true,"transport":{"type":"streamable_http","url":"https://mcp.vercel.com"}}
 EOF
+cat > "$TMP_ROOT/mcp-json/playwright.json" <<'EOF'
+{"name":"playwright","enabled":true,"transport":{"type":"stdio","command":"fixture-playwright","args":[]}}
+EOF
+cat > "$TMP_ROOT/mcp-json/codegraph.json" <<'EOF'
+{"name":"codegraph","enabled":true,"transport":{"type":"stdio","command":"codegraph","args":["serve","--mcp"]}}
+EOF
+cat > "$TMP_ROOT/mcp-json/code-review-graph.json" <<'EOF'
+{"name":"code-review-graph","enabled":true,"transport":{"type":"stdio","command":"code-review-graph","args":["serve"]}}
+EOF
+cat > "$TMP_ROOT/mcp-json/lighthouse-mcp.json" <<'EOF'
+{"name":"lighthouse-mcp","enabled":true,"transport":{"type":"stdio","command":"node","args":["fixture-lighthouse.js"]}}
+EOF
+cat > "$TMP_ROOT/mcp-health.mjs" <<'EOF'
+import { appendFileSync } from 'node:fs';
+
+let input = '';
+for await (const chunk of process.stdin) input += chunk;
+appendFileSync(process.env.TEST_MCP_HEALTH_LOG, `${JSON.parse(input).name}\n`);
+EOF
 : > "$TEST_CODEX_HOME/image-gen.py"
 cat > "$TEST_CODEX_HOME/venvs/imagegen-cli/bin/python" <<'EOF'
 #!/usr/bin/env bash
@@ -175,6 +204,8 @@ write_agents() {
     fi
     printf '%s\n' \
       '- codegraph 新项目自动执行 codegraph init；已有索引执行 codegraph sync，完整重建执行 codegraph index -f。' \
+      '- 所有 code review 必须先用 code-review-graph 获取最小审查上下文、影响半径和相关测试，再按需读取源码。' \
+      '- code-review-graph 新项目执行 code-review-graph build，索引更新执行 code-review-graph update，检查状态执行 code-review-graph status。' \
       '- context7 查询最新官方文档。' \
       '- anysearch 联网搜索优先。' \
       '- Caveman 默认 full 自动启用，每个新会话直接使用极简表达。' \
@@ -192,6 +223,8 @@ run_check() {
     TEST_MULTI_AGENT_ENABLED="${TEST_MULTI_AGENT_ENABLED:-true}" \
     TEST_GH_TOKEN_AVAILABLE="${TEST_GH_TOKEN_AVAILABLE:-true}" \
     CODEX_STATE_NODE="$REAL_NODE" \
+    MCP_HEALTH_SCRIPT="$TMP_ROOT/mcp-health.mjs" \
+    TEST_MCP_HEALTH_LOG="$TMP_ROOT/mcp-health.log" \
     CC_SWITCH_APP_PATH="$CC_SWITCH_FIXTURE" \
     CODEX_IMAGEGEN_CLI="$TEST_CODEX_HOME/image-gen.py" \
     CODEX_IMAGEGEN_VENV="$TEST_CODEX_HOME/venvs/imagegen-cli" \
@@ -199,7 +232,7 @@ run_check() {
     GITHUB_PAT_TOKEN="${TEST_GITHUB_PAT_TOKEN-fixture-token}" \
     OPENAI_API_KEY="fixture-key" \
     PATH="$FAKE_BIN:/usr/bin:/bin" \
-    bash "$CHECK_SCRIPT"
+    bash "$CHECK_SCRIPT" "$@"
 }
 
 write_agents yes
@@ -210,6 +243,12 @@ set -e
 [ "$status" -eq 0 ] || { printf 'FAIL: complete baseline fixture should pass\n' >&2; exit 1; }
 grep -Fq '@danielsogl/lighthouse-mcp' <<< "$output" || { printf 'FAIL: npm package check missing\n' >&2; exit 1; }
 grep -Fq 'CodeGraph 自动初始化' <<< "$output" || { printf 'FAIL: CodeGraph AGENTS check missing\n' >&2; exit 1; }
+grep -Fq 'code-review-graph CLI' <<< "$output" || { printf 'FAIL: code-review-graph CLI check missing\n' >&2; exit 1; }
+grep -Fq 'code-review-graph MCP 已配置' <<< "$output" || { printf 'FAIL: code-review-graph MCP check missing\n' >&2; exit 1; }
+grep -Fq 'code-review-graph MCP 已启用' <<< "$output" || { printf 'FAIL: code-review-graph MCP enabled check missing\n' >&2; exit 1; }
+grep -Fq 'code-review-graph MCP 命令正确' <<< "$output" || { printf 'FAIL: code-review-graph MCP command check missing\n' >&2; exit 1; }
+grep -Fq 'code-review-graph code-review-first' <<< "$output" || { printf 'FAIL: code-review-graph AGENTS review policy check missing\n' >&2; exit 1; }
+grep -Fq 'code-review-graph 索引维护规范' <<< "$output" || { printf 'FAIL: code-review-graph AGENTS lifecycle policy check missing\n' >&2; exit 1; }
 grep -Fq 'context7 官方文档优先' <<< "$output" || { printf 'FAIL: context7 AGENTS check missing\n' >&2; exit 1; }
 grep -Fq 'anysearch 联网搜索优先' <<< "$output" || { printf 'FAIL: anysearch AGENTS check missing\n' >&2; exit 1; }
 grep -Fq 'Caveman 默认 full 自动启用' <<< "$output" || { printf 'FAIL: Caveman default activation check missing\n' >&2; exit 1; }
@@ -227,6 +266,11 @@ grep -Fq 'OpenAI Developer Docs MCP 已配置' <<< "$output" || { printf 'FAIL: 
 grep -Fq 'Vercel MCP 已配置' <<< "$output" || { printf 'FAIL: resolved project-scope MCP state not used\n' >&2; exit 1; }
 grep -Fq 'GITHUB_PAT_TOKEN 已注入' <<< "$output" || { printf 'FAIL: injected GitHub token not detected\n' >&2; exit 1; }
 grep -Fq 'node_repl command 不存在' <<< "$output" && { printf 'FAIL: disabled node_repl should be ignored\n' >&2; exit 1; }
+
+: > "$TMP_ROOT/mcp-health.log"
+output="$(run_check --health)"
+grep -Fq 'code-review-graph MCP 已连接' <<< "$output" || { printf 'FAIL: code-review-graph health handshake missing\n' >&2; exit 1; }
+grep -Fxq 'code-review-graph' "$TMP_ROOT/mcp-health.log" || { printf 'FAIL: code-review-graph health helper not called\n' >&2; exit 1; }
 
 cp "$TEST_CODEX_HOME/AGENTS.md" "$TEST_CODEX_HOME/AGENTS.override.md"
 sed -i.bak '/Caveman 默认 full 自动启用/d' "$TEST_CODEX_HOME/AGENTS.override.md"
@@ -285,6 +329,66 @@ set -e
 grep -Fq 'curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh' <<< "$output" || { printf 'FAIL: CodeGraph repair should use the official installer\n' >&2; exit 1; }
 grep -Fq 'volta install @colbymchenry/codegraph' <<< "$output" && { printf 'FAIL: CodeGraph repair should not require Volta\n' >&2; exit 1; }
 mv "$TMP_ROOT/codegraph.disabled" "$FAKE_BIN/codegraph"
+
+mv "$FAKE_BIN/code-review-graph" "$TMP_ROOT/code-review-graph.disabled"
+set +e
+output="$(run_check 2>&1)"
+status=$?
+set -e
+[ "$status" -eq 1 ] || { printf 'FAIL: missing code-review-graph CLI should fail\n' >&2; exit 1; }
+grep -Fq 'pipx install code-review-graph' <<< "$output" || { printf 'FAIL: code-review-graph repair should use pipx\n' >&2; exit 1; }
+mv "$TMP_ROOT/code-review-graph.disabled" "$FAKE_BIN/code-review-graph"
+
+sed -i.bak '/所有 code review 必须先用 code-review-graph/d' "$TEST_CODEX_HOME/AGENTS.md"
+set +e
+output="$(run_check 2>&1)"
+status=$?
+set -e
+[ "$status" -eq 1 ] || { printf 'FAIL: missing code-review-first policy should fail\n' >&2; exit 1; }
+grep -Fq 'code-review-graph code-review-first' <<< "$output" || { printf 'FAIL: missing code-review-first policy not reported\n' >&2; exit 1; }
+grep -Fq '最小审查上下文' <<< "$output" || { printf 'FAIL: executable code-review-first repair missing\n' >&2; exit 1; }
+mv "$TEST_CODEX_HOME/AGENTS.md.bak" "$TEST_CODEX_HOME/AGENTS.md"
+
+sed -i.bak '/^command = "code-review-graph"$/s/code-review-graph/wrong-review-command/' "$TEST_CODEX_HOME/config.toml"
+mv "$TMP_ROOT/mcp-json/code-review-graph.json" "$TMP_ROOT/code-review-graph.json.disabled"
+set +e
+output="$(run_check 2>&1)"
+status=$?
+set -e
+[ "$status" -eq 1 ] || { printf 'FAIL: wrong code-review-graph MCP command should fail\n' >&2; exit 1; }
+grep -Fq 'code-review-graph MCP 命令错误' <<< "$output" || { printf 'FAIL: wrong code-review-graph MCP command not reported\n' >&2; exit 1; }
+grep -Fq 'codex mcp add code-review-graph -- code-review-graph serve' <<< "$output" || { printf 'FAIL: code-review-graph MCP repair should only register the user MCP\n' >&2; exit 1; }
+mv "$TEST_CODEX_HOME/config.toml.bak" "$TEST_CODEX_HOME/config.toml"
+mv "$TMP_ROOT/code-review-graph.json.disabled" "$TMP_ROOT/mcp-json/code-review-graph.json"
+
+sed -i.bak 's/"command":"code-review-graph"/"command":"wrong-review-command"/' "$TMP_ROOT/mcp-json/code-review-graph.json"
+set +e
+output="$(run_check 2>&1)"
+status=$?
+set -e
+[ "$status" -eq 1 ] || { printf 'FAIL: resolved MCP state with wrong code-review-graph command should fail\n' >&2; exit 1; }
+grep -Fq 'code-review-graph MCP 命令错误' <<< "$output" || { printf 'FAIL: wrong resolved code-review-graph MCP command not reported\n' >&2; exit 1; }
+mv "$TMP_ROOT/mcp-json/code-review-graph.json.bak" "$TMP_ROOT/mcp-json/code-review-graph.json"
+
+sed -i.bak 's#"command":"code-review-graph","args":\["serve"\]#"command":"/bin/echo","args":["code-review-graph","serve"]#' "$TMP_ROOT/mcp-json/code-review-graph.json"
+set +e
+output="$(run_check 2>&1)"
+status=$?
+set -e
+[ "$status" -eq 1 ] || { printf 'FAIL: arbitrary MCP runner with CRG-like args should fail\n' >&2; exit 1; }
+grep -Fq 'code-review-graph MCP 命令错误' <<< "$output" || { printf 'FAIL: arbitrary code-review-graph MCP runner not reported\n' >&2; exit 1; }
+mv "$TMP_ROOT/mcp-json/code-review-graph.json.bak" "$TMP_ROOT/mcp-json/code-review-graph.json"
+
+sed -i.bak '/^\[mcp_servers.code-review-graph\]/,/^\[mcp_servers.lighthouse-mcp\]/ s/^enabled = true$/enabled = false/' "$TEST_CODEX_HOME/config.toml"
+mv "$TMP_ROOT/mcp-json/code-review-graph.json" "$TMP_ROOT/code-review-graph.json.disabled"
+set +e
+output="$(run_check 2>&1)"
+status=$?
+set -e
+[ "$status" -eq 1 ] || { printf 'FAIL: disabled code-review-graph MCP should fail\n' >&2; exit 1; }
+grep -Fq 'code-review-graph MCP 已禁用' <<< "$output" || { printf 'FAIL: disabled code-review-graph MCP not reported\n' >&2; exit 1; }
+mv "$TEST_CODEX_HOME/config.toml.bak" "$TEST_CODEX_HOME/config.toml"
+mv "$TMP_ROOT/code-review-graph.json.disabled" "$TMP_ROOT/mcp-json/code-review-graph.json"
 
 set +e
 output="$(TEST_GITHUB_PAT_TOKEN= TEST_GH_TOKEN_AVAILABLE=true run_check 2>&1)"

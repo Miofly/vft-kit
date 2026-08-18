@@ -29,6 +29,9 @@ CODEX_STATE_SCRIPT="${CODEX_STATE_SCRIPT:-$SCRIPT_DIR/inspect-codex-state.mjs}"
 CODEX_STATE_NODE="${CODEX_STATE_NODE:-node}"
 RTK_MD="$CODEX_HOME/RTK.md"
 CODEGRAPH_INSTALL='curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh'
+CODE_REVIEW_GRAPH_INSTALL='pipx install code-review-graph'
+CODE_REVIEW_GRAPH_CONFIGURE='codex mcp add code-review-graph -- code-review-graph serve'
+CODE_REVIEW_GRAPH_RECONFIGURE='codex mcp remove code-review-graph && codex mcp add code-review-graph -- code-review-graph serve'
 
 pass=0; fail=0; warn=0; declined=0
 
@@ -186,6 +189,19 @@ agents_has_codegraph_policy(){
   agents_has 'codegraph[[:space:]]+index[[:space:]]+-f' || return 1
   ! agents_has 'codegraph[[:space:]]+update|codegraph[[:space:]]+init[[:space:]]+--force'
 }
+agents_has_code_review_graph_policy(){
+  agents_has 'code-review-graph|code_review_graph' || return 1
+  agents_has '[Cc]ode review|代码审查|代码评审' || return 1
+  agents_has '最小.*上下文|最少.*上下文|minimal.*context' || return 1
+  agents_has '影响半径|blast radius|impact radius' || return 1
+  agents_has '相关测试|测试覆盖|tests_for|test coverage' || return 1
+  agents_has '再.*读取源码|按需.*源码|fallback.*[Rr]ead|再.*[Rr]ead'
+}
+agents_has_code_review_graph_lifecycle(){
+  agents_has 'code-review-graph[[:space:]]+build' || return 1
+  agents_has 'code-review-graph[[:space:]]+update' || return 1
+  agents_has 'code-review-graph[[:space:]]+status'
+}
 agents_has_caveman_default(){
   [ -f "$ACTIVE_AGENTS" ] || return 1
   grep -Eq 'Caveman.*默认.*full|caveman.*default.*full' "$ACTIVE_AGENTS" || return 1
@@ -241,7 +257,41 @@ imagegen_key_source_available(){
 mcp_healthy(){
   has_cmd codex || return 1
   [ -f "$MCP_HEALTH_SCRIPT" ] || return 1
-  codex mcp get "$1" --json 2>/dev/null | node "$MCP_HEALTH_SCRIPT" >/dev/null 2>&1
+  codex mcp get "$1" --json 2>/dev/null | "$CODEX_STATE_NODE" "$MCP_HEALTH_SCRIPT" >/dev/null 2>&1
+}
+mcp_code_review_graph_command_valid(){
+  local config
+  if config="$(resolved_mcp_json "code-review-graph")"; then
+    printf '%s' "$config" | "$CODEX_STATE_NODE" -e '
+      let input = "";
+      process.stdin.setEncoding("utf8");
+      process.stdin.on("data", chunk => input += chunk);
+      process.stdin.on("end", () => {
+        const value = JSON.parse(input);
+        const transport = value.transport || value;
+        const command = String(transport.command || "").split(/[\\/]/).pop();
+        const args = Array.isArray(transport.args) ? transport.args.map(String) : [];
+        const direct = command === "code-review-graph" && args[0] === "serve";
+        const uvx = command === "uvx" && args[0] === "code-review-graph" && args[1] === "serve";
+        const python = ["python", "python3"].includes(command) && args[0] === "-m" && args[1] === "code_review_graph" && args[2] === "serve";
+        process.exit(direct || uvx || python ? 0 : 1);
+      });
+    '
+    return
+  fi
+  config="$(awk '
+    /^\[mcp_servers\.(code-review-graph|"code-review-graph")\][[:space:]]*$/ { in_section=1; next }
+    /^\[/ { in_section=0 }
+    in_section { print }
+  ' "$CONFIG" 2>/dev/null)"
+  if printf '%s' "$config" | grep -Eq 'command[[:space:]]*=[[:space:]]*"([^"/]*/)*code-review-graph"'; then
+    printf '%s' "$config" | grep -Eq 'args[[:space:]]*=.*"serve"'
+  elif printf '%s' "$config" | grep -Eq 'command[[:space:]]*=[[:space:]]*"uvx"'; then
+    printf '%s' "$config" | grep -Eq 'args[[:space:]]*=.*"code-review-graph".*"serve"'
+  else
+    printf '%s' "$config" | grep -Eq 'command[[:space:]]*=[[:space:]]*"python3?"' &&
+      printf '%s' "$config" | grep -Eq 'args[[:space:]]*=.*"-m".*"code_review_graph".*"serve"'
+  fi
 }
 
 printf "${c_d}Codex 装配基线核对 (codex-baseline)${c_0}\n"
@@ -305,12 +355,20 @@ chromium_installed && ok "Playwright Chromium 内核" || bad "Playwright Chromiu
 sec "代码与审计 MCP（必需）"
 if npm_g_installed "@danielsogl/lighthouse-mcp"; then ok "@danielsogl/lighthouse-mcp"; else bad "@danielsogl/lighthouse-mcp" "npm i -g @danielsogl/lighthouse-mcp"; fi
 if has_cmd codegraph; then ok "codegraph CLI ($(codegraph -V 2>/dev/null))"; else bad "codegraph CLI" "$CODEGRAPH_INSTALL"; fi
+if has_cmd code-review-graph; then ok "code-review-graph CLI ($(code-review-graph --version 2>/dev/null | head -1))"; else bad "code-review-graph CLI" "$CODE_REVIEW_GRAPH_INSTALL"; fi
 if mcp_configured "codegraph"; then
   ok "codegraph MCP 已配置"
   has_cmd codegraph && ok "codegraph MCP 命令可执行" || bad "codegraph MCP 命令不可执行" "$CODEGRAPH_INSTALL"
   mcp_enabled "codegraph" && ok "codegraph MCP 已启用" || bad "codegraph MCP 已禁用" '删除 [mcp_servers.codegraph] 下的 enabled = false，或改为 enabled = true'
 else
   bad "codegraph MCP" "codex mcp add codegraph -- codegraph serve --mcp"
+fi
+if mcp_configured "code-review-graph"; then
+  ok "code-review-graph MCP 已配置"
+  mcp_enabled "code-review-graph" && ok "code-review-graph MCP 已启用" || bad "code-review-graph MCP 已禁用" "$CODE_REVIEW_GRAPH_RECONFIGURE"
+  mcp_code_review_graph_command_valid && ok "code-review-graph MCP 命令正确" || bad "code-review-graph MCP 命令错误" "$CODE_REVIEW_GRAPH_RECONFIGURE"
+else
+  bad "code-review-graph MCP" "$CODE_REVIEW_GRAPH_CONFIGURE"
 fi
 if mcp_configured "lighthouse-mcp"; then
   ok "lighthouse-mcp MCP 已配置"
@@ -408,6 +466,8 @@ if has_cmd codegraph; then
 else
   ok "CodeGraph 自动初始化规范（codegraph 未装，无需配置）"
 fi
+agents_has_code_review_graph_policy && ok "全局规范含「code-review-graph code-review-first」" || bad "code-review-graph code-review-first 规范" $'printf \'\\n- 所有 code review 必须先用 code-review-graph 获取最小审查上下文、影响半径和相关测试，再按需读取源码。\\n\' >> ~/.codex/AGENTS.md'
+agents_has_code_review_graph_lifecycle && ok "全局规范含「code-review-graph 索引维护规范」" || bad "code-review-graph 索引维护规范" $'printf \'\\n- code-review-graph 新项目执行 code-review-graph build，索引更新执行 code-review-graph update，检查状态执行 code-review-graph status。\\n\' >> ~/.codex/AGENTS.md'
 if mcp_present "context7" && mcp_enabled "context7"; then
   agents_has 'context7|[Cc]ontext7|官方文档|最新文档|库.*框架.*文档|SDK.*文档|API.*文档' && ok "全局规范含「context7 官方文档优先」" || bad "context7 调用规范" $'printf \'\\n- 涉及库、框架、SDK、API、CLI 或云服务的用法、配置、迁移和报错排查时，优先使用 context7 查询当前官方文档。\\n\' >> ~/.codex/AGENTS.md'
 else
@@ -443,6 +503,9 @@ if [ "$HEALTH" -eq 1 ]; then
   mcp_healthy "playwright" && ok "playwright MCP 已连接" || bad "playwright MCP 未连接" "检查 MCP 启动命令与 Chromium 内核"
   if mcp_configured "codegraph" && mcp_enabled "codegraph"; then
     mcp_healthy "codegraph" && ok "codegraph MCP 已连接" || bad "codegraph MCP 未连接" "检查 codegraph serve --mcp"
+  fi
+  if mcp_configured "code-review-graph" && mcp_enabled "code-review-graph"; then
+    mcp_healthy "code-review-graph" && ok "code-review-graph MCP 已连接" || bad "code-review-graph MCP 未连接" "检查 code-review-graph serve"
   fi
   if mcp_configured "lighthouse-mcp" && mcp_enabled "lighthouse-mcp"; then
     mcp_healthy "lighthouse-mcp" && ok "lighthouse-mcp MCP 已连接" || bad "lighthouse-mcp MCP 未连接" "检查全局 npm 包与 dist/index.js 路径"
