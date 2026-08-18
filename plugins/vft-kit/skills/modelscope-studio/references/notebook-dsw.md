@@ -104,6 +104,17 @@ to keep it running. Never start GPU for a CPU-only task.
 Make stages explicit and rerunnable, for example `JOB_STAGE=prepare` and `JOB_STAGE=run`. A rerun must resume or
 skip completed downloads rather than duplicate them.
 
+Before switching to GPU, require all applicable gates:
+
+- source model/code revisions are immutable and recorded;
+- the requested model scope is complete (see below), with no `.incomplete` or temporary shards;
+- weight indexes resolve to non-empty files and safetensors headers parse;
+- source and destination size/SHA-256 manifests match;
+- code compiles, runner syntax passes, and required input assets exist;
+- dependencies for the GPU image's actual Python ABI are cached without replacing its Torch/Triton build;
+- a tiny device/backend preflight runs before model weights are loaded;
+- the runner treats a missing output artifact as failure even when upstream code catches exceptions and exits zero.
+
 ## Workspace File Transfer
 
 ModelScope has two distinct file surfaces:
@@ -149,8 +160,32 @@ text alone. Remove only task-owned probes and failed partial artifacts after the
 Prefer ModelScope's native downloader inside DSW. External Hugging Face endpoints may be unreachable even when
 the matching ModelScope repository is available.
 
-For repositories that contain multiple checkpoints, always restrict the download to the files required by the
-runtime. For example, a Diffusers pipeline usually needs its component directories but not every root-level
+### Freeze the requested scope first
+
+Do not silently reinterpret "complete/full/all files/no omissions" as a minimal inference download.
+
+- **Complete archive:** recursively enumerate every source `blob` at a pinned revision. That exact path, size, and
+  SHA-256 set is the acceptance criterion, including dotfiles, root metadata, training/ODE checkpoints, and files
+  not used by the first inference command.
+- **Runtime closure:** download only what a named entry point actually loads. Record the excluded prefixes and keep
+  this separate from the complete archive.
+
+If the complete archive exceeds the Workspace quota, use a private Dataset as durable storage and process one
+prefix at a time: download to the final staging path, reject partial files, verify against the source API, upload
+with resumable cache, verify the Dataset API, then delete only that verified local prefix. After the archive is
+complete, materialize just the runtime closure locally for GPU use. Never compress safetensors merely to fit them;
+it removes per-shard resume and normally saves little space.
+
+Repository tree endpoints differ:
+
+- model/studio files: `GET /api/v1/models/{owner}/{repo}/repo/files`;
+- Dataset files: `GET /api/v1/datasets/{owner}/{repo}/repo/tree`.
+
+Use `Revision`, `Root`, and `Recursive=true`; query individual roots when a full recursive response is paginated.
+Compare source and Dataset `blob` entries, not directory/tree entries. A successful upload command alone is not
+the final verification.
+
+For runtime closure mode, a Diffusers pipeline usually needs its component directories but not every root-level
 checkpoint:
 
 ```python
@@ -172,6 +207,18 @@ snapshot_download(
 
 Keep model files under `/mnt/workspace` so CPU preparation can be reused after switching the instance to GPU.
 Verify the model config and required weight shards before stopping the CPU instance.
+
+### Dependency cache across CPU and GPU images
+
+Check `python3 -V`, `torch.__version__`, and `torch.version.{cuda,hip}` inside each actual instance; image labels
+are not proof of the runtime ABI. If CPU and GPU Python ABIs differ, do not carry a CPU-created venv across the
+switch. Download wheels for the GPU ABI on CPU (`pip download --python-version ... --only-binary=:all:`), then
+create a `--system-site-packages` venv on GPU and install from that wheelhouse.
+
+Never install PyPI `torch`, `torchvision`, `torchaudio`, or generic `triton` over the GPU image's vendor build. For
+ROCm, require `torch.version.hip`, exclude NVIDIA-only helpers from the inference dependency set, and validate a
+tiny PyTorch attention/kernel operation before loading the model. Keep optional training/evaluation dependencies
+in the complete source requirements even when they are not part of the inference wheelhouse.
 
 ## Browser Handoff
 

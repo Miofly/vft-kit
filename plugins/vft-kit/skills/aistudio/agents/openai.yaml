@@ -1,0 +1,4 @@
+interface:
+  display_name: "AI Studio"
+  short_description: "Operate Baidu AI Studio safely"
+  default_prompt: "Use $vft-kit:aistudio to operate Baidu AI Studio safely."
