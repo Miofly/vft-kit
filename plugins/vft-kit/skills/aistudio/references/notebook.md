@@ -83,6 +83,20 @@ Verified 2026-08-19 on CPU 基础版 (2C/8G, overlay ~888G free, conda python3.1
 
 When the instance cannot reach HF and no fresh mirror carries the files: relay through a Kaggle VM (GCP reaches HF fast). Private kernel loops `hf_hub_download` per file → `aistudio_sdk.hub.upload_file` into a **public** Baidu model repo → delete local file; the notebook then `snapshot_download`s the public repo anonymously at intranet speed (~400MB/s). Keep the Baidu token as a placeholder in the repo copy, inject into the push copy only, delete the kernel right after the relay. Working template: `java/wfly-spring/aistudio/magi1/relay/`.
 
+## V100 (SM70) Model Porting Gotchas
+
+Verified 2026-08-19 running MAGI-1 4.5B-distill on V100 32GB (driver 570, cu124 OK). Newer-model repos target Hopper/Ampere; on V100 expect all of these:
+
+- No flash-attn/flashinfer wheels for SM70. Replace via PYTHONPATH shim package with the same module layout (`flash_attn/__init__.py` etc.) using `F.scaled_dot_product_attention`. SDPA 2.4 lacks `enable_gqa` → GQA models (q heads > kv heads) need manual `repeat_interleave` on kv; varlen variants loop over `cu_seqlens`; rotary must implement rotate-half with cos/sin aligned to q's -3 dim. Template: `java/wfly-spring/aistudio/magi1/gpu/gpu_shim/`.
+- Checkpoints ship bf16; V100 has no bf16 tensor cores. Cast state_dict `.half()` at load, sed `torch.bfloat16` literals → fp16, and hunt hardcoded `.bfloat16()` casts + `torch.autocast(..., dtype=torch.bfloat16)` blocks (VAE decoders love both) → fp32 for the VAE side.
+- cuDNN fp16/bf16 conv3d fails "too many resources requested for launch" on SM70 — and so does native fp16 conv3d under autocast. Wrap `F.conv2d/conv3d` globally to compute fp32 and set `torch.backends.cudnn.enabled = False` if needed.
+- Dtype salad is inevitable after mixed patches: add global `Linear.forward` / `LayerNorm.forward` guards casting input to weight dtype, and cast text-encoder outputs to the DiT dtype at the handoff.
+- pip routing: pure `download.pytorch.org` index crawls (nvidia-* dep chain ~100KB/s). Use tsinghua as `--index-url` (nvidia wheels ~4MB/s) + cu124 as `--extra-index-url` for the torch wheel itself, `--timeout 600 --retries 20`.
+- Instances have no `rg` — scripts must use grep, or patch steps silently no-op (costs ~30min of GPU billing to notice; assert patch markers in logs).
+- Killed demo processes hold MASTER_PORT; `pkill -9 -f entry.py && fuser -k <port>/tcp` before relaunch.
+
+Full idempotent patch chain template: `java/wfly-spring/aistudio/magi1/gpu/apply_v100_full.sh`.
+
 SDK upload gotcha (>5GB files): `hub.upload_file` routes <5GB through HTTP PUT but >5GB through STS/BOS multipart, and that path is broken in aistudio-sdk (`MyBosClient.put_super_obejct_from_file` calls a `super()` method the bce-python-sdk parent lacks; and `hub.py` judges success by `res is True`). Files >5GB silently fail with "upload lfs file failed / nothing to commit". Fix: monkey-patch multipart via parent primitives and return literal `True` — ready-made patch at `java/wfly-spring/aistudio/magi1/relay/bos_multipart_patch.py` (import before uploading). Alternatively upload >5GB files **from the instance itself** (BOS internal ~300MB/s) instead of the relay VM.
 
 ## UI and Secret Safety
