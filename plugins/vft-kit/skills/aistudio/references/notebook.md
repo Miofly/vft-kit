@@ -56,6 +56,35 @@ Create a terminal with `POST <base>api/terminals`, connect to `<base>terminals/w
 
 Run `scripts/gpu_probe.py` after transfer. Verify Python, GPU/CPU, CUDA, Paddle/PyTorch, network, working directory, and the completion marker. Keep durable files under `/home/aistudio`; `/home/aistudio/data` is mounted data and may reset.
 
+## Long-running Commands
+
+Terminal websockets live in the page: a navigation or new heredoc round drops the `window` globals, and one `js()` call must not block for minutes. For anything long (pip installs, weight downloads) launch detached and poll the log instead of holding the socket:
+
+1. Upload the script via Contents API.
+2. `nohup bash <script> > <script>.log 2>&1 & echo MARK` — require MARK twice (terminal echoes the command).
+3. Poll `GET <base>api/contents/<script>.log?content=1`; branch on phase/DONE/FATAL lines.
+
+Contents API GET may return `format: "text"` even when the upload used base64 — always decode with the returned `format`, or byte-equality upload verification false-fails.
+
+If `pageInfo()` reports a 0×0 viewport (coordinate clicks and screenshots die), fix with `cdp('Emulation.setDeviceMetricsOverride', {width: 1680, height: 1050, deviceScaleFactor: 1, mobile: false})`.
+
+## BML Environment Gotchas
+
+Verified 2026-08-19 on CPU 基础版 (2C/8G, overlay ~888G free, conda python3.10):
+
+- pip bakes `user=true`; every venv install dies with "Can not perform a '--user' install" → `export PIP_USER=0`.
+- Pin `huggingface_hub==0.25.2` for old stacks: 1.x removed `huggingface-cli` and breaks `transformers==4.42` import.
+- CPU torch wheels do not pull triton; repos with top-level `import triton` need explicit `pip install triton==3.0.0`.
+- Egress: huggingface.co and hf-mirror.com dead; `hf-api.gitee.com` (HF-compatible API) works but mirrors can be stale — compare the repo `lastModified` against the target files' release date before trusting it; modelscope.cn reachable but may lack the repo; kaggle.com reachable.
+- Stop runtime from the my/project card: dropdown arrow beside the 运行中 status → 停止运行. The edit page exposes no stop control; poll the card until 未运行. The arrow is an `.anticon` inside the status container — coordinate clicks hit the card link instead, dispatch a bubbling click on the icon via DOM.
+- Environment stop/start/switch snapshots the persistent home: a venv (tens of thousands of files) or pip cache (~2.3G per torch round) alone trips 「文件过多过大，无法切换」. Use `pip --no-cache-dir` everywhere and clean venv/cache/weights before switching; keep everything re-downloadable. Template: `java/wfly-spring/aistudio/magi1/clean_for_switch.sh`.
+
+## Weight Relay for Blocked Egress
+
+When the instance cannot reach HF and no fresh mirror carries the files: relay through a Kaggle VM (GCP reaches HF fast). Private kernel loops `hf_hub_download` per file → `aistudio_sdk.hub.upload_file` into a **public** Baidu model repo → delete local file; the notebook then `snapshot_download`s the public repo anonymously at intranet speed (~400MB/s). Keep the Baidu token as a placeholder in the repo copy, inject into the push copy only, delete the kernel right after the relay. Working template: `java/wfly-spring/aistudio/magi1/relay/`.
+
+SDK upload gotcha (>5GB files): `hub.upload_file` routes <5GB through HTTP PUT but >5GB through STS/BOS multipart, and that path is broken in aistudio-sdk (`MyBosClient.put_super_obejct_from_file` calls a `super()` method the bce-python-sdk parent lacks; and `hub.py` judges success by `res is True`). Files >5GB silently fail with "upload lfs file failed / nothing to commit". Fix: monkey-patch multipart via parent primitives and return literal `True` — ready-made patch at `java/wfly-spring/aistudio/magi1/relay/bos_multipart_patch.py` (import before uploading). Alternatively upload >5GB files **from the instance itself** (BOS internal ~300MB/s) instead of the relay VM.
+
 ## UI and Secret Safety
 
 - Codelab is iframe-heavy. Prefer authenticated Jupyter APIs for transfer/execution and semantic UI for lifecycle controls.
