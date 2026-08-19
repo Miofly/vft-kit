@@ -193,9 +193,13 @@ Repository tree endpoints differ:
 - model/studio files: `GET /api/v1/models/{owner}/{repo}/repo/files`;
 - Dataset files: `GET /api/v1/datasets/{owner}/{repo}/repo/tree`.
 
-Use `Revision`, `Root`, and `Recursive=true`; query individual roots when a full recursive response is paginated.
-Compare source and Dataset `blob` entries, not directory/tree entries. A successful upload command alone is not
-the final verification.
+Use `Revision`, `Root`, and `Recursive=true`. Dataset tree responses can stop at 100 entries even with
+`Recursive=true`; query each top-level root and merge the results. Compare source and Dataset `blob` entries, not
+directory/tree entries. A successful upload command alone is not the final verification.
+
+If one invalid file makes a folder commit fail with `commit rejected by repository policy`, remove generated
+metadata such as `.git` and `__pycache__`, then retry by root or individual file to isolate the rejected path. Finish
+with a fresh download into an empty directory and compare content, not only the upload report.
 
 For runtime closure mode, a Diffusers pipeline usually needs its component directories but not every root-level
 checkpoint:
