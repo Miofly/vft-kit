@@ -12,6 +12,12 @@ Verified against the domestic ModelScope web application on 2026-08-18.
 A valid Bearer token does not authenticate Notebook calls. Run them inside the already authenticated browser
 session. Do not extract, print, or persist the login cookie.
 
+The ModelScope page session and the PAI-DSW gateway session are separate. `Status=Running` proves only that the
+instance is ready; opening `JupyterlabUrl` may still redirect to `account.aliyun.com`. When that happens, hand the
+same task space to the user for the gateway login and resume only after explicit confirmation. A
+`dsw_gateway_token` is bound to one instance path: never copy or replay it for a new instance, because the gateway
+rejects it with `403 Access forbidden`.
+
 ## Safe Workflow
 
 1. Open `$MODELSCOPE_ENDPOINT/my/mynotebook/preset` in an authenticated browser session.
@@ -100,6 +106,12 @@ Put all cross-stage artifacts under `/mnt/workspace`. Before stopping CPU, verif
 and weight shards, log completion marker, and hashes where a local source file is available. Then stop CPU, select a
 currently available free GPU, start it, run only the GPU stage, verify the output, and stop GPU unless the user asks
 to keep it running. Never start GPU for a CPU-only task.
+
+Do not trust `df -h /mnt/workspace` as an account-quota check. The mount can advertise a very large shared
+filesystem while a small real write fails with `Disk quota exceeded`. Probe an actual task-owned file before large
+downloads. If the account quota is exhausted, stage on instance-local `/tmp`, store durable inputs/results in a
+private Dataset, verify the uploaded bytes, and remove only the task-owned zero-byte placeholders or temporary
+copies.
 
 Make stages explicit and rerunnable, for example `JOB_STAGE=prepare` and `JOB_STAGE=run`. A rerun must resume or
 skip completed downloads rather than duplicate them.
@@ -220,8 +232,18 @@ ROCm, require `torch.version.hip`, exclude NVIDIA-only helpers from the inferenc
 tiny PyTorch attention/kernel operation before loading the model. Keep optional training/evaluation dependencies
 in the complete source requirements even when they are not part of the inference wheelhouse.
 
+With `--system-site-packages`, an optional package already present in the image can activate an integration that the
+project never uses and conflict with its pinned dependencies. Test the project's real top-level imports in a fresh
+venv, not only `pip install`. Prefer a project-scoped compatibility shim or clean environment over changing the
+vendor Torch/CUDA stack or globally uninstalling image packages.
+
 ## Browser Handoff
 
 With ego-browser, keep one named task space for the operation. Use `handOffTaskSpace` when ModelScope presents
 interactive verification, then `takeOverTaskSpace` after the user confirms completion. Do not open a second
 session because the verification result belongs to the original authenticated page.
+
+After the Code Workspace opens, select its exact tab before terminal automation. The wrapper page contains the
+same-origin `iframe[title="notebook-ide"]`; terminal elements live inside that document, not the outer page. If the
+user opened a workspace outside the assigned task space, do not seize it during a handoff. Resume only after the
+user explicitly asks the agent to continue, then work in the confirmed workspace session.
