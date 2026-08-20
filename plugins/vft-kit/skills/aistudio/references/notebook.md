@@ -94,6 +94,10 @@ Verified 2026-08-19 running MAGI-1 4.5B-distill on V100 32GB (driver 570, cu124 
 - pip routing: pure `download.pytorch.org` index crawls (nvidia-* dep chain ~100KB/s). Use tsinghua as `--index-url` (nvidia wheels ~4MB/s) + cu124 as `--extra-index-url` for the torch wheel itself, `--timeout 600 --retries 20`.
 - Instances have no `rg` — scripts must use grep, or patch steps silently no-op (costs ~30min of GPU billing to notice; assert patch markers in logs).
 - Killed demo processes hold MASTER_PORT; `pkill -9 -f entry.py && fuser -k <port>/tcp` before relaunch.
+- GPU containers can be silently reaped mid-run (HTTP 492 on APIs, ws closes; observed 4× on V100 in one day while CPU containers stayed stable for hours). Truth source for liveness is the my/project list card, never the edit-page chip. If a GPU env keeps dying, suspect account membership/quota before debugging software.
+- Region host prefixes are meaningless: a V100 container was served under `bj-cpu-01`. Discover the real base by clicking 专业开发 and reading the navigation URL.
+- Fresh GPU containers may boot with an EMPTY /home/aistudio (snapshot per env-switch): be ready to re-upload the whole script tree. Contents API PUT can 405 on some containers — fall back to terminal stdin `echo <base64> | base64 -d > file`.
+- Pool reality 2026-08-20: V100 32GB option greyed out (pool gone); V100 16GB selectable but flaky; 异构算力 DCU unsupported for Notebook projects (tooltip); BI-V150S 32GB is Iluvatar (天数智芯) — needs vendor torch, NVIDIA cu124 venv/stack NOT portable, treat as last resort.
 
 Full idempotent patch chain template: `java/wfly-spring/aistudio/magi1/gpu/apply_v100_full.sh`.
 

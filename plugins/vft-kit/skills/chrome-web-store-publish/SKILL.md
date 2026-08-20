@@ -1,11 +1,11 @@
 ---
 name: chrome-web-store-publish
-description: 使用 ego-browser 预检、创建、填写、复核并发布 Chrome Web Store 扩展，支持读取用户提供的发布资料 JSON 模板自动填写商品详情、隐私、分发和测试说明。用户要求上传 Chrome 插件、新建商店商品、填写权限理由或数据使用、保存草稿、提交审核、发布上架、复用历史插件发布信息时使用。
+description: 使用 ego-lite（技能名 ego-browser）预检、创建、填写、复核并发布 Chrome Web Store 扩展，支持读取用户提供的发布资料 JSON 模板自动填写商品详情、隐私、分发和测试说明。用户要求上传 Chrome 插件、新建商店商品、填写权限理由或数据使用、保存草稿、提交审核、发布上架、复用历史插件发布信息时使用。
 ---
 
 # Chrome Web Store Publish
 
-使用 `ego-browser` 操作 Chrome Web Store Developer Dashboard；执行浏览器动作前完整读取 `ego-browser` skill，并在整个任务中复用同一 task space。
+先静默探测 `command -v ego-browser >/dev/null 2>&1`：有则使用 ego-lite（`ego-browser`）操作并复用同一 task space；没有则使用当前 Browser/Playwright 能力，不安装或另起 Chrome。执行浏览器动作前完整读取 `ego-browser` skill（若可用）。
 
 ## 输入与模板
 

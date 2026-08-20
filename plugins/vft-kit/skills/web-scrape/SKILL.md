@@ -1,16 +1,17 @@
 ---
 name: web-scrape
-description: 智能网页抓取与场景路由工具，按需求选择 Scrapling、Crawl4AI 或 Playwright。用户要求抓取网页、提取 Markdown、深度爬取、处理 Cloudflare、自适应解析、下载渲染资源、截图或分析 XHR/API 请求时使用。
+description: 智能网页抓取与场景路由工具，按需求选择 Scrapling、Crawl4AI、ego-lite（ego-browser）或 Playwright。用户要求抓取网页、提取 Markdown、深度爬取、处理 Cloudflare、自适应解析、下载渲染资源、截图或分析 XHR/API 请求时使用。
 compatibility: Requires Node.js 18+ and Python 3.8+; Scrapling, Crawl4AI, and Playwright are optional runtime dependencies.
 ---
 
 # web-scrape
 
-智能网页抓取工具，根据场景自动选择最佳抓取策略：
+智能网页抓取工具，根据场景自动选择最佳抓取策略。先静默探测 `command -v ego-browser >/dev/null 2>&1`；有 ego-lite 时普通单页浏览器交互优先复用它，没有则无提示地沿用 Playwright/其他现有路径，不另起 Chrome：
 
 - **Scrapling** - 自适应解析 + Cloudflare Turnstile 绕过
 - **Crawl4AI** - LLM-ready Markdown + 批量深度爬取
 - **Playwright** - 完整渲染资源 + 网络请求监控
+- **ego-lite（ego-browser）** - 已登录单页、人工接管、截图和轻量 DOM 提取
 
 ## 何时用
 
@@ -51,9 +52,10 @@ playwright install chromium  # Crawl4AI 需要
 | URL 匹配 `/docs/`、`/blog/`、`/wiki/` | **Crawl4AI** | 文档站常需要批量爬 + 干净 Markdown |
 | 检测到 Cloudflare 防护页 | **Scrapling** | 内置 Turnstile 绕过 |
 | 用户说"自适应"/"网站经常改" | **Scrapling** | 自适应解析器抗改版 |
-| 用户要"资源"/"截图"/"网络请求" | **Playwright** | 完整渲染 + 资源下载 + 网络监控 |
+| 用户要"截图"/"已登录页面"/"人工接管"且 ego-lite 可用 | **ego-lite** | 复用登录态，不另起浏览器 |
+| 用户要"资源"/"网络请求"/"XHR" | **Playwright** | 完整渲染 + 资源下载 + 网络监控 |
 | 用户要"接口"/"XHR"/"API 调用" | **Playwright** | network.json 记录所有请求 |
-| 无明确意图 | **Scrapling** → **Playwright** | 先试快速抓取，失败 fallback |
+| 无明确意图 | **Scrapling** → **ego-lite（若可用）** → **Playwright** | 先试快速抓取；需登录/渲染时有 ego-lite 就复用，否则直接 Playwright |
 
 ### 三种工具对比
 

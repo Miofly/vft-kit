@@ -18,6 +18,19 @@ same task space to the user for the gateway login and resume only after explicit
 `dsw_gateway_token` is bound to one instance path: never copy or replay it for a new instance, because the gateway
 rejects it with `403 Access forbidden`.
 
+### Preferred no-manual-login path: ModelScope Code Workspace
+
+For ModelScope-managed free Notebook instances, open `https://modelscope.cn/code/workspace` and use **连接运行时**.
+This ModelScope page uses the authenticated ModelScope session to obtain the current instance bridge information, calls
+the platform's internal `gateway-login` handshake, and then connects the editor/runtime. It avoids opening the raw
+`JupyterlabUrl`, which is the path that can redirect to `account.aliyun.com`.
+
+- Start or inspect the instance through the normal ModelScope Notebook page first.
+- Reuse the same ego-browser task space and ModelScope cookie for Code Workspace.
+- Select the existing instance in **连接运行时**; do not manually reconstruct or log the internal token/URL.
+- Treat a failed bridge handshake as a platform/session issue and hand the same task space to the user; do not switch
+  to an old `JupyterlabUrl` or replay a token from another instance.
+
 ### Optional PAI-DSW OpenAPI gateway path
 
 If a RAM/STS credential is available for the same Alibaba Cloud PAI workspace, a non-interactive gateway path may be
