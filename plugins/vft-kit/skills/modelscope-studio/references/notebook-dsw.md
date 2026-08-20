@@ -141,6 +141,12 @@ downloads. If the account quota is exhausted, stage on instance-local `/tmp`, st
 private Dataset, verify the uploaded bytes, and remove only the task-owned zero-byte placeholders or temporary
 copies.
 
+When verified weights fit only by consuming the remaining persistent quota, keep the weights and pinned source in
+`/mnt/workspace`, but place the venv, logs, compiler/model caches, and generated output under a task-owned `/tmp`
+root. Upload the output to a private Dataset, verify its size and SHA-256 through the Dataset tree API and a fresh
+download, then stop the accelerator. A zero-byte NFS log can mean quota exhaustion, so test the same path with a
+real write before diagnosing the launcher.
+
 Make stages explicit and rerunnable, for example `JOB_STAGE=prepare` and `JOB_STAGE=run`. A rerun must resume or
 skip completed downloads rather than duplicate them.
 
