@@ -200,6 +200,13 @@ text alone. Remove only task-owned probes and failed partial artifacts after the
 Prefer ModelScope's native downloader inside DSW. External Hugging Face endpoints may be unreachable even when
 the matching ModelScope repository is available.
 
+Before contacting another model hub, probe the exact ModelScope repository/API first. If the user supplies a
+ModelScope URL or `owner/repo`, open that exact target and query its model details plus recursive file tree; a web
+search with no result is not evidence that the repository is absent. Prefer an official-owner ModelScope repository
+when it contains the required revision/files. Fall back to Hugging Face only after the exact ModelScope probe returns
+not found or lacks the required artifacts, and record that reason. Do not request Hugging Face login, gated-model
+approval, or token handoff before this ModelScope probe.
+
 ### Freeze the requested scope first
 
 Do not silently reinterpret "complete/full/all files/no omissions" as a minimal inference download.
