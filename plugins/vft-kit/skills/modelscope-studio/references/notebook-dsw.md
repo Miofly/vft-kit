@@ -18,6 +18,21 @@ same task space to the user for the gateway login and resume only after explicit
 `dsw_gateway_token` is bound to one instance path: never copy or replay it for a new instance, because the gateway
 rejects it with `403 Access forbidden`.
 
+### Optional PAI-DSW OpenAPI gateway path
+
+If a RAM/STS credential is available for the same Alibaba Cloud PAI workspace, a non-interactive gateway path may be
+used. This is Alibaba Cloud authentication, not a ModelScope or DashScope API key:
+
+1. Use the credential to call PAI-DSW `GetInstance` and confirm the current `dsw-*` instance belongs to the expected
+   workspace.
+2. Run a read-only `GetToken` probe before any resource mutation. Request `Type=Access`, `Audience=ThirdParty`, and
+   a short TTL; use the returned token only for the current instance and never persist or print it.
+3. If the probe returns `403` or `NotFound`, treat it as an account/workspace boundary. Fall back to the same-task-space
+   browser handoff; do not retry GPU starts or reuse a token from another instance.
+
+The RAM principal should have only the required `paidsw:*` actions. ModelScope's free Notebook may be managed by a
+different Alibaba Cloud workspace, so a valid RAM credential is not proof that this path will work.
+
 ## Safe Workflow
 
 1. Open `$MODELSCOPE_ENDPOINT/my/mynotebook/preset` in an authenticated browser session.
