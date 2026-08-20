@@ -65,6 +65,10 @@ Default daily sequence:
 5. Register for one open, free contest only when it needs no payment, team creation, sensitive data, or additional terms acceptance.
 6. Complete eligible new-user or learning-map tasks only when the actual action is performed.
 
+Current UI can open actions in a new tab, redirect legacy routes, or reuse a different existing project/runtime. After Fork or runtime actions, verify the resulting `project/edit/<id>` is the intended project, hover the live resource status card to read the actual hardware and displayed points/hour, and recheck `/my/project`. The selected pre-start card and a Codelab URL are not sufficient proof. If the project ID differs, the live card shows a nonzero price, or any unexpected project is `运行中`, stop it immediately and verify every project is `未运行` before continuing.
+
+For sign-in, inspect `/my/project` first: hover the top blue console icon (`.header-tool-item-console`) to open the account/points popover, then click the highlighted current-day sign-in item. Verify the reward toast, total-points delta, and `已签到` state. Do not conclude sign-in is unavailable from `/overview` alone, and do not invent or call an internal endpoint. Treat reward values shown in the live points panel as authoritative when they conflict with an older rules document. For courses opened in a zero-size popup, close the popup and navigate an existing real tab directly to the course URL, then verify enrollment under `/my/learn`.
+
 Require confirmation before commenting, changing the avatar, creating content from user material, or publishing a project/dataset. Never mass-create, duplicate, empty-comment, immediately delete, repeatedly publish low-quality content, or perform other activity whose primary purpose is gaming points.
 
 There may be no points ledger. Verify each action by its success toast/task state and, when visible, the total-points delta. Report completed, skipped, blocked, and unverified items separately.
