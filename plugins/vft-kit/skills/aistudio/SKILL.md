@@ -1,17 +1,17 @@
 ---
 name: aistudio
-description: Operate Baidu AI Studio through its official SDK and ego-browser. Use for model, dataset, or app repositories; uploads, downloads, and file checks; web login; daily points; project Fork/run; courses and contests; Notebook creation, workspace transfer, execution, start/stop; GPU sessions; or AI Studio account workflows.
+description: Operate Baidu AI Studio through its official SDK and ego-lite (skill name ego-browser). Use for model, dataset, or app repositories; uploads, downloads, and file checks; web login; daily points; project Fork/run; courses and contests; Notebook creation, workspace transfer, execution, start/stop; GPU sessions; or AI Studio account workflows.
 ---
 
 # Baidu AI Studio
 
-Use the official SDK for repository operations and `ego-browser` for website-only workflows. Never treat an access token as a website login credential.
+Use the official SDK for repository operations. For website-only workflows, silently probe `command -v ego-browser >/dev/null 2>&1`; if present use ego-lite (`ego-browser`) with a named task space, otherwise use the current Browser/Playwright capability without starting another Chrome. Never treat an access token as a website login credential.
 
 ## Route the request
 
 - Model/app creation and model/dataset upload, download, or file check: use `scripts/aistudio.py`.
 - App code upload: use the current web/Git workflow; SDK 0.3.9 transfers support only `model` and `dataset`.
-- Login, projects, Fork, courses, contests, points, Notebook, or GPU: load and use the `ego-browser` skill. Read `references/notebook.md` completely for Notebook work.
+- Login, projects, Fork, courses, contests, points, Notebook, or GPU: load `ego-browser` when available, otherwise use the current browser capability. Read `references/notebook.md` completely for Notebook work.
 
 Official references:
 

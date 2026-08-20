@@ -1,11 +1,18 @@
 ---
 name: fe-auto-test
-description: 用 Playwright 浏览器工具或内置 Node 脚本验证前端页面行为——打开本地 dev server、检查控制台报错、验证组件是否挂载、检查 Canvas / Three.js / WebGL 是否渲染成功、截图调试、做 UI 交互回归；并用 Lighthouse 做性能、无障碍、最佳实践、SEO、缓存压缩和资源拆解体检。兼容 Claude Code 与 Codex；当前 Agent 没有浏览器/MCP 工具时自动走脚本路径。用户说"验证页面"、"检查控制台"、"Three.js/canvas 没出来"、"截图看看"、"页面白屏"、"跑 lighthouse"、"性能审计"、"Core Web Vitals"、"容错测试"、"逐路由检查"、"CDN 缓存实测"或"hydration"等场景时触发。纯代码静态分析能解决的问题不用本 skill。
+description: 优先用 ego-lite（技能名 ego-browser）或内置 Node 脚本验证前端页面行为——打开本地 dev server、检查控制台报错、验证组件是否挂载、检查 Canvas / Three.js / WebGL 是否渲染成功、截图调试、做 UI 交互回归；并用 Lighthouse 做性能、无障碍、最佳实践、SEO、缓存压缩和资源拆解体检。兼容 Claude Code 与 Codex；ego-lite 不可用时才走 Playwright MCP，批量/无人值守回归仍走脚本。用户说"验证页面"、"检查控制台"、"Three.js/canvas 没出来"、"截图看看"、"页面白屏"、"跑 lighthouse"、"性能审计"、"Core Web Vitals"、"容错测试"、"逐路由检查"、"CDN 缓存实测"或"hydration"等场景时触发。纯代码静态分析能解决的问题不用本 skill。
 ---
 
-# fe-auto-test — Playwright 浏览器验证 / 调试
+# fe-auto-test — ego-lite 优先的真实浏览器验证 / 调试
 
-用当前 Agent 可用的浏览器工具或内置 Playwright 脚本跑**真实浏览器**，验证控制台报错、Vue 挂载、Canvas/Three.js/WebGL、UI 交互和截图。
+用 ego-lite（`ego-browser`）或内置脚本跑**真实浏览器**，验证控制台报错、Vue 挂载、Canvas/Three.js/WebGL、UI 交互和截图。
+
+## 浏览器选择（静默探测）
+
+- 先静默执行 `command -v ego-browser >/dev/null 2>&1`；成功才使用 ego-lite，失败不提示用户、不安装，直接走现有 Playwright/脚本路径。
+- 单页观察、登录态复用、交互调试、截图、需要用户接管的验证码/2FA：ego-lite 可用时优先 `ego-browser nodejs`，复用一个命名 task space；不要另起 Chrome，也不要索要或落盘 Cookie/密码。
+- Lighthouse 评分、批量路由/容错、无人值守回归、需要 Playwright 编程式 API 或 HAR/trace：保留 bundled Playwright/Lighthouse 脚本。
+- ego-lite 不可用或能力不足时，才使用 Playwright MCP；不要为了普通单页检查自动安装或启动另一套 Chrome。
 
 ## 何时用 / 何时不用
 
@@ -27,14 +34,14 @@ description: 用 Playwright 浏览器工具或内置 Node 脚本验证前端页�
 
 | | MCP 路径 | 脚本路径 |
 |---|---|---|
-| 渲染 / console / 截图 / 交互 | `browser_*`（playwright 插件） | `route-audit.mjs`、`resilience-audit.mjs` 等 |
+| 渲染 / console / 截图 / 交互 | `ego-browser`（ego-lite） | `route-audit.mjs`、`resilience-audit.mjs` 等 |
 | 全维度体检 | lighthouse MCP 的 7 个工具 | **`lighthouse-audit.mjs`（一条命令跑完全部）** |
 | 依赖 | MCP 注册 + **重启会话**才生效 | 只要 npm 包 + chromium，**装完立即可用** |
 | 擅长 | 交互式逐步调试、点一下看一下 | 批量、无人值守、依赖没齐时的退路 |
 
 **关键认知**：CC 的 MCP **新注册后当前会话拿不到工具，必须重启**。所以依赖缺失时**不要停下来让用户重启**——第 0 步会自动补装 npm 包并走脚本路径把活干完，同时把 MCP 注册好留给下次会话。
 
-**运行时映射**：Claude Code 使用 `browser_*` / Lighthouse MCP；Codex 使用当前会话提供的 Browser/Playwright 工具。工具名不一致时按能力映射（导航、快照、控制台、执行 JS、截图、关闭）；缺任何能力就走同表右侧脚本，不臆造不存在的工具名。`check-deps.sh` 会按当前运行时调用 `claude` 或 `codex` 注册软依赖。
+**运行时映射**：探测到 `ego-browser` 后调用它的 `snapshotText()` / `captureScreenshot()` / `js()`；否则映射到 `browser_*` / Playwright MCP（导航、快照、控制台、执行 JS、截图、关闭）。两者都缺就走同表右侧脚本，不臆造不存在的工具名。`check-deps.sh` 只为脚本/Lighthouse 检查依赖，不自动安装 ego-lite。
 
 ## 标准闭环
 
@@ -72,10 +79,12 @@ bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/f
 
 ### 2. 浏览器打开页面
 
-用探测到的实际端口，调 Playwright MCP：
+用探测到的实际端口：若静默探测到 ego-lite，则在 task space 中打开；否则走 Playwright MCP：
 
-- `browser_navigate` → `http://localhost:{实际端口}`
-- `browser_snapshot` → 拿到无障碍树/DOM 结构，确认页面渲染出来了（白屏会一眼看出来）
+- `openOrReuseTab('http://localhost:{实际端口}', { wait: true })`
+- `snapshotText()` → 确认页面渲染出来了（白屏会一眼看出来）
+
+若本次必须走 Playwright MCP，再使用 `browser_navigate` / `browser_snapshot`。
 
 ### 3. 检查控制台报错
 
@@ -150,11 +159,11 @@ python3 "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skill
 
 页面有 canvas/three、需要验证组件挂载或 UI 交互时，再选下面对应的「调试配方」（用 `browser_evaluate` 在页面里跑 JS 取真值）。
 
-**用户点名「容错 / 边界 / 全站」测试时**（登录态、刷新、清缓存、清 LocalStorage、已登录/未登录差异、CDN/缓存、每个路由都看看、Hydration）——走下方「容错 / 边界 / 全站批量测试（Node 脚本配方）」。这类要跑几十个页面 + 反复清存储 reload，用 MCP 一个个点太慢，改用 bundled 的 Playwright 编程式脚本一把梭。
+**用户点名「容错 / 边界 / 全站」测试时**（登录态、刷新、清缓存、清 LocalStorage、已登录/未登录差异、CDN/缓存、每个路由都看看、Hydration）——走下方「容错 / 边界 / 全站批量测试（Node 脚本配方）」。单页先用 ego-lite 观察；几十个页面 + 反复清存储 reload 仍用 bundled Playwright 编程式脚本。
 
 ### 6. 截图调试（命名规范 + 落点）
 
-- `browser_take_screenshot`，**filename 必须传中央目录的绝对路径**（`~` 不会被展开，要写成真实展开后的路径），文件名统一 `test-{功能描述}.png`：
+- ego-lite 用 `captureScreenshot()`；需要 Playwright MCP 时用 `browser_take_screenshot`，**filename 必须传中央目录的绝对路径**（`~` 不会被展开，要写成真实展开后的路径），文件名统一 `test-{功能描述}.png`：
   - ✅ `/Users/<你>/.cache/vft-kit/fe-auto-test/test-three-scene.png`
   - ❌ `~/.cache/vft-kit/fe-auto-test/test-three-scene.png`（波浪号 MCP 不展开，会创建一个名为 `~` 的目录）
   - ❌ `test-three-scene.png`（相对名）、`screenshot1.png`、`all-rendered-final.png`
@@ -173,7 +182,7 @@ bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/f
 
 ### 8. 收尾
 
-- `browser_close` 关浏览器。
+- ego-lite 任务结束用 `completeTaskSpace(name, { keep: false })`；只有 Playwright MCP 路径才用 `browser_close`。
 - 若 dev server 是**你为这次验证启动的**，关掉它：
   ```bash
   bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/fe-auto-test/scripts/close-server.sh" <端口>
@@ -386,7 +395,7 @@ node resilience-audit.mjs <baseURL> [--q='?debug=true'] [--guard='/system,/user/
 4. **未登录访问受保护路由**（`--guard` 指定，如 `/system,/user/center`）：看守卫是**重定向**（✅）、**停留渲染空壳**（⚠️ 该拦没拦）还是**报错**。这就是「已登录 vs 未登录差异」的核对。
 5. **连续两次访问首页**：检 `Hydration completed but contains mismatches`。**SSR 站关键**——mismatch>0 说明 SSR 输出的 DOM 与客户端首帧不一致，Vue 丢弃 SSR 结果重新客户端渲染，**白白浪费 SSR + 可能首屏闪烁**。排查方向：主题 cookie 读取时机 / `Date` / `Math.random` / `import.meta.env.SSR` 条件渲染分支。
 
-> **登录态说明**：脚本不含真实账号密码登录（没凭据）。它测的是**未登录降级 + 守卫 + 脏存储容错**。要测真实登录后行为，补 `browser_fill_form` 填登录页或预置有效 cookie 再复用 context。
+> **登录态说明**：脚本不含真实账号密码登录（没凭据）。它测的是**未登录降级 + 守卫 + 脏存储容错**。要测真实登录后行为，先在 ego-lite task space 中走用户接管登录，再复用同一空间；不要把密码填入命令行或生成 storageState。仅在用户明确要求 Playwright 回归且已提供安全的临时 context 时才走脚本。
 
 > **有反调试的站**：这几个脚本走 Playwright，不开 Debugger 域，**不会触发 anti-debug 的 `debugger` 陷阱**，所以哪怕目标站测不了 Lighthouse，渲染 / 逐路由 / 容错 / CDN 缓存这些照样能测。若站点仍有拦截，用 `--q='?debug=true'` 之类的 debug 后门参数绕过。
 
