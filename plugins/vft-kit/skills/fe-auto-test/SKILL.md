@@ -1,6 +1,6 @@
 ---
 name: fe-auto-test
-description: 优先用 ego-lite（技能名 ego-browser）或内置 Node 脚本验证前端页面行为——打开本地 dev server、检查控制台报错、验证组件是否挂载、检查 Canvas / Three.js / WebGL 是否渲染成功、截图调试、做 UI 交互回归；并用 Lighthouse 做性能、无障碍、最佳实践、SEO、缓存压缩和资源拆解体检。兼容 Claude Code 与 Codex；ego-lite 不可用时才走 Playwright MCP，批量/无人值守回归仍走脚本。用户说"验证页面"、"检查控制台"、"Three.js/canvas 没出来"、"截图看看"、"页面白屏"、"跑 lighthouse"、"性能审计"、"Core Web Vitals"、"容错测试"、"逐路由检查"、"CDN 缓存实测"或"hydration"等场景时触发。纯代码静态分析能解决的问题不用本 skill。
+description: 静默探测并在可用且适合时使用 ego-lite（技能名 ego-browser），否则使用现有 Browser/Playwright 或内置 Node 脚本验证前端页面行为——打开本地 dev server、检查控制台报错、验证组件是否挂载、检查 Canvas / Three.js / WebGL 是否渲染成功、截图调试、做 UI 交互回归；并用 Lighthouse 做性能、无障碍、最佳实践、SEO、缓存压缩和资源拆解体检。兼容 Claude Code 与 Codex；批量/无人值守回归仍走脚本。用户说"验证页面"、"检查控制台"、"Three.js/canvas 没出来"、"截图看看"、"页面白屏"、"跑 lighthouse"、"性能审计"、"Core Web Vitals"、"容错测试"、"逐路由检查"、"CDN 缓存实测"或"hydration"等场景时触发。纯代码静态分析能解决的问题不用本 skill。
 ---
 
 # fe-auto-test — ego-lite 优先的真实浏览器验证 / 调试
