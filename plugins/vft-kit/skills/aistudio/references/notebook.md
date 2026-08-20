@@ -98,6 +98,8 @@ Verified 2026-08-19 running MAGI-1 4.5B-distill on V100 32GB (driver 570, cu124 
 - Region host prefixes are meaningless: a V100 container was served under `bj-cpu-01`. Discover the real base by clicking 专业开发 and reading the navigation URL.
 - Fresh GPU containers may boot with an EMPTY /home/aistudio (snapshot per env-switch): be ready to re-upload the whole script tree. Contents API PUT can 405 on some containers — fall back to terminal stdin `echo <base64> | base64 -d > file`.
 - Pool reality 2026-08-20: V100 32GB option greyed out (pool gone); V100 16GB selectable but flaky; 异构算力 DCU unsupported for Notebook projects (tooltip); BI-V150S 32GB is Iluvatar (天数智芯) — needs vendor torch, NVIDIA cu124 venv/stack NOT portable, treat as last resort.
+- Pool reality 2026-08-20 evening recheck: V100-32GB AND 异构算力-16GB both `.disable`; V100-16GB / BI-V150S selectable; 基础版 active. CPU 基础版 dialog says RAM 8GB but host `free` shows ~470GB — 8GB is a cgroup cap (process hit 6.9GB RSS without OOM).
+- H3 GGUF load-path verdict (2026-08-20, CPU 基础版): mmap of an 18GB file-backed file, all pages touched in 4GB chunks, peak VmHWM 6.85GB — kernel reclaims file pages under pressure, so 8GB cgroup does NOT OOM the mmap streaming load. VERDICT PASS. Overlay 2.9T (~1.6T free), 18GB write 39s. Spike script: `java/wfly-spring/aistudio/h3/h3_load_test.py`.
 
 Full idempotent patch chain template: `java/wfly-spring/aistudio/magi1/gpu/apply_v100_full.sh`.
 
