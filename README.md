@@ -38,7 +38,7 @@ Codex 入口在 `plugins/vft-kit/.codex-plugin/plugin.json`，skill 目录仍是
 
 ## 详细文档
 
-每个 skill / hook 的完整用法、踩坑与配置，见博客的逐篇文档（下面「有什么」是速览，想看细节点进去）：
+每个 skill / hook 的完整用法、踩坑与配置，见博客的逐篇文档（下面「Skill 分类」是速览，想看细节点进去）：
 
 - [vft-kit 总览](https://wflynn.cn/pages/2607131001) —— 定位、安装、全量速查表、FAQ
 - **CC 运维**：[cc-baseline](https://wflynn.cn/pages/2607131002) · [cc-backup-restore](https://wflynn.cn/pages/2607131003) · [plugin-refresh](https://wflynn.cn/pages/2607131004)
@@ -46,48 +46,27 @@ Codex 入口在 `plugins/vft-kit/.codex-plugin/plugin.json`，skill 目录仍是
 - **通用工具**：[fe-auto-test](https://wflynn.cn/pages/2607131005) · [fe-lint-fix](https://wflynn.cn/pages/2607131012) · [co-infographic-generator](https://wflynn.cn/pages/2607131006) · [pr-submit](https://wflynn.cn/pages/2607131013) · [git-auto-push](https://wflynn.cn/pages/2607131007) · [vue-sfc-split](https://wflynn.cn/pages/2607131008) · [office-doc-rewrite](https://wflynn.cn/pages/2607131011)
 - **macOS 应用**：[ai-helper 源码与安装说明](apps/ai-helper/README.zh-CN.md)
 
-## 有什么
+## Skill 分类
 
-### Claude Code 运维
+运行目录使用 `plugins/vft-kit/skills/<category>/<skill-name>/`。分类清单以 [`catalog/skills.json`](catalog/skills.json) 为唯一来源，目录分类、Claude manifest 和 Codex manifest 必须一致。
 
-这些 skill 的目标仍是 Claude Code。Codex 可以读取并辅助执行，但它们操作的是 `~/.claude`、Claude 插件 cache 或 claude-hud，不是 Codex 自身配置。
+| 分类 | 定位 | skills |
+|---|---|---|
+| Agent 运维 (`agent-ops`) | Claude Code、Codex、CC Switch 与插件缓存 | `cc-backup-restore` · `cc-baseline` · `cc-switch-add-provider` · `codex-baseline` · `plugin-refresh` |
+| 云平台 (`cloud-platforms`) | 云服务、模型托管、部署平台和账号资源 | `aistudio` · `cloudflare-ops` · `huggingface-ops` · `kaggle-ops` · `modelscope-studio` · `vercel-ops` |
+| 开发工作流 (`dev-workflow`) | 数据库工具、前端质量、Git、代码托管和 PR 交付 | `dbx` · `fe-auto-test` · `fe-lint-fix` · `git-auto-push` · `github-ops` · `pr-submit` · `vue-sfc-split` |
+| 设计与内容 (`design-content`) | 设计还原、信息图、Office 文档和视觉内容 | `co-infographic-generator` · `mastergo-mcp` · `office-doc-rewrite` · `replicate-web-style` |
+| Web 与自动化 (`web-automation`) | 浏览器发布、网页抓取和 macOS 自动化 | `chrome-web-store-publish` · `keyboard-maestro` · `web-scrape` |
 
-| skill | 干什么 |
-|---|---|
-| `cc-baseline` | 核对本机 CC 是否符合装配基线（CLI / npm / MCP / 插件 / 权限），缺什么给修复命令（只读，仅 `ponytail` 缺失时自动补齐） |
-| `cc-backup-restore` | 备份 / 恢复配置与数据（CLAUDE.md、settings.json、插件、skill） |
-| `plugin-refresh` | 刷新插件 cache——改了本地插件源却不生效时用它 |
+新增、删除或改名 skill 时同步更新分类，并运行：
 
-### Codex 运维
+```bash
+node scripts/validate-skill-catalog.mjs
+```
 
-`codex-baseline` 的目标是 Codex CLI（`~/.codex`），不是 Claude Code。
+校验器保证每个已跟踪 skill 恰好属于一个分类，并具有有效的 frontmatter `name`。插件 skill 的调用名允许与目录名不同。未跟踪的开发中 skill 只提示，不阻塞验证。
 
-| skill | 干什么 |
-|---|---|
-| `codex-baseline` | 核对本机 Codex CLI 装配基线（dangerous full access / hooks / Playwright MCP / 插件 / 系统 skills / 全局 AGENTS / 生图 CLI），缺什么给修复命令 |
-
-### ai-helper
-
-旧版 `Stop` 用量告警 hook 已移除。用量展示、会话状态和桌面通知统一由 ai-helper 承担，避免插件 hook 与菜单栏应用重复通知。
-
-| skill | 干什么 |
-|---|---|
-| `install-ai-helper` | 检查、安装或更新正式发布的 ai-helper macOS 应用；不从源码构建，不绕过签名或 Gatekeeper |
-
-### 通用工具
-
-| skill | 干什么 |
-|---|---|
-| `fe-auto-test` | Playwright 真实浏览器验证前端页面 + Lighthouse 全维度体检（依赖会自动补装，见下） |
-| `fe-lint-fix` | 前端代码质量一键修复：Prettier → Stylelint → ESLint + TypeScript 校验（自动探测包管理器 / 脚本） |
-| `co-infographic-generator` | 结构化文字 → 信息图（HTML+CSS 排版，puppeteer 截图成 PNG） |
-| `pr-submit` | 全自动 PR 工作流：分析改动 → 建分支 → 提交 → 创建 PR（GitHub/GitLab/Gitee） |
-| `vue-sfc-split` | 拆分过大的 Vue SFC，规避文件路由 / 自动导入的坑 |
-| `git-auto-push` | 绕过 git hooks 提交（husky 卡住时的逃生通道） |
-| `office-doc-rewrite` | 改 Office 文档（xlsx/doc/docx）文字但保留图片/样式/布局——拿模板换内容（zip 层改文字，非整体重存） |
-| `cloudflare-ops` | 通用 Cloudflare API 封装：zones / DNS / 缓存规则 / purge / zone 设置 / ruleset（redirect/transform/origin/waf 等）/ 通用透传，多 profile，零依赖 |
-
-#### fe-auto-test 的依赖
+### fe-auto-test 的依赖
 
 它要真实浏览器和 Lighthouse，这些不在插件里。**不用你手动装**——skill 每次跑的第一步会检查并自动补装：
 
@@ -101,7 +80,7 @@ CC 的 MCP 新注册后当前会话拿不到工具，所以 skill 不会卡住�
 想提前检查或只诊断不安装：
 
 ```bash
-bash ~/.claude/plugins/cache/vft-kit/vft-kit/*/skills/fe-auto-test/scripts/check-deps.sh --no-install
+bash ~/.claude/plugins/cache/vft-kit/vft-kit/*/skills/dev-workflow/fe-auto-test/scripts/check-deps.sh --no-install
 ```
 
 ## 许可

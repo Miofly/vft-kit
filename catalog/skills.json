@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "categories": [
+    {
+      "id": "agent-ops",
+      "name": "Agent 运维",
+      "description": "Claude Code、Codex、CC Switch 与插件缓存的安装、检查和维护。",
+      "skills": [
+        "cc-backup-restore",
+        "cc-baseline",
+        "cc-switch-add-provider",
+        "codex-baseline",
+        "plugin-refresh"
+      ]
+    },
+    {
+      "id": "cloud-platforms",
+      "name": "云平台",
+      "description": "云服务、模型托管、部署平台和账号资源操作。",
+      "skills": [
+        "aistudio",
+        "cloudflare-ops",
+        "huggingface-ops",
+        "kaggle-ops",
+        "modelscope-studio",
+        "vercel-ops"
+      ]
+    },
+    {
+      "id": "dev-workflow",
+      "name": "开发工作流",
+      "description": "数据库工具、前端质量、Git、代码托管和 PR 交付流程。",
+      "skills": [
+        "dbx",
+        "fe-auto-test",
+        "fe-lint-fix",
+        "git-auto-push",
+        "github-ops",
+        "pr-submit",
+        "vue-sfc-split"
+      ]
+    },
+    {
+      "id": "design-content",
+      "name": "设计与内容",
+      "description": "设计还原、信息图、Office 文档和视觉内容生产。",
+      "skills": [
+        "co-infographic-generator",
+        "mastergo-mcp",
+        "office-doc-rewrite",
+        "replicate-web-style"
+      ]
+    },
+    {
+      "id": "web-automation",
+      "name": "Web 与自动化",
+      "description": "浏览器发布、网页抓取和 macOS 自动化。",
+      "skills": [
+        "chrome-web-store-publish",
+        "keyboard-maestro",
+        "web-scrape"
+      ]
+    }
+  ]
+}
