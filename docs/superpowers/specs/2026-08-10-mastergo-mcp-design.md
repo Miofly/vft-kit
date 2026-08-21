@@ -24,7 +24,7 @@ Skill 必须能判断用户意图、检查本机状态、配置 Claude Code 或 
 ## 目录
 
 ```text
-plugins/vft-kit/skills/mastergo-mcp/
+plugins/vft-kit/skills/design-content/mastergo-mcp/
 ├── SKILL.md
 ├── agents/openai.yaml
 ├── references/workflows.md
@@ -32,7 +32,7 @@ plugins/vft-kit/skills/mastergo-mcp/
 └── tests/test-mastergo-mcp.mjs
 ```
 
-不修改插件 manifest；当前 manifest 已自动发现 `skills/`。不修改已有脏区 `plugins/vft-kit/skills/cc-baseline/**`。
+不修改插件 manifest；当前 manifest 已自动发现 `skills/`。不修改已有脏区 `plugins/vft-kit/skills/agent-ops/cc-baseline/**`。
 
 ## 路由规则
 
@@ -109,7 +109,7 @@ Magic 读取遵循：解析链接 → 先取 meta/section → 按需取 DSL、SV
 
 最终验收：
 
-- `node --test plugins/vft-kit/skills/mastergo-mcp/tests/test-mastergo-mcp.mjs`
+- `node --test plugins/vft-kit/skills/design-content/mastergo-mcp/tests/test-mastergo-mcp.mjs`
 - `quick_validate.py` 校验 frontmatter。
 - `vft-ai:skill-validator` 校验公开层无私有特征。
 - 刷新 Claude Code 与 Codex 的 `vft-kit` 插件缓存，比较源码与缓存一致。

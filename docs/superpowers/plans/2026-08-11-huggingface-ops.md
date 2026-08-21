@@ -13,9 +13,9 @@
 ### Task 1: Baseline and scaffold
 
 **Files:**
-- Create: `plugins/vft-kit/skills/huggingface-ops/SKILL.md`
-- Create: `plugins/vft-kit/skills/huggingface-ops/agents/openai.yaml`
-- Create: `plugins/vft-kit/skills/huggingface-ops/scripts/`
+- Create: `plugins/vft-kit/skills/cloud-platforms/huggingface-ops/SKILL.md`
+- Create: `plugins/vft-kit/skills/cloud-platforms/huggingface-ops/agents/openai.yaml`
+- Create: `plugins/vft-kit/skills/cloud-platforms/huggingface-ops/scripts/`
 
 - [ ] **Step 1: Run a baseline scenario without the skill**
 
@@ -35,20 +35,20 @@ python3 /Users/wfly/.codex/skills/.system/skill-creator/scripts/init_skill.py \
   --interface 'default_prompt=使用 $huggingface-ops 检查并操作 Hugging Face 资源。'
 ```
 
-Expected: `plugins/vft-kit/skills/huggingface-ops/` contains `SKILL.md`, `agents/openai.yaml`, and `scripts/`.
+Expected: `plugins/vft-kit/skills/cloud-platforms/huggingface-ops/` contains `SKILL.md`, `agents/openai.yaml`, and `scripts/`.
 
 - [ ] **Step 3: Commit the scaffold**
 
 ```bash
-git add plugins/vft-kit/skills/huggingface-ops
+git add plugins/vft-kit/skills/cloud-platforms/huggingface-ops
 git commit -m "feat: scaffold huggingface ops skill"
 ```
 
 ### Task 2: RED tests for credential handling and forwarding
 
 **Files:**
-- Create: `plugins/vft-kit/skills/huggingface-ops/tests/test-hf.sh`
-- Test: `plugins/vft-kit/skills/huggingface-ops/tests/test-hf.sh`
+- Create: `plugins/vft-kit/skills/cloud-platforms/huggingface-ops/tests/test-hf.sh`
+- Test: `plugins/vft-kit/skills/cloud-platforms/huggingface-ops/tests/test-hf.sh`
 
 - [ ] **Step 1: Write the failing shell test**
 
@@ -75,7 +75,7 @@ The fake commands use only synthetic tokens. The test also checks missing config
 Run:
 
 ```bash
-bash plugins/vft-kit/skills/huggingface-ops/tests/test-hf.sh
+bash plugins/vft-kit/skills/cloud-platforms/huggingface-ops/tests/test-hf.sh
 ```
 
 Expected: FAIL because `scripts/hf.sh` and `scripts/hf-api.py` do not exist.
@@ -83,15 +83,15 @@ Expected: FAIL because `scripts/hf.sh` and `scripts/hf-api.py` do not exist.
 - [ ] **Step 3: Commit the failing test**
 
 ```bash
-git add plugins/vft-kit/skills/huggingface-ops/tests/test-hf.sh
+git add plugins/vft-kit/skills/cloud-platforms/huggingface-ops/tests/test-hf.sh
 git commit -m "test: define huggingface ops launchers"
 ```
 
 ### Task 3: GREEN official CLI launcher
 
 **Files:**
-- Create: `plugins/vft-kit/skills/huggingface-ops/scripts/hf.sh`
-- Test: `plugins/vft-kit/skills/huggingface-ops/tests/test-hf.sh`
+- Create: `plugins/vft-kit/skills/cloud-platforms/huggingface-ops/scripts/hf.sh`
+- Test: `plugins/vft-kit/skills/cloud-platforms/huggingface-ops/tests/test-hf.sh`
 
 - [ ] **Step 1: Implement the minimum Bash launcher**
 
@@ -141,8 +141,8 @@ Do not add command-specific wrappers.
 Run:
 
 ```bash
-bash -n plugins/vft-kit/skills/huggingface-ops/scripts/hf.sh
-bash plugins/vft-kit/skills/huggingface-ops/tests/test-hf.sh
+bash -n plugins/vft-kit/skills/cloud-platforms/huggingface-ops/scripts/hf.sh
+bash plugins/vft-kit/skills/cloud-platforms/huggingface-ops/tests/test-hf.sh
 ```
 
 Expected: CLI assertions pass; SDK assertions still fail because `hf-api.py` is absent.
@@ -150,8 +150,8 @@ Expected: CLI assertions pass; SDK assertions still fail because `hf-api.py` is 
 ### Task 4: GREEN official SDK launcher
 
 **Files:**
-- Create: `plugins/vft-kit/skills/huggingface-ops/scripts/hf-api.py`
-- Test: `plugins/vft-kit/skills/huggingface-ops/tests/test-hf.sh`
+- Create: `plugins/vft-kit/skills/cloud-platforms/huggingface-ops/scripts/hf-api.py`
+- Test: `plugins/vft-kit/skills/cloud-platforms/huggingface-ops/tests/test-hf.sh`
 
 - [ ] **Step 1: Implement the minimum Python launcher**
 
@@ -181,8 +181,8 @@ uv run --with huggingface-hub python <script> <original args>
 Run:
 
 ```bash
-python3 -m py_compile plugins/vft-kit/skills/huggingface-ops/scripts/hf-api.py
-bash plugins/vft-kit/skills/huggingface-ops/tests/test-hf.sh
+python3 -m py_compile plugins/vft-kit/skills/cloud-platforms/huggingface-ops/scripts/hf-api.py
+bash plugins/vft-kit/skills/cloud-platforms/huggingface-ops/tests/test-hf.sh
 ```
 
 Expected: `PASS: huggingface-ops`.
@@ -190,15 +190,15 @@ Expected: `PASS: huggingface-ops`.
 - [ ] **Step 3: Commit launchers and tests**
 
 ```bash
-git add plugins/vft-kit/skills/huggingface-ops/scripts plugins/vft-kit/skills/huggingface-ops/tests
+git add plugins/vft-kit/skills/cloud-platforms/huggingface-ops/scripts plugins/vft-kit/skills/cloud-platforms/huggingface-ops/tests
 git commit -m "feat: add huggingface ops launchers"
 ```
 
 ### Task 5: Skill instructions and metadata
 
 **Files:**
-- Modify: `plugins/vft-kit/skills/huggingface-ops/SKILL.md`
-- Modify: `plugins/vft-kit/skills/huggingface-ops/agents/openai.yaml`
+- Modify: `plugins/vft-kit/skills/cloud-platforms/huggingface-ops/SKILL.md`
+- Modify: `plugins/vft-kit/skills/cloud-platforms/huggingface-ops/agents/openai.yaml`
 
 - [ ] **Step 1: Replace the scaffold with concise instructions**
 
@@ -223,7 +223,7 @@ Run:
 
 ```bash
 uv run --with pyyaml python /Users/wfly/.codex/skills/.system/skill-creator/scripts/quick_validate.py \
-  plugins/vft-kit/skills/huggingface-ops
+  plugins/vft-kit/skills/cloud-platforms/huggingface-ops
 ```
 
 Expected: validation success.
@@ -235,21 +235,21 @@ Give a fresh agent the skill path and ask it to inspect a Space, replace a secre
 - [ ] **Step 4: Commit the finished skill**
 
 ```bash
-git add plugins/vft-kit/skills/huggingface-ops
+git add plugins/vft-kit/skills/cloud-platforms/huggingface-ops
 git commit -m "docs: add huggingface ops workflow"
 ```
 
 ### Task 6: Live verification and deployment
 
 **Files:**
-- Verify only: `plugins/vft-kit/skills/huggingface-ops/`
+- Verify only: `plugins/vft-kit/skills/cloud-platforms/huggingface-ops/`
 
 - [ ] **Step 1: Run local checks**
 
 ```bash
-bash -n plugins/vft-kit/skills/huggingface-ops/scripts/hf.sh
-python3 -m py_compile plugins/vft-kit/skills/huggingface-ops/scripts/hf-api.py
-bash plugins/vft-kit/skills/huggingface-ops/tests/test-hf.sh
+bash -n plugins/vft-kit/skills/cloud-platforms/huggingface-ops/scripts/hf.sh
+python3 -m py_compile plugins/vft-kit/skills/cloud-platforms/huggingface-ops/scripts/hf-api.py
+bash plugins/vft-kit/skills/cloud-platforms/huggingface-ops/tests/test-hf.sh
 git diff --check HEAD~3..HEAD
 ```
 
@@ -260,9 +260,9 @@ Expected: syntax checks pass, test prints `PASS: huggingface-ops`, and diff chec
 Use the private credential only through `--config`:
 
 ```bash
-bash plugins/vft-kit/skills/huggingface-ops/scripts/hf.sh \
+bash plugins/vft-kit/skills/cloud-platforms/huggingface-ops/scripts/hf.sh \
   --config <private-huggingface-json> auth whoami
-bash plugins/vft-kit/skills/huggingface-ops/scripts/hf.sh \
+bash plugins/vft-kit/skills/cloud-platforms/huggingface-ops/scripts/hf.sh \
   --config <private-huggingface-json> spaces list vftfnn/wfly-spring
 ```
 
@@ -280,4 +280,4 @@ Expected: both caches contain the skill and every compared hash matches source.
 git status --short
 ```
 
-Expected: only the pre-existing `plugins/vft-kit/skills/web-scrape/scripts/__pycache__/` remains unrelated and untracked.
+Expected: only the pre-existing `plugins/vft-kit/skills/web-automation/web-scrape/scripts/__pycache__/` remains unrelated and untracked.
