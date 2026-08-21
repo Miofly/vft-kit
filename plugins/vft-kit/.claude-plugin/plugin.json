@@ -4,5 +4,12 @@
   "description": "Claude Code / Codex 运维与通用开发工具，并提供 ai-helper macOS 应用的安全安装入口",
   "author": {
     "name": "wfly"
-  }
+  },
+  "skills": [
+    "./skills/agent-ops",
+    "./skills/cloud-platforms",
+    "./skills/dev-workflow",
+    "./skills/design-content",
+    "./skills/web-automation"
+  ]
 }

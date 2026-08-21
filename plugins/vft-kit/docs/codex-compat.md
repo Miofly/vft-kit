@@ -7,6 +7,13 @@
 
 `skills/` 是唯一 skill 源码目录。不要为了两个平台复制两份 `SKILL.md`。
 
+## Skill 分类
+
+- 运行目录使用 `skills/<category>/<skill-name>/` 两级结构，skill 调用名仍由各自 `SKILL.md` 的 `name` 决定。
+- 仓库级分类以 `catalog/skills.json` 为唯一来源，物理目录必须与清单一致。
+- `.claude-plugin/plugin.json` 与 `.codex-plugin/plugin.json` 显式登记每个分类根目录，保证宿主按 `<skill-name>/SKILL.md` 发现 skill。
+- 新增、删除、改名或移动 skill 时运行 `node scripts/validate-skill-catalog.mjs`，确保每个已跟踪 skill 恰好属于一个分类且位于对应目录。
+
 ## 默认兼容目标
 
 - 除非名称或目标明确指向单一平台，新增或修改的能力默认同时支持 Claude Code 和 Codex。

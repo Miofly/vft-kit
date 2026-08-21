@@ -12,7 +12,13 @@
     "frontend",
     "testing"
   ],
-  "skills": "./skills/",
+  "skills": [
+    "./skills/agent-ops",
+    "./skills/cloud-platforms",
+    "./skills/dev-workflow",
+    "./skills/design-content",
+    "./skills/web-automation"
+  ],
   "interface": {
     "displayName": "VFT Kit",
     "shortDescription": "Claude Code and Codex operations and shared development tools.",
