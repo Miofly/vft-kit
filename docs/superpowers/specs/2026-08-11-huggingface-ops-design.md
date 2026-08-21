@@ -14,11 +14,11 @@ For Hub operations not exposed by the CLI, the skill provides an authenticated `
 
 Create only these reusable files:
 
-- `plugins/vft-kit/skills/huggingface-ops/SKILL.md`: routing, safety rules, common commands, and CLI-versus-SDK selection.
-- `plugins/vft-kit/skills/huggingface-ops/scripts/hf.sh`: credential loading and transparent official CLI execution.
-- `plugins/vft-kit/skills/huggingface-ops/scripts/hf-api.py`: narrow generic `HfApi` method invocation for SDK-only methods.
-- `plugins/vft-kit/skills/huggingface-ops/tests/test-hf.sh`: credential and forwarding regression checks.
-- `plugins/vft-kit/skills/huggingface-ops/agents/openai.yaml`: Codex UI metadata.
+- `plugins/vft-kit/skills/cloud-platforms/huggingface-ops/SKILL.md`: routing, safety rules, common commands, and CLI-versus-SDK selection.
+- `plugins/vft-kit/skills/cloud-platforms/huggingface-ops/scripts/hf.sh`: credential loading and transparent official CLI execution.
+- `plugins/vft-kit/skills/cloud-platforms/huggingface-ops/scripts/hf-api.py`: narrow generic `HfApi` method invocation for SDK-only methods.
+- `plugins/vft-kit/skills/cloud-platforms/huggingface-ops/tests/test-hf.sh`: credential and forwarding regression checks.
+- `plugins/vft-kit/skills/cloud-platforms/huggingface-ops/agents/openai.yaml`: Codex UI metadata.
 
 The scripts use installed official tools when present and otherwise run `huggingface_hub` through `uvx`/`uv`. No custom Hugging Face REST client is added.
 

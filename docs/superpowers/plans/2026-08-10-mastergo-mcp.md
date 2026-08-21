@@ -13,11 +13,11 @@
 ### 任务 1：建立失败测试和 skill 骨架
 
 **文件：**
-- 新建：`plugins/vft-kit/skills/mastergo-mcp/tests/test-mastergo-mcp.mjs`
-- 新建：`plugins/vft-kit/skills/mastergo-mcp/SKILL.md`
-- 新建：`plugins/vft-kit/skills/mastergo-mcp/agents/openai.yaml`
-- 新建：`plugins/vft-kit/skills/mastergo-mcp/references/workflows.md`
-- 新建：`plugins/vft-kit/skills/mastergo-mcp/scripts/mastergo-mcp.mjs`
+- 新建：`plugins/vft-kit/skills/design-content/mastergo-mcp/tests/test-mastergo-mcp.mjs`
+- 新建：`plugins/vft-kit/skills/design-content/mastergo-mcp/SKILL.md`
+- 新建：`plugins/vft-kit/skills/design-content/mastergo-mcp/agents/openai.yaml`
+- 新建：`plugins/vft-kit/skills/design-content/mastergo-mcp/references/workflows.md`
+- 新建：`plugins/vft-kit/skills/design-content/mastergo-mcp/scripts/mastergo-mcp.mjs`
 
 1. 使用 `init_skill.py` 生成 `scripts,references` 骨架和 `openai.yaml`。
 2. 用临时 HOME、fake `claude`/`codex` 编写测试，覆盖 status、target、幂等配置、冲突、`--force`、默认 30678、Magic 缺 Token、凭据脱敏和 doctor 端口失败。
@@ -26,8 +26,8 @@
 ### 任务 2：实现最小 CLI
 
 **文件：**
-- 修改：`plugins/vft-kit/skills/mastergo-mcp/scripts/mastergo-mcp.mjs`
-- 测试：`plugins/vft-kit/skills/mastergo-mcp/tests/test-mastergo-mcp.mjs`
+- 修改：`plugins/vft-kit/skills/design-content/mastergo-mcp/scripts/mastergo-mcp.mjs`
+- 测试：`plugins/vft-kit/skills/design-content/mastergo-mcp/tests/test-mastergo-mcp.mjs`
 
 1. 实现严格参数解析，仅接受 `status`、`configure`、`doctor` 及设计内选项。
 2. 实现宿主状态读取与规范化，输出任何命令结果前统一递归脱敏 Token、Header 和 env 值。
@@ -38,9 +38,9 @@
 ### 任务 3：完成 skill 指令与按需参考
 
 **文件：**
-- 修改：`plugins/vft-kit/skills/mastergo-mcp/SKILL.md`
-- 修改：`plugins/vft-kit/skills/mastergo-mcp/references/workflows.md`
-- 修改：`plugins/vft-kit/skills/mastergo-mcp/agents/openai.yaml`
+- 修改：`plugins/vft-kit/skills/design-content/mastergo-mcp/SKILL.md`
+- 修改：`plugins/vft-kit/skills/design-content/mastergo-mcp/references/workflows.md`
+- 修改：`plugins/vft-kit/skills/design-content/mastergo-mcp/agents/openai.yaml`
 
 1. 写清 Vibe=本机画布读写、Magic=远程链接 DSL/D2C 的路由，不固化版本号和私有域名。
 2. 写清默认自主诊断/配置流程、仅 Vibe 破坏性设计写操作需明确授权，以及用户已明确授权时不重复确认。
@@ -50,7 +50,7 @@
 ### 任务 4：校验与发布到本机缓存
 
 **文件：**
-- 校验：`plugins/vft-kit/skills/mastergo-mcp/**`
+- 校验：`plugins/vft-kit/skills/design-content/mastergo-mcp/**`
 
 1. 运行 Node 单测、`quick_validate.py`、skill-validator 的 `validate.mjs` 和 `check-files.mjs`。
 2. 用无 skill/有 skill 的相同提示做 forward-test，确认路由、端口和授权判断已纠正。

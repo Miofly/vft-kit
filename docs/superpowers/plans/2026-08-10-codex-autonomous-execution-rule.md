@@ -13,7 +13,7 @@
 ### 任务 1：先写同步回归测试
 
 **文件：**
-- 新建：`skills/codex-baseline-private/tests/test-sync-agents.mjs`
+- 新建：`skills/agent-ops/codex-baseline-private/tests/test-sync-agents.mjs`
 
 1. 构造临时 vft-ai、数据库 YAML 与 AGENTS 文件，写入 sentinel 和旧 autonomy 块。
 2. 连续运行同步两次，断言内容字节一致、marker 仅一对、旧正文被替换、sentinel 与其他块保留。
@@ -23,9 +23,9 @@
 ### 任务 2：实现规范源与幂等同步
 
 **文件：**
-- 修改：`skills/codex-baseline-private/SKILL.md`
-- 修改：`skills/codex-baseline-private/scripts/sync-agents.mjs`
-- 修改：`skills/codex-baseline-private/scripts/check.sh`
+- 修改：`skills/agent-ops/codex-baseline-private/SKILL.md`
+- 修改：`skills/agent-ops/codex-baseline-private/scripts/sync-agents.mjs`
+- 修改：`skills/agent-ops/codex-baseline-private/scripts/check.sh`
 
 1. 在 SKILL 内新增 `autonomy-policy:start/end` 源块，规定默认内部规划后直接实施、测试、验证和交付。
 2. 明确仅用户说“先规划/只要方案/先别实施”，或缺权限、关键输入、高风险不可逆操作时暂停；安全默认值可继续时直接继续并在结果说明假设。
