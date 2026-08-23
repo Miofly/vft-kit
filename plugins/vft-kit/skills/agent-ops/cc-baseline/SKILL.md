@@ -81,6 +81,13 @@ npx skills add emilkowalski/skills \
 
 ## 约束
 
+### 改动纪律
+
+- 发现更简单且等价的方案时，明确提出并采用。
+- 只修改与请求或必要联动直接相关的文件，保持现有风格。
+- 不重构未损坏的代码；不要顺手整理相邻注释、格式或死代码。
+- 只清理本次修改造成的孤儿 import、变量、函数、测试和引用。
+
 - CodeGraph 以 CLI 可执行为准；新项目用 `codegraph init`，增量刷新用 `codegraph sync`，完整重建用 `codegraph index -f`。
 - 所有代码审查优先通过 code-review-graph MCP 获取最小上下文、影响半径和相关测试，再按结果读取源码；图谱首次建立或完整重建用 `code-review-graph build`，日常刷新用 `code-review-graph update`，状态检查用 `code-review-graph status`。
 - 插件检查读取 `installed_plugins.json`，覆盖 user、project 和 local scope。

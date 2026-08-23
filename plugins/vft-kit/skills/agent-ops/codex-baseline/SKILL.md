@@ -83,6 +83,13 @@ npx skills add emilkowalski/skills \
 
 ## 约束
 
+### 改动纪律
+
+- 发现更简单且等价的方案时，明确提出并采用。
+- 只修改与请求或必要联动直接相关的文件，保持现有风格。
+- 不重构未损坏的代码；不要顺手整理相邻注释、格式或死代码。
+- 只清理本次修改造成的孤儿 import、变量、函数、测试和引用。
+
 - dangerous full access 必须同时满足 `approval_policy = "never"` 和 `sandbox_mode = "danger-full-access"`。
 - MCP 与插件优先读取 Codex 合并后的真实状态，覆盖 user、project、local 和 runtime scope；文件检查只是命令不可用时的回退。
 - Claude 专属的 statusLine、permissions 白名单、LSP 插件和 RTK Claude hook 不迁移。
