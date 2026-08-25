@@ -38,19 +38,30 @@
 
 1. 解析 `https://<domain>/file/<fileId>?layer_id=<layerId>` 或 `/goto/<shortLink>`；保留用户给出的域名，禁止强改为公网域名。
 2. 先调用 `getMeta` / `getDesignSections` 确认文件、页面、layer 和规则。
-3. 按目标选择最小工具：
+3. 按目标选择最小工具（工具名以 `tools/list` 实际返回为准；0.2.8 实测为 `getDsl`、`getMeta`、`getDesignSections`、`getPageLayers`、`extractSvg`、`getD2c`、`getComponentLink`、`getComponentGenerator`、`applyDesign`）：
    - 结构或还原代码：`getDsl`
-   - SVG：`getDesignSvgs` / `extractSvg`
-   - 文本：`getDesignTexts`
-   - 组件开发流程：`getComponentWorkflow`
+   - SVG：`extractSvg`
+   - 页面下的画板清单：`getPageLayers`
 4. 默认 `json`；重复样式多、追求省 token 时用 `yaml` 或 `tree`。文本逐字还原优先 `json`。
 5. “没有权限”时依次核对 Token 是否存在、账户是否团队版、文件是否在团队项目而非草稿箱；不要反复重试或输出凭据。
+
+### 链接没有 layer_id 时（`needsCanvasVisit`）
+
+`getPageLayers` 可能返回 `totalLayers: 0`、`needsCanvasVisit: true`，提示“请在 MasterGo 中打开该文件并切换到目标页面”。这是**服务端图层缓存为空**，不是权限问题——`getMeta` 同时返回空 `<info></info>`。
+
+不要停在这里让用户去点，也不要反复重试同一个调用。**实测用浏览器打开画布并不会把这个缓存刷起来**（它由 MasterGo 官方客户端上报），但 `getDsl(fileId, layerId)` 只要有 layerId 就能正常返回。所以正确路径是自己去画布里取 ID：
+
+1. 用浏览器打开该文件页面（登录态见对应私有 skill），等 `window.mg.document` 就绪。
+2. 跑 `scripts/enumerate-containers.js` 拿到 `pages[].children[].id`，那就是 layerId（形如 `9:2990`）。
+3. 用 `fileId + layerId` 调 `getDsl` / `extractSvg`，绕开页面级缓存。
+
+页面是懒加载的：非当前页的 `children` 可能为空，用它的 `pageId` 重新打开一次 `?page_id=<pageId>` 再枚举。可直接拼图层链接 `https://<domain>/file/<fileId>?page_id=<pageId>&layer_id=<layerId>`。
 
 Magic 是远程读取/D2C，不用于修改本机画布。需要写画布时切回 Vibe，并先恢复本地连接。
 
 ## Browser：Canvas 只读回退
 
-MasterGo 编辑器和原型预览主要渲染在 Canvas 上，普通 `curl`、DOM 抓取或网页转 Markdown 只能得到页面外壳。MCP 不适合当前目标或没有暴露所需读取工具时，可用浏览器打开真实页面，确认 `window.mg.document` 就绪后执行以下公开脚本：
+MasterGo 编辑器和原型预览主要渲染在 Canvas 上，普通 `curl`、DOM 抓取或网页转 Markdown 只能得到页面外壳。MCP 不适合当前目标、没有暴露所需读取工具，或上一节的 `needsCanvasVisit` 让 Magic 拿不到 layerId 时，可用浏览器打开真实页面，确认 `window.mg.document` 就绪后执行以下公开脚本：
 
 - `scripts/enumerate-containers.js`：枚举页面和顶层画板并过滤连接线；原型页疑似有单一外层容器时同时返回 `nestedCandidate`，先核对它确实是包装层，再把 `DRILL_SINGLE_WRAPPER` 改为 `true` 重跑。
 - `scripts/extract-text.js`：递归提取每个画板的界面文案与便签批注；确认外层容器后使用同一钻层开关，可用 `PAGE_ID` 和 `MAX_LEN` 控制范围。

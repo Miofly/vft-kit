@@ -67,6 +67,7 @@ MG_MCP_TOKEN='从安全来源注入' node "$SKILL_DIR/scripts/mastergo-mcp.mjs" 
 4. Magic 先取 meta/section，再按需获取 DSL、SVG、文本；避免一次拉完整大 payload。
 5. Vibe 连接失败时停止写操作并修复连接，不得降级为 Magic 假装完成画布修改。
 6. MCP 不适合当前目标，或按上节安装仍不可用但页面已在浏览器加载时，按工作流使用 `window.mg` 只读回退脚本；普通 DOM 抓取无法读取 Canvas 画板。
+7. `getPageLayers` 返回 `totalLayers: 0 / needsCanvasVisit: true` 是图层缓存为空，不是没权限。不要空转重试，也不要把定位退回给用户——按工作流的「链接没有 layer_id 时」用浏览器枚举拿到 layerId 再调 `getDsl`。
 
 ## 完成标准
 

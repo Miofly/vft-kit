@@ -40,9 +40,9 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/agent-ops/cc-baseline/scripts/run.sh --health
 | 插件 | superpowers、skill-creator、code-review、frontend-design、playwright、typescript-lsp、jdtls-lsp、context-mode、ponytail、caveman、gsap-skills | claude-hud、context7、grill-me、understand-anything、diagram-design、pm-skills |
 | Agent Skills | Emil 的 animate、review-animations、apple-design                                                                                               | AnySearch、Emil 其余 7 项 |
 | 系统 | bypassPermissions、信任目录、CodeGraph 白名单、关闭自动更新、全局 CLAUDE.md                                                                                    | claude-hud 状态栏、CC Switch、项目 memory 目录 |
-| 全局规范 | 中文回复、可点短链、压缩取舍、代理兜底、多 Agent 并行、Code Review Graph 优先                                                                                         | context7 / AnySearch 已安装时才检查对应调用规则 |
+| 全局规范 | 中文回复、可点短链、压缩取舍、代理兜底、多 Agent 并行、Code Review Graph 优先                                                                                         | context7 / AnySearch / context-mode 已安装时才检查对应调用规则 |
 
-Claude Code 2.1.59 起默认提供 auto memory，项目记忆位于 `~/.claude/projects/<project>/memory/`。不要再叠加 `remember` 插件或 agentmemory MCP；只有用户明确需要外部向量检索服务时才单独评估。
+Claude Code 2.1.59 起默认提供 auto memory，项目记忆位于 `~/.claude/projects/<project>/memory/`。不要再叠加第三方记忆插件或记忆类 MCP；只有用户明确需要外部向量检索服务时才单独评估。
 
 ## 可选安装
 
@@ -91,4 +91,5 @@ npx skills add emilkowalski/skills \
 - 所有代码审查优先通过 code-review-graph MCP 获取最小上下文、影响半径和相关测试，再按结果读取源码；图谱首次建立或完整重建用 `code-review-graph build`，日常刷新用 `code-review-graph update`，状态检查用 `code-review-graph status`。
 - 插件检查读取 `installed_plugins.json`，覆盖 user、project 和 local scope。
 - `--health` 只实连 codegraph、code-review-graph、lighthouse 和 Playwright，不启动额外常驻服务。
+- 装了 context-mode 时，发 HTTP 一律走 `ctx_execute` / `ctx_fetch_and_index`。它的 PreToolUse hook 会拦下「响应体打到 stdout」的 curl/wget 并渲染成红色 Error——那是设计好的路由提示，不是故障，插件也没有静默开关；被拦一次就白费一轮工具调用。非要用 Bash curl 就写成 hook 放行的形态：`-s`（wget `-q`）+ 输出落文件，且不能是 `-o -` / `/dev/stdout`，不能带 `-v`。
 - 文本检索一律走 `rg` 或 `/usr/bin/grep`（绝对路径）。裸 `grep` 会被 Claude Code shell 快照注入的 `grep` shell 函数劫持（转发 claude 二进制内置 ugrep，本机派发坏，报 `error: unknown option '-G'`）；与 rtk 无关——rtk hook 不改写 grep。例：`(rg -l "关键字" dir 2>/dev/null || /usr/bin/grep -rl "关键字" dir)`。`scripts/*.sh` 内部 grep 跑在子 shell，不受该函数影响。
