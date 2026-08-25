@@ -66,6 +66,16 @@ MasterGo 编辑器和原型预览主要渲染在 Canvas 上，普通 `curl`、DO
 - `scripts/enumerate-containers.js`：枚举页面和顶层画板并过滤连接线；原型页疑似有单一外层容器时同时返回 `nestedCandidate`，先核对它确实是包装层，再把 `DRILL_SINGLE_WRAPPER` 改为 `true` 重跑。
 - `scripts/extract-text.js`：递归提取每个画板的界面文案与便签批注；确认外层容器后使用同一钻层开关，可用 `PAGE_ID` 和 `MAX_LEN` 控制范围。
 - `scripts/measure-layout.js`：填写真实 `BOARD_ID`，读取直接子级布局、嵌套文本、颜色、圆角和相邻间距；可用 `NAMES`、`Y_MIN`、`Y_MAX` 缩小范围。
+- `scripts/collect-export-nodes.js`：列出被标记为切图的节点（有 `exportSettings` 的节点 + `SLICE` 节点），返回每个节点的格式、倍率和后缀。传 `{ rootId }` 限定画板，不传就是整页。
+
+### 导出切图
+
+画布里的节点带 `exportAsync({ format, constraint })`（MasterGo 插件 API，同源页面可直接调），返回字节流——这才是设计师标注的那份切图，截图和 DSL 里的图片填充 URL 都替代不了：填充 URL 只有位图底图，图标那类矢量切图取不到。流程是 `collect-export-nodes.js` 找节点 → 逐个 `exportAsync` → 字节转 base64 传回落盘。
+
+两个必须知道的行为：
+
+- **导出尺寸按渲染边界算，不是图层框。** 带 backdrop-filter / 投影的节点会把效果外扩范围一起导出，36×36 的按钮可能出来 216×216（内容居中，四周透明）。要精确尺寸就让设计师加切片框，或导出后自己裁。
+- **文件名后缀别叠加。** 导出设置里的 `fileName` 字段（`isSuffix: true`）通常已经是 `@3x`，再按倍率自动补一次就成了 `_@3x@3x`。
 
 把脚本完整的 `() => { ... }` 作为浏览器 evaluate 函数执行，并直接返回数据。不要把隔离环境的 `filename` 当作可供本机读取的输出；返回过大时按页面、画板或 y 区间分批。
 
