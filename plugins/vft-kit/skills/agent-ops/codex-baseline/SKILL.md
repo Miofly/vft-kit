@@ -48,7 +48,7 @@ bash ${CODEX_PLUGIN_ROOT:-${VFT_PLUGIN_ROOT:-.}}/skills/agent-ops/codex-baseline
 | 图片生成 | imagegen 脚本、专用 venv、依赖、`codex-imagegen`、认证注入源 | - |
 | 全局 AGENTS | `AGENTS.md` 中的中文回复、可点短链、压缩取舍、代理兜底、多 Agent 并行、code-review-graph review-first/索引维护、生图规则；Caveman 额外检查实际生效文件 | Context7 / AnySearch 已安装时才检查对应调用规则 |
 
-Codex 原生 `features.memories = true` 已承担跨会话回忆，不叠加 agentmemory MCP。
+Codex 原生 `features.memories = true` 已承担跨会话回忆，不叠加第三方记忆类 MCP。
 
 ## 可选安装
 

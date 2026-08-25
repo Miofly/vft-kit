@@ -178,6 +178,15 @@ claudemd_has_parallel_agents(){
   [ -f "$f" ] || return 1
   grep -Eiq '并行.*[Aa]gent|多.*[Aa]gent|多个 subagent|subagent 并行|扇出|fan-?out|并行执行|默认并行|能加速就上' "$f"
 }
+# 全局 ~/.claude/CLAUDE.md 是否含「HTTP 请求走 ctx_execute、别用裸 Bash curl」规范
+# 仅在 context-mode 已装时才核对：它的 PreToolUse hook 会拦下「响应体打到 stdout」的 curl/wget，
+# 回一条红色 Error 让改用 ctx_execute。不预先写规范的话，每次发 HTTP 都白费一轮工具调用 + 一屏噪音。
+claudemd_has_http_routing(){
+  local f="$HOME/.claude/CLAUDE.md"
+  [ -f "$f" ] || return 1
+  grep -Eq 'ctx_execute|ctx_fetch_and_index' "$f" &&
+    grep -Eiq 'curl' "$f"
+}
 # skill 是否已安装（~/.claude/skills/<name> 目录存在，或作为同名插件装了）
 # anysearch 主要走手动装到 ~/.claude/skills/anysearch，marketplace 装则落为插件，两种都认。
 skill_installed(){
@@ -364,6 +373,13 @@ if skill_installed anysearch; then
   claudemd_has_anysearch           && ok "全局规范含「anysearch 联网搜索优先」" || bad "anysearch 调用规范" $'printf \'\\n## 联网搜索优先走 anysearch\\n需要联网检索时优先用 anysearch skill（已装于 ~/.claude/skills/anysearch），覆盖：①查信息/新闻/文档/当前数据 ②事实核查 ③读网页正文（超出摘要）④垂直领域查询（股票 Stock:/漏洞 CVE:/论文 DOI: 等带标识符）⑤多意图并行搜索。anysearch 不可用（无 key/超配额/服务错误/断网）时告知用户并可回退内置 WebSearch/WebFetch。\\n\' >> ~/.claude/CLAUDE.md'
 else
   ok "anysearch 调用规范（skill 未装，无需配置）"
+fi
+# HTTP 请求路由规范：条件必需——仅当 context-mode 插件已装时才要求。
+# 它拦 curl 是特性不是故障，但被拦一次就浪费一轮调用，规范让 CC 一开始就走 ctx_execute。
+if plugin_installed context-mode; then
+  claudemd_has_http_routing        && ok "全局规范含「HTTP 走 ctx_execute 不用裸 curl」" || bad "HTTP 请求路由规范" $'printf \'\\n## HTTP 请求别走裸 Bash curl（避免 context-mode 拦截红字）\\n\\ncontext-mode 的 PreToolUse hook 会拦下「响应体打到 stdout」的 curl/wget，回一条红色 Error 让改用 `ctx_execute`——不是故障，但每次都多一轮工具调用 + 一屏噪音。**别等被拦再改**：\\n\\n- 需要 HTTP 且要处理响应 → 一开始就用 `ctx_execute(language, code)`；要留着后续检索用 `ctx_fetch_and_index`。\\n- 非要用 Bash curl → 写成 hook 放行的形态：**`-s`（wget 用 `-q`）+ 输出落文件**（`-o /tmp/x.json` 或 `> file`），且不能是 `-o -` / `/dev/stdout`，不能带 `-v`，然后再读文件。\\n- 判定逻辑在 `~/.claude/plugins/marketplaces/context-mode/hooks/core/routing.mjs`；插件无静默开关，红字渲染改不掉，只能不去触发。\\n\' >> ~/.claude/CLAUDE.md'
+else
+  ok "HTTP 请求路由规范（context-mode 未装，无需配置）"
 fi
 [ -d "$HOME/.claude/projects" ]    && ok "项目 memory 目录"                   || opt "项目 memory"     "~/.claude/projects/<项目>/memory/ 跨会话记忆"
 
