@@ -56,7 +56,7 @@ Codex 入口在 `plugins/vft-kit/.codex-plugin/plugin.json`，skill 目录仍是
 | 云平台 (`cloud-platforms`) | 云服务、模型托管、部署平台和账号资源 | `aistudio` · `cloudflare-ops` · `huggingface-ops` · `kaggle-ops` · `modelscope-studio` · `vercel-ops` |
 | 开发工作流 (`dev-workflow`) | 数据库工具、前端质量、Git、代码托管和 PR 交付 | `dbx` · `fe-auto-test` · `fe-lint-fix` · `git-auto-push` · `github-ops` · `pr-submit` · `vue-sfc-split` |
 | 设计与内容 (`design-content`) | 设计还原、信息图、Office 文档和视觉内容 | `co-infographic-generator` · `mastergo-mcp` · `office-doc-rewrite` · `replicate-web-style` |
-| Web 与自动化 (`web-automation`) | 浏览器发布、网页抓取和 macOS 自动化 | `chrome-web-store-publish` · `keyboard-maestro` · `web-scrape` |
+| Web 与自动化 (`web-automation`) | 浏览器发布、网页抓取和 macOS 自动化 | `chrome-web-store-publish` · `keyboard-maestro` · `web-scrape` · `wechat-mp` |
 
 新增、删除或改名 skill 时同步更新分类，并运行：
 

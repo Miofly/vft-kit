@@ -1,0 +1,4 @@
+interface:
+  display_name: "微信公众号 / 开发者平台"
+  short_description: "用 ego-lite 登录态操作公众号后台与开发者平台控制台：写草稿、查接口权限、配 IP 白名单"
+  default_prompt: "使用 $wechat-mp 把这篇 Markdown 转成公众号排版并存进草稿箱。"

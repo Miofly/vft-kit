@@ -1,6 +1,6 @@
 ---
 name: mastergo-mcp
-description: 配置、检查、诊断和使用 MasterGo 官方 Vibe MCP 与 Magic MCP，并可通过浏览器 window.mg 提取 Canvas 原型。用户提到 MasterGo MCP、设计稿链接转代码/DSL、读取或修改 MasterGo 画布、原型文案/便签/尺寸提取、同步 HTML、变量/组件操作、未找到活跃连接、50678 端口、MG_MCP_TOKEN，或要给 Claude Code/Codex 安装 MasterGo 时使用。
+description: 配置、检查、诊断和使用 MasterGo 官方 Vibe MCP 与 Magic MCP，并可通过浏览器 window.mg 提取 Canvas 原型。用户提到 MasterGo MCP、设计稿链接转代码/DSL、读取或修改 MasterGo 画布、原型文案/便签/尺寸提取、导出切图或图标素材、needsCanvasVisit 拿不到图层、同步 HTML、变量/组件操作、未找到活跃连接、50678 端口、MG_MCP_TOKEN，或要给 Claude Code/Codex 安装 MasterGo 时使用。
 ---
 
 # MasterGo MCP

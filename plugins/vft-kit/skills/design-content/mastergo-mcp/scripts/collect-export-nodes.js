@@ -32,7 +32,7 @@
     } catch {}
     if (!raw.length && node.type === 'SLICE') raw = [{ format: 'PNG', constraint: { type: 'SCALE', value: 1 } }];
     return raw.map((setting) => ({
-      format: setting.format || 'PNG',
+      format: setting.format || 'PNG', // 没写格式一律按 PNG
       constraintType: setting.constraint?.type || 'SCALE',
       constraintValue: setting.constraint?.value ?? 1,
       suffix: setting.fileName || '',
@@ -41,8 +41,10 @@
 
   const exports = [];
   let total = 0;
-  (function walk(node) {
+  // boardWidth 取「离画板最近的那层」宽度：倍率要按设计稿画板宽算，不能按图标自己的宽算。
+  (function walk(node, board) {
     total++;
+    const currentBoard = board || (node.type === 'FRAME' || node.type === 'COMPONENT' ? node : null);
     const settings = settingsOf(node);
     if (settings.length) {
       exports.push({
@@ -51,11 +53,24 @@
         type: node.type,
         w: Math.round(node.width),
         h: Math.round(node.height),
+        boardId: currentBoard?.id || null,
+        boardName: currentBoard?.name || null,
+        boardWidth: currentBoard ? Math.round(currentBoard.width) : null,
+        boardHeight: currentBoard ? Math.round(currentBoard.height) : null,
         settings,
       });
     }
-    (node.children || []).forEach(walk);
-  })(root);
+    (node.children || []).forEach((child) => walk(child, currentBoard));
+  })(root, root.type === 'FRAME' || root.type === 'COMPONENT' ? root : null);
 
-  return { rootId: root.id, rootName: root.name, scanned: total, count: exports.length, exports };
+  return {
+    rootId: root.id,
+    rootName: root.name,
+    rootType: root.type,
+    rootWidth: root.width ? Math.round(root.width) : null,
+    rootHeight: root.height ? Math.round(root.height) : null,
+    scanned: total,
+    count: exports.length,
+    exports,
+  };
 }
