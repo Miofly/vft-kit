@@ -32,15 +32,17 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/agent-ops/cc-baseline/scripts/run.sh --health
 
 ## 基线
 
+> 下表是**概览**，具体项以 `check.sh` 实际输出为准（新增检查项时它会先于本表变化）。
+
 | 类别 | 必需                                                                                                                                          | 可选 |
 |---|---------------------------------------------------------------------------------------------------------------------------------------------|---|
 | CLI | node、npm、claude、rtk、codegraph、code-review-graph                                                                                             | brew、jq、gh |
 | npm | `@danielsogl/lighthouse-mcp`                                                                                                                | - |
 | MCP | codegraph、code-review-graph、lighthouse-mcp                                                                                                  | - |
-| 插件 | superpowers、skill-creator、code-review、frontend-design、playwright、typescript-lsp、jdtls-lsp、context-mode、ponytail、caveman、gsap-skills | claude-hud、context7、grill-me、understand-anything、diagram-design、pm-skills |
+| 插件 | superpowers、skill-creator、code-review、frontend-design、playwright、typescript-lsp、jdtls-lsp、claude-md-management、context-mode、ponytail、caveman、gsap-skills | claude-hud、context7、grill-me、understand-anything、diagram-design、pm-skills |
 | Agent Skills | Emil 的 animate、review-animations、apple-design                                                                                               | AnySearch、Emil 其余 7 项 |
-| 系统 | bypassPermissions、信任目录、CodeGraph 白名单、关闭自动更新、全局 CLAUDE.md                                                                                    | claude-hud 状态栏、CC Switch、项目 memory 目录 |
-| 全局规范 | 中文回复、可点短链、压缩取舍、代理兜底、多 Agent 并行、Code Review Graph 优先                                                                                         | context7 / AnySearch / context-mode 已安装时才检查对应调用规则 |
+| 系统 | bypassPermissions、bypass 警告已接受、`~` 目录已信任、CodeGraph 白名单、关闭自动更新、Codex 自动注入 `OPENAI_API_KEY`、全局 CLAUDE.md、项目 memory 目录 | claude-hud 状态栏、CC Switch |
+| 全局规范 | 中文回复、可点短链、压缩取舍、代理兜底、多 Agent 并行、CodeGraph 自动初始化、Code Review Graph 优先                                                                                         | context7 / AnySearch / context-mode 已安装时才检查对应调用规则（各 1 项） |
 
 Claude Code 2.1.59 起默认提供 auto memory，项目记忆位于 `~/.claude/projects/<project>/memory/`。不要再叠加第三方记忆插件或记忆类 MCP；只有用户明确需要外部向量检索服务时才单独评估。
 
@@ -77,6 +79,19 @@ npx skills add emilkowalski/skills \
 ```
 
 `animation-vocabulary`、`ask-sonner`、`emil-design-eng`、`find-animation-opportunities`、`improve-animations`、`pick-ui-library`、`prototype` 按项目安装，不自动补齐。
+
+## 自检测试
+
+`scripts/test-*.sh` 共 7 个，全部用 `mktemp` 造隔离的假 `HOME` 与假 `PATH` 运行，**不碰真实环境、不装任何东西**。改动 `check.sh` / `run.sh` 后必跑：
+
+```bash
+cd ${CLAUDE_PLUGIN_ROOT}/skills/agent-ops/cc-baseline/scripts
+for t in test-*.sh; do bash "$t" >/dev/null 2>&1 && echo "✓ $t" || echo "✗ $t"; done
+```
+
+覆盖：`run.sh` 的安装顺序 / 参数转发 / 退出码传播、RTK 安装、Caveman 默认 full、codegraph 与 code-review-graph 与 Emil skills 的基线判定、RTK 旧策略已移除。
+
+> 测试靠环境变量注入 mock（`RTK_SCRIPT` / `CAVEMAN_SCRIPT` / `CHECK_SCRIPT`），所以 `run.sh` 里这三个路径变量**必须保持 `${VAR:-默认值}` 形式**；写成硬编码会让 mock 注入失效、测试报出误导性的「exit code not propagated」。
 
 ## 约束
 
