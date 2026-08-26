@@ -138,7 +138,7 @@ import './video-trim/video-trim-scoped.css';
 5. **抽样式**：`<style scoped>` → `<页面名>/<页面名>-scoped.css`，入口 import。
 6. **保留路由身份**：确认 `defineOptions` name、`definePage` meta 仍在入口、值未变（约束 3）。
 7. **自检结构**：跑本 skill 的脚本（见下）。
-8. **lint + 类型 + 跑页面**：跑项目自己的 lint / vue-tsc，再在浏览器打开页面确认无 `Failed to resolve component`、功能与拆前一致。
+8. **lint + 类型 + 跑页面**：跑项目自己的 lint / vue-tsc，再在浏览器打开页面（本机有 ego-lite 就优先用 `ego-browser`，没有就用现有 Browser/Playwright）确认无 `Failed to resolve component`、功能与拆前一致。
 
 逐块搬、每搬一块就保证可编译，比"全拆完再统一修"安全得多——出问题时 diff 小、好定位。
 
@@ -161,7 +161,7 @@ bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/d
 
 ❌ 是硬性问题必须改，⚠️ 自行确认。
 
-**跑页面**：脚本的漏 import 检查只覆盖专属目录内的组件，自动导入的盲区它看不全。拆完仍**建议在浏览器实际打开该页面**，确认每个外移块都正常渲染、控制台无 `Failed to resolve component`、交互与拆前一致。
+**跑页面**：脚本的漏 import 检查只覆盖专属目录内的组件，自动导入的盲区它看不全。拆完仍**建议在浏览器实际打开该页面**（优先本机 ego-lite），确认每个外移块都正常渲染、控制台无 `Failed to resolve component`、交互与拆前一致。
 
 ## 行为零变更原则
 
