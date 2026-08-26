@@ -39,7 +39,7 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/agent-ops/cc-baseline/scripts/run.sh --health
 | CLI | node、npm、claude、rtk、codegraph、code-review-graph                                                                                             | brew、jq、gh |
 | npm | `@danielsogl/lighthouse-mcp`                                                                                                                | - |
 | MCP | codegraph、code-review-graph、lighthouse-mcp                                                                                                  | - |
-| 插件 | superpowers、skill-creator、code-review、frontend-design、playwright、typescript-lsp、jdtls-lsp、claude-md-management、context-mode、ponytail、caveman、gsap-skills | claude-hud、context7、grill-me、understand-anything、diagram-design、pm-skills |
+| 插件 | superpowers、skill-creator、code-review、frontend-design、playwright、typescript-lsp、jdtls-lsp、context-mode、ponytail、caveman、gsap-skills | claude-hud、context7、grill-me、understand-anything、diagram-design、pm-skills |
 | Agent Skills | Emil 的 animate、review-animations、apple-design                                                                                               | AnySearch、Emil 其余 7 项 |
 | 系统 | bypassPermissions、bypass 警告已接受、`~` 目录已信任、CodeGraph 白名单、关闭自动更新、Codex 自动注入 `OPENAI_API_KEY`、全局 CLAUDE.md、项目 memory 目录 | claude-hud 状态栏、CC Switch |
 | 全局规范 | 中文回复、可点短链、压缩取舍、代理兜底、多 Agent 并行、CodeGraph 自动初始化、Code Review Graph 优先                                                                                         | context7 / AnySearch / context-mode 已安装时才检查对应调用规则（各 1 项） |

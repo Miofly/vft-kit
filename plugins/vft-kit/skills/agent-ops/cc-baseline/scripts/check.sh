@@ -270,7 +270,7 @@ sec "插件（默认必备集）"
 # 精简后的默认必备插件清单（用户指定）：核心工作流 + 自研 + 反过度工程
 for p in superpowers skill-creator code-review frontend-design playwright \
          typescript-lsp jdtls-lsp \
-         claude-md-management context-mode ponytail caveman gsap-skills; do
+         context-mode ponytail caveman gsap-skills; do
   if plugin_installed "$p"; then ok "$p"; else
     case "$p" in
       context-mode)                   bad "$p" "claude plugin marketplace add mksglu/claude-context-mode && claude plugin install context-mode@context-mode";;

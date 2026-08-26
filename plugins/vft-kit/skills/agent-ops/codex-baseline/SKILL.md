@@ -50,6 +50,8 @@ bash ${CODEX_PLUGIN_ROOT:-${VFT_PLUGIN_ROOT:-.}}/skills/agent-ops/codex-baseline
 
 Codex 原生 `features.memories = true` 已承担跨会话回忆，不叠加第三方记忆类 MCP。
 
+Claude 与 Codex 的插件清单相互独立。Claude 侧移除的插件不应自动映射到 Codex；Codex 仅按本文件的原生插件基线核对。当前 `diagram-design@diagram-design` 仍属于 Codex 已启用插件，不在本次 Claude 清理范围内。
+
 ## 可选安装
 
 只在用户明确选择时安装：
