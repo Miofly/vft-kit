@@ -12,7 +12,7 @@ Reproduce a reference site's visual system without replacing the target's busine
 ## Workflow
 
 1. Read the target repository instructions and inspect its framework, routes, shared tokens, component library, icon system, installed animation tools, and dirty worktree. Preserve existing behavior and user changes.
-2. Inspect the reference in a real browser at desktop and mobile sizes. When source is available, trace the page route, global styles, font declarations, components, breakpoints, keyframes, and reduced-motion handling.
+2. Inspect the reference in a real browser at desktop and mobile sizes — prefer ego-lite (`ego-browser`) when it is installed so the user's login state is reused; otherwise use the current browser capability. When source is available, trace the page route, global styles, font declarations, components, breakpoints, keyframes, and reduced-motion handling.
 3. Capture a baseline screenshot of the target before editing. List the visible states that must remain functional: loading, empty, error, hover, focus, active, modal, and data refresh.
 4. Extract the reference into six layers: palette and texture; typography; borders/radii/shadows; layout and density; component states; motion and breakpoints. Put reusable values behind a page-scoped root class or existing theme tokens.
 5. Match the requested theme scope. Do not add a dark/light, classic/redesign, or other secondary mode unless the target already requires it. For a single-theme migration, remove obsolete page-level toggles and conditional branches instead of hiding the controls with CSS.
