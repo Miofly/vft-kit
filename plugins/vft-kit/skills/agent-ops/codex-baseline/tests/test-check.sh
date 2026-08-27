@@ -400,6 +400,13 @@ grep -Fq 'GITHUB_PAT_TOKEN 未注入（gh 已登录）' <<< "$output" || { print
 grep -Fq 'export GITHUB_PAT_TOKEN="$(gh auth token 2>/dev/null)"' <<< "$output" || { printf 'FAIL: safe GitHub token fix missing\n' >&2; exit 1; }
 grep -Fq 'fixture-gh-token-must-not-leak' <<< "$output" && { printf 'FAIL: gh token leaked to output\n' >&2; exit 1; }
 
+sed -i.bak '/^\[plugins\."github@openai-api-curated"\]/,/^\[plugins\./ s/^enabled = true$/enabled = false/' "$TEST_CODEX_HOME/config.toml"
+rm -rf "$TEST_CODEX_HOME/plugins/cache/openai-api-curated/github"
+output="$(TEST_GITHUB_PAT_TOKEN= TEST_GH_TOKEN_AVAILABLE=true run_check)"
+grep -Fq 'GitHub 能力（gh 已登录；API curated 当前未提供插件）' <<< "$output" || { printf 'FAIL: authenticated gh fallback not accepted\n' >&2; exit 1; }
+mv "$TEST_CODEX_HOME/config.toml.bak" "$TEST_CODEX_HOME/config.toml"
+mkdir -p "$TEST_CODEX_HOME/plugins/cache/openai-api-curated/github/v1"
+
 sed -i.bak 's/^enabled = false$/enabled = true/' "$TEST_CODEX_HOME/config.toml"
 set +e
 output="$(run_check 2>&1)"

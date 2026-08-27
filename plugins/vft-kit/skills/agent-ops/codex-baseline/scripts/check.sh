@@ -390,8 +390,8 @@ else
   opt "context7 MCP" "codex mcp add context7 -- npx -y @upstash/context7-mcp@latest"
 fi
 sec "CLI 插件（合并 scope 后 installed + enabled）"
-check_plugin "github@openai-api-curated" required "codex plugin add github@openai-api-curated"
 if github_plugin_active; then
+  ok "github@openai-api-curated（installed + enabled）"
   if [ -n "${GITHUB_PAT_TOKEN:-}" ]; then
     ok "GITHUB_PAT_TOKEN 已注入"
   elif has_cmd gh && gh auth token >/dev/null 2>&1; then
@@ -399,6 +399,10 @@ if github_plugin_active; then
   else
     bad "GITHUB_PAT_TOKEN 未注入" '先运行 gh auth login；再执行: printf '\''\nexport GITHUB_PAT_TOKEN="$(gh auth token 2>/dev/null)"\n'\'' >> ~/.zshrc；然后重启 Codex'
   fi
+elif has_cmd gh && gh auth token >/dev/null 2>&1; then
+  ok "GitHub 能力（gh 已登录；API curated 当前未提供插件）"
+else
+  bad "GitHub 能力缺失" "先运行 gh auth login"
 fi
 check_plugin "superpowers@openai-api-curated" optional "codex plugin add superpowers@openai-api-curated"
 check_plugin "build-web-apps@openai-api-curated" required "codex plugin add build-web-apps@openai-api-curated"

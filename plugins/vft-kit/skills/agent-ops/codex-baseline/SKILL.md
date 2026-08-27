@@ -42,7 +42,7 @@ bash ${CODEX_PLUGIN_ROOT:-${VFT_PLUGIN_ROOT:-.}}/skills/agent-ops/codex-baseline
 | CLI | codex、node、npm、git、rtk、codegraph、code-review-graph | brew、jq、gh |
 | 权限与项目 | dangerous full access、隐藏警告、hooks、Memories、multi_agent、信任目录 | 关闭启动更新检查 |
 | MCP | Playwright、CodeGraph、code-review-graph、Lighthouse、OpenAI Developer Docs | Context7 |
-| 插件 | GitHub、Build Web Apps、Ponytail、Context Mode | Superpowers、Diagram Design |
+| 插件 | GitHub（插件或已登录 gh）、Build Web Apps、Ponytail、Context Mode | Superpowers、Diagram Design |
 | Agent Skills | Caveman + 默认 full、GSAP 8 项、Emil 3 项 | AnySearch、Grill-me、Understand Anything、PM Skills、Emil 其余 7 项 |
 | 系统 skills | openai-docs、imagegen、skill-creator、plugin-creator、skill-installer | - |
 | 图片生成 | imagegen 脚本、专用 venv、依赖、`codex-imagegen`、认证注入源 | - |
@@ -51,6 +51,8 @@ bash ${CODEX_PLUGIN_ROOT:-${VFT_PLUGIN_ROOT:-.}}/skills/agent-ops/codex-baseline
 Codex 原生 `features.memories = true` 已承担跨会话回忆，不叠加第三方记忆类 MCP。
 
 Claude 与 Codex 的插件清单相互独立。Claude 侧移除的插件不应自动映射到 Codex；Codex 仅按本文件的原生插件基线核对。当前 `diagram-design@diagram-design` 仍属于 Codex 已启用插件，不在本次 Claude 清理范围内。
+
+当前 API curated 未提供 GitHub 插件时，已登录的 `gh` CLI 视为 GitHub 能力已满足；插件可用时仍校验 `GITHUB_PAT_TOKEN` 注入。
 
 ## 可选安装
 
