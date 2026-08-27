@@ -15,7 +15,8 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/agent-ops/cc-baseline/scripts/run.sh
 
 需要验证 MCP 实际连接时：
 
-```bash
+```bashWfly123.
+
 bash ${CLAUDE_PLUGIN_ROOT}/skills/agent-ops/cc-baseline/scripts/run.sh --health
 ```
 
