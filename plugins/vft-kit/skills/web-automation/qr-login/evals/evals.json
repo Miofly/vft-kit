@@ -1,0 +1,64 @@
+{
+  "skill_name": "qr-login",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "帮我登录掘金，用微信扫码，整个过程放在 ego 独立空间，二维码推到手机。只输出将执行的方案和关键命令，不实际打开浏览器或发送通知。",
+      "expected_output": "使用稳定 task space，单轮刷新并点击掘金微信入口，保留原始 OAuth popup 并通过 CDP session 切换和抓取二维码，安全推送后等待手机扫码，最后双重验证登录态。",
+      "files": [],
+      "expectations": [
+        "使用 qr-login-juejin 稳定 task space，并先检查已有登录态",
+        "真实鼠标点击微信入口，通过点击前后 targetId 差集锁定并保留 OAuth popup，禁止 DOM click 或关闭后复制 OAuth URL",
+        "对内置掘金流程用一次浏览器脚本完成刷新、点击、popup 接管、切换视图和抓码",
+        "用 popup CDP 真实鼠标事件点击使用其他账号，并同时验证切换按钮消失、二维码真实可见；不输出 OAuth URL 或二维码内容",
+        "扫码后同时验证 OAuth 回调离开微信域名和掘金登录态"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "帮我登录知乎，别打扰我电脑使用；如果二维码过期就重试并重新推送。只输出将执行的方案和关键命令，不实际打开浏览器或发送通知。",
+      "expected_output": "使用知乎实测选择器进入微信 OAuth，而不是导出知乎 canvas；保留原始 popup 并抓取标准微信二维码，过期时从平台首页重新取得新 state 并推送，扫码后复核登录结果。",
+      "files": [],
+      "expectations": [
+        "使用 qr-login-zhihu 稳定 task space 和知乎微信社交按钮",
+        "不尝试导出知乎跨域 canvas，改从微信 OAuth 页抓真实可见的标准图片",
+        "二维码过期时沿原 task space 刷新平台首页并重新点击微信入口获取新 state，不能复用旧 OAuth URL",
+        "不主动激活桌面窗口，也不因手机扫码而 handoff 浏览器"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "帮我用微信登录博客园，把二维码推给我。只输出将执行的方案和关键命令，不实际打开浏览器或发送通知。",
+      "expected_output": "使用博客园实测入口打开站内微信服务号二维码，按元素区域截图并明确关注服务号效果，不误套 open.weixin OAuth 流程。",
+      "files": [],
+      "expectations": [
+        "使用 account.cnblogs.com/signin 和实测 WeChat 按钮",
+        "识别站内 app-wechat-mp-qr 图片而不是等待 open.weixin.qq.com/qrconnect",
+        "对跨域 mp.weixin.qq.com 图片使用 CDP 区域截图",
+        "推送前明确扫码会关注博客园服务号并登录"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "帮我用微信登录 V2EX。只输出将执行的方案，不实际打开浏览器。",
+      "expected_output": "依据当前实测矩阵明确 V2EX 只有 Google 和 Solana 登录，停止并报告不支持微信，不能猜入口或伪造二维码。",
+      "files": [],
+      "expectations": [
+        "明确 V2EX 当前不支持微信登录",
+        "不尝试拼接 open.weixin OAuth URL",
+        "不把其他平台或浏览器扩展产生的 target 误判为 V2EX"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "测试 CSDN 和开发者头条是否支持微信登录；如果环境阻塞就如实说明。只输出方案，不实际打开浏览器。",
+      "expected_output": "分别说明 CSDN 被现有 SSO 登录态阻挡、开发者头条被 Too many requests 限流，均不能下支持或不支持结论，也不退出用户账号规避阻塞。",
+      "files": [],
+      "expectations": [
+        "将 CSDN 与开发者头条标记为受阻而不是不支持",
+        "不为探测而退出用户现有 CSDN 账号",
+        "不在限流页面猜测登录路径或二维码 DOM"
+      ]
+    }
+  ]
+}
