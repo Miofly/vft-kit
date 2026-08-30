@@ -1,0 +1,3 @@
+interface:
+  display_name: "Ollama 本地模型"
+  short_description: "安装、测试和排查 Ollama 本地模型"
