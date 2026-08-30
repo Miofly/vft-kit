@@ -54,7 +54,7 @@ Use `GET ...?content=1` for downloads and compare byte count or SHA-256. Use `DE
 
 Create a terminal with `POST <base>api/terminals`, connect to `<base>terminals/websocket/<name>` using `wss`, send `['stdin', '<command>\r']`, and wait for a unique completion marker. The terminal echoes the command, so require the marker twice before treating it as completed. Delete the terminal with `DELETE <base>api/terminals/<name>` afterward.
 
-Run `scripts/gpu_probe.py` after transfer. Verify Python, GPU/CPU, CUDA, Paddle/PyTorch, network, working directory, and the completion marker. Keep durable files under `/home/aistudio`; `/home/aistudio/data` is mounted data and may reset.
+Run `scripts/gpu_probe.py` after transfer. Verify Python, GPU/CPU, CUDA, Paddle/PyTorch, network, working directory, and the completion marker. Keep small durable scripts and configs under `/home/aistudio`; `/home/aistudio/data` is mounted data and may reset. Never assume an environment switch preserved either location: probe every required file and import before starting paid work.
 
 ## Long-running Commands
 
@@ -67,6 +67,40 @@ Terminal websockets live in the page: a navigation or new heredoc round drops th
 Contents API GET may return `format: "text"` even when the upload used base64 — always decode with the returned `format`, or byte-equality upload verification false-fails.
 
 If `pageInfo()` reports a 0×0 viewport (coordinate clicks and screenshots die), fix with `cdp('Emulation.setDeviceMetricsOverride', {width: 1680, height: 1050, deviceScaleFactor: 1, mobile: false})`.
+
+## Paid GPU Cold Start
+
+Treat restore, dependency setup, service startup, and generation as separate phases with separate completion markers and timeouts. A single blanket timeout hides which paid phase failed.
+
+1. Use the free CPU runtime for source/config upload, dataset validation, import planning, and mirror probes. Do not populate `/home/aistudio` with an unpacked venv or model weights solely for a later switch; Home snapshots with many files or multiple GB can make the switch slower or fail.
+2. After the GPU runtime is ready, run one import probe for the exact stack. If it fails, install the complete pinned requirements once into an isolated target and rerun the probe. Avoid package-by-package retries from successive tracebacks.
+3. Restore only files used by the selected graph. Prefer repository APIs with `allow_patterns` (or exact file downloads) and validate size/hash; do not download a full snapshot when one dtype or preset is needed.
+4. Benchmark candidate mirrors with a small/ranged transfer before the large install, then keep one mirror for that run. Record timestamps for dependency install, model restore, service readiness, prompt submission, sampling, decode, and output verification.
+
+### Stage markers and cache contract
+
+Use one log and one completion marker per paid phase; never hide the whole cold start behind one timeout. The minimum phase names are `probe`, `deps`, `weights`, `service`, `generate`, and `verify`. Each phase must emit exactly one `PHASE=<name> START`, then either `PHASE=<name> DONE` or `PHASE=<name> FAIL rc=<n>` with an ISO-8601 timestamp. Write the `.ok` marker only after the phase's import/hash/readiness check succeeds; include the requirements or model-manifest SHA-256 in the marker name so stale markers cannot skip a changed stack.
+
+Keep `/home/aistudio` small: scripts, configs, manifests, short logs, and markers only. Put reusable wheels/archives and H3 weights in a private model repository; restore them into the mounted or ephemeral data path for the current run. Do not unpack a venv, pip cache, or model snapshot into Home before an environment switch. Before switching, inspect both file count and size and remove failed partial downloads; retain the manifest and logs so the next run can resume at the failed phase.
+
+For retries, read the last phase marker and log first. A successful `probe`, `deps`, or `weights` phase is not repeated unless its fingerprint changed. Clear only the failed phase marker, never the whole Home tree. A transport timeout has unknown outcome: query the remote file/task state before retrying, and verify size/hash before marking `weights` done.
+
+### H3/V100 benchmark gate
+
+For MiniMax-H3 on V100, use a cheap smoke run before paying for a final clip:
+
+1. Keep `768x448`, `24fps`, and the same LoRA/node graph as the final run. Run 5 seconds / 4 steps with `reserve-vram=6`, then repeat with `4` only if the first run completes.
+2. Record wall-clock time, peak allocated/reserved VRAM, OOM/offload warnings, and output validity. Keep the lowest value that completes twice; on OOM return to `6` or `8`.
+3. Submit the 10-second job only after the smoke gate passes. Use 4-step Turbo for iteration; test higher steps only after the prompt and graph are fixed. Keep ComfyUI and loaded weights warm for variants.
+
+The benchmark is valid only when dependencies, weights, and service are already marked `DONE`; otherwise it measures cold-start bandwidth, not GPU performance. Report phase timings separately (restore, service, sampling, decode, verification) so a slow mirror is not mistaken for a slow sampler.
+
+### Recovery rules for paid runs
+
+- `HTTP 492` or `数据未下载完，请稍后重试` immediately after boot normally means snapshot restore. Read the platform text, wait at least 10 minutes, and reload once before considering a restart; do not run a restart loop. Treat the `/my/project` card as the liveness source.
+- Runtime switching is a stop-state operation when `canswitchAll` returns `errorCode: 2`; stop the exact project, wait for `未运行`, then select the new tier.
+- If a service dies while a port is still occupied, terminate only the task-owned process and free its exact port before relaunching. Do not kill unrelated user processes.
+- If a Contents API upload returns `405`, fall back to terminal base64 transfer and verify the returned bytes/hash. Preserve the phase log and do not reinstall dependencies.
 
 ## BML Environment Gotchas
 
@@ -111,4 +145,3 @@ SDK upload gotcha (>5GB files): `hub.upload_file` routes <5GB through HTTP PUT b
 - If UI upload is required, the toolbar uses a native file chooser; do not assume a permanent `input[type=file]` exists.
 - Model detail pages may render a Git clone command containing the access token. Never log/snapshot the model-introduction panel; navigate directly to `模型空间`, and redact credential-shaped text from all browser output.
 - Do not publish a project, attach private datasets/models, start paid resources, or delete a user-owned project without explicit authorization. Test-created artifacts may be deleted after successful verification.
-

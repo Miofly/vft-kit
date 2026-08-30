@@ -28,36 +28,100 @@
     },
     {
       "id": 3,
-      "prompt": "帮我用微信登录博客园，把二维码推给我。只输出将执行的方案和关键命令，不实际打开浏览器或发送通知。",
-      "expected_output": "使用博客园实测入口打开站内微信服务号二维码，按元素区域截图并明确关注服务号效果，不误套 open.weixin OAuth 流程。",
+      "prompt": "帮我登录 CSDN，把微信登录页的小程序码推给我。只输出将执行的方案和关键命令，不实际打开浏览器或发送通知。",
+      "expected_output": "打开 CSDN 登录 iframe 的官方页面，选择微信登录，解码已加载的 JPEG data URI 小程序码，推送后按原首页登录控件和头像复核。",
       "files": [],
       "expectations": [
-        "使用 account.cnblogs.com/signin 和实测 WeChat 按钮",
-        "识别站内 app-wechat-mp-qr 图片而不是等待 open.weixin.qq.com/qrconnect",
-        "对跨域 mp.weixin.qq.com 图片使用 CDP 区域截图",
-        "推送前明确扫码会关注博客园服务号并登录"
+        "识别 CSDN 是 iframe 内微信小程序码而不是 open.weixin OAuth",
+        "以 img.complete、naturalWidth 和 JPEG data URI 三项判断二维码就绪",
+        "直接解码 .login-code-wechat .public-code img.currentSrc",
+        "明确扫码可能登录或注册 CSDN，并在原首页复核登录按钮消失和头像出现"
       ]
     },
     {
       "id": 4,
-      "prompt": "帮我用微信登录 V2EX。只输出将执行的方案，不实际打开浏览器。",
-      "expected_output": "依据当前实测矩阵明确 V2EX 只有 Google 和 Solana 登录，停止并报告不支持微信，不能猜入口或伪造二维码。",
+      "prompt": "帮我登录简书，用微信扫码；如果点击微信后 ego 没弹出新窗口，也要继续。只输出将执行的方案和关键命令，不实际打开浏览器或发送通知。",
+      "expected_output": "真实点击简书的微信登录入口；若 target=_blank 被 ego 抑制且没有新 target，则读取并打开入口自身的官方 href，让该平台地址完成真实 OAuth 跳转并保留原始 state，再抓取微信二维码。",
       "files": [],
       "expectations": [
-        "明确 V2EX 当前不支持微信登录",
-        "不尝试拼接 open.weixin OAuth URL",
-        "不把其他平台或浏览器扩展产生的 target 误判为 V2EX"
+        "识别简书微信入口是 target=_blank，并先用真实鼠标点击和 targetId 差集观察结果",
+        "ego 抑制新窗口时打开元素自身的官方 href，禁止猜测、拼接或复用 OAuth URL",
+        "保留由官方 href 实际跳转得到的微信 OAuth target 和当前 state，不关闭后复制 URL 重开",
+        "扫码后同时验证微信 OAuth 已完成和简书登录态"
       ]
     },
     {
       "id": 5,
-      "prompt": "测试 CSDN 和开发者头条是否支持微信登录；如果环境阻塞就如实说明。只输出方案，不实际打开浏览器。",
-      "expected_output": "分别说明 CSDN 被现有 SSO 登录态阻挡、开发者头条被 Too many requests 限流，均不能下支持或不支持结论，也不退出用户账号规避阻塞。",
+      "prompt": "帮我登录今日头条，用微信扫码；页面一打开已经有二维码。只输出将执行的方案和关键命令，不实际打开浏览器或发送通知。",
+      "expected_output": "先勾选并校验今日头条登录协议，再明确区分默认展示的头条 App 二维码与微信登录入口；不得把默认 App 码当微信码，切换到微信分支后才抓取和推送。",
       "files": [],
       "expectations": [
-        "将 CSDN 与开发者头条标记为受阻而不是不支持",
-        "不为探测而退出用户现有 CSDN 账号",
-        "不在限流页面猜测登录路径或二维码 DOM"
+        "真实点击 span.web-login-confirm-info__checkbox[role=checkbox]，并在点击微信入口前严格确认 aria-checked === true；不得用 input.checked、类名或点击结果推断",
+        "识别初始二维码是今日头条 App 扫码，不得作为微信登录二维码发送",
+        "使用真实鼠标进入微信登录分支，再按实际同 tab、popup 或站内二维码形态处理",
+        "推送前说明二维码的具体扫码用途，扫码后回到今日头条验证登录态"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "分别说明博客园和 51CTO 怎么用微信二维码登录；博客园扫码会做什么也要说清楚。只输出将执行的方案和关键命令，不实际打开浏览器或发送通知。",
+      "expected_output": "将博客园和 51CTO 路由到站内公众号二维码分支，不等待 open.weixin OAuth popup；直接抓取站内可见二维码，并明确博客园扫码会关注服务号，51CTO 使用站内微信登录码。",
+      "files": [],
+      "expectations": [
+        "博客园和 51CTO 都按站内公众号二维码处理，不错误等待 open.weixin.qq.com target",
+        "博客园推送前明确告知扫码会关注博客园服务号，不能只笼统描述为微信登录",
+        "51CTO 从官方登录页的微信登录 tab 抓取可见 img.qr-img，接受 mp.weixin.qq.com/cgi-bin/showqrcode 图片",
+        "分别在原平台验证登录结果，不能把二维码加载成功当成登录成功"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "帮我登录 SegmentFault，用微信扫码，把二维码推给我。只输出将执行的方案和关键命令，不实际打开浏览器或发送通知。",
+      "expected_output": "进入 SegmentFault 微信登录模式，附着跨域 OAuth iframe；若快捷登录切换按钮被 160px iframe 裁掉，临时扩高父容器后真实点击，严格验证二维码可见并按 iframe 区域抓图；扫码后分开完成登录页导航和稳定页登录态检查。",
+      "files": [],
+      "expectations": [
+        "使用 segmentfault.com/user/login 和 button.login-mode[data-mode=weixin]",
+        "识别 #weixinQrCode iframe 是 type=iframe 的 open.weixin OAuth target，不错误等待 page popup",
+        "处理 iframe 高度裁掉快捷登录切换按钮的问题，并使用真实根页面坐标点击",
+        "排除隐藏同名节点和过期模糊码，只推送真实可见且未过期的二维码",
+        "iframe 内 fetch 被跨域拒绝时截取父页 iframe 顶部 160×160；验证时把登录页导航和稳定 DOM 检查拆成两个 heredoc"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "我已经用这个 skill 在 ego 里登录掘金了，文章发布助手扩展是不是可以直接同步 Cookie 并发布？只说明边界，不实际打开浏览器或同步 Cookie。",
+      "expected_output": "明确 ego task space 与 Chrome 扩展用户目录是两套独立登录态；除非已验证使用同一浏览器用户目录，否则不得宣称扩展可直接复用。需要在扩展所在 Chrome 用户目录完成官方登录，再由扩展同步 Cookie；两者只复用平台入口和成功判定知识。",
+      "files": [],
+      "expectations": [
+        "明确 ego task space 的 Cookie 不会自动写入 Chrome 扩展所在用户目录",
+        "不得因 ego 登录成功就宣称文章发布助手已具备登录态",
+        "要求在扩展所在 Chrome 用户目录完成官方登录并由扩展同步 Cookie",
+        "禁止在两套运行时之间复制 OAuth URL、二维码、Cookie 或账号密码"
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "帮我登录小红书，把微信/小红书扫码二维码推给我。只输出将执行的方案和关键命令，不实际打开浏览器或发送通知。",
+      "expected_output": "打开小红书 explore，检查已有登录态后真实点击登录入口，在站内登录弹窗抓取可见二维码并推送；不等待 open.weixin.qq.com popup，扫码后复核小红书首页登录态。",
+      "files": [],
+      "expectations": [
+        "使用 https://www.xiaohongshu.com/explore，并复用 qr-login-xiaohongshu 稳定 task space",
+        "通过可见 button#login-btn（或 .side-bar-component.login-btn）真实鼠标打开 .login-modal.reds-modal-open，不使用 DOM click",
+        "识别小红书二维码是站内 img.qrcode-img（祖先 .qrcode.force-light，约 128x128 的 PNG data URI），不错误等待 open.weixin.qq.com popup 或 iframe",
+        "仅在二维码元素可见、完成加载且二维码状态为 un_scanned 时推送；二维码过期/invalid 时重新从小红书登录页创建新码，不能复用旧码",
+        "扫码后刷新首页，同时确认登录弹窗消失、button#login-btn 隐藏、loggedIn/userInfo 成立且 li.user.side-bar-component 的“我”入口出现；刷新后的 qrData.status 可能重置，不能用它推翻页面登录态"
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "帮我登录少数派（sspai.com），把可用的登录二维码推给我。只输出将执行的方案和关键命令，不实际打开浏览器或发送通知。",
+      "expected_output": "在 ego 独立 task space 打开少数派写作页，先检查已有登录态；按页面实际登录入口和二维码形态完成真实点击、抓码与推送，扫码后复核少数派登录态。",
+      "files": [],
+      "expectations": [
+        "使用 qr-login-sspai 稳定 task space，并从 https://sspai.com/write 开始检查登录态",
+        "仅使用实测可见登录入口和二维码节点；不猜测选择器、OAuth URL 或二维码来源",
+        "二维码推送前确认元素已加载且可见，并说明扫码后的实际登录效果；不输出二维码内容或敏感地址",
+        "扫码后回到少数派 /write 页面，确认登录入口消失、可见账号信息出现且创建文章编辑器可访问，不能仅凭二维码消失宣称成功"
       ]
     }
   ]

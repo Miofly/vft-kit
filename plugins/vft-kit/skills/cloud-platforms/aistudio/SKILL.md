@@ -1,6 +1,6 @@
 ---
 name: aistudio
-description: Operate Baidu AI Studio through its official SDK and optional ego-lite (skill name ego-browser) when available. Use for model, dataset, or app repositories; uploads, downloads, and file checks; web login; daily points; project Fork/run; courses and contests; Notebook creation, workspace transfer, execution, start/stop; GPU sessions; or AI Studio account workflows.
+description: Operate Baidu AI Studio through its official SDK and optional ego-lite (skill name ego-browser) when available. Use for model, dataset, or app repositories; uploads, downloads, and file checks; web login; daily points; project Fork/run; courses and contests; Notebook creation, workspace transfer, execution, start/stop; model-pipeline, script, or Notebook background tasks; GPU sessions; or AI Studio account workflows.
 ---
 
 # Baidu AI Studio
@@ -12,6 +12,7 @@ Use the official SDK for repository operations. For website-only workflows, sile
 - Model/app creation and model/dataset upload, download, or file check: use `scripts/aistudio.py`.
 - App code upload: use the current web/Git workflow; SDK 0.3.9 transfers support only `model` and `dataset`.
 - Login, projects, Fork, courses, contests, points, Notebook, or GPU: load `ego-browser` when available, otherwise use the current browser capability. Read `references/notebook.md` completely for Notebook work.
+- Model-pipeline jobs, script-task projects, or Notebook background tasks: read `references/tasks.md` completely. Use the official CLI for model-pipeline jobs and the authenticated website session for the two project-bound task types. Also read `references/notebook.md` when the task starts from a Notebook project.
 
 Official references:
 
@@ -21,6 +22,10 @@ Official references:
 - Model upload: <https://ai.baidu.com/ai-doc/AISTUDIO/lmc4vuarp>
 - Model download: <https://ai.baidu.com/ai-doc/AISTUDIO/zlisofwng>
 - Notebook projects: <https://ai.baidu.com/ai-doc/AISTUDIO/Dk3e2vxg9>
+- BML Codelab and Notebook background tasks: <https://ai.baidu.com/ai-doc/AISTUDIO/Gktuwqf1x#%E4%BB%BB%E5%8A%A1>
+- Script tasks: <https://ai.baidu.com/ai-doc/AISTUDIO/Ik3e3g4lt>
+- Model-pipeline jobs through AI Studio CLI: <https://ai.baidu.com/ai-doc/AISTUDIO/lluckgp2n>
+- Compute cards: <https://ai.baidu.com/ai-doc/AISTUDIO/nk39v9kec>
 - Points rules: <https://ai.baidu.com/ai-doc/AISTUDIO/jk4mcntxf>
 
 ## SDK operations
@@ -77,9 +82,15 @@ There may be no points ledger. Verify each action by its success toast/task stat
 
 ## Notebook and GPU
 
-Read `references/notebook.md` completely and use the browser login session. Before starting a runtime, inspect hardware, price/points, quota, and balance. A `免费资源` GPU still consumes points; paid resources require explicit confirmation of the displayed cost.
+Read `references/notebook.md` completely and use the browser login session. Before starting a runtime, inspect hardware, price/points, quota, and balance. A `免费资源` GPU still consumes points; paid resources require explicit confirmation of the displayed cost. For paid GPU work, follow the reference's phase markers and H3/V100 smoke gate; do not submit a full generation while dependency or weight restore is unverified.
 
 Create/open the requested Notebook, transfer through the authenticated Jupyter Contents API, execute through a disposable Jupyter terminal, and run `scripts/gpu_probe.py`. Stop the runtime after the task unless the user explicitly asks to keep it running. Verify the project reaches `未运行`; closing the browser does not stop billing.
+
+## Script and background tasks
+
+Read `references/tasks.md` completely. Model-pipeline jobs, script-task projects, and Notebook background tasks are different products. Do not substitute one for another without explaining the change.
+
+All task types consume paid balance or compute points once running. Inspect the live environment, rate, balance, payment method, and task configuration immediately before submission, then require explicit confirmation of the displayed cost. Documentation examples dated 2024 are not current pricing proof. After submission, record the pipeline/task ID, verify the resulting state, monitor logs to a terminal state when the user asked for completion, retrieve and verify outputs, and terminate unexpected work. Deletion remains destructive and requires explicit authorization.
 
 ## Safety
 

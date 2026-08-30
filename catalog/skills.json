@@ -10,6 +10,7 @@
         "cc-baseline",
         "cc-switch-add-provider",
         "codex-baseline",
+        "ollama-local",
         "plugin-refresh"
       ]
     },
@@ -58,6 +59,7 @@
       "skills": [
         "chrome-web-store-publish",
         "keyboard-maestro",
+        "qr-login",
         "web-scrape",
         "wechat-mp"
       ]
