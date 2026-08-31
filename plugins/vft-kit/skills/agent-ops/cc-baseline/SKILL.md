@@ -15,12 +15,12 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/agent-ops/cc-baseline/scripts/run.sh
 
 需要验证 MCP 实际连接时：
 
-```bashWfly123.
+```bash
 
 bash ${CLAUDE_PLUGIN_ROOT}/skills/agent-ops/cc-baseline/scripts/run.sh --health
 ```
 
-`run.sh` 先在 RTK 缺失时通过 Homebrew 直接安装，再幂等安装或更新并启用 Caveman 插件，把 `~/.config/caveman/config.json.defaultMode` 固定为 `full`，最后调用只读的 `check.sh`。退出码为 0 表示必需项齐全，为 1 表示存在必需项缺失；可选项不影响退出码。
+`run.sh` 先保证 RTK 可用（缺失时 Homebrew 安装）并把 RTK 的 `PreToolUse` Bash hook 幂等补进 `~/.claude/settings.json`（`rtk hook claude`，装了才会自动压缩 Bash 输出），再幂等安装或更新并启用 Caveman 插件，把 `~/.config/caveman/config.json.defaultMode` 固定为 `full`，最后调用只读的 `check.sh`。退出码为 0 表示必需项齐全，为 1 表示存在必需项缺失；可选项不影响退出码。
 
 启动 skill 后立即新建一个子 Agent，与主线程的 baseline 检查并行。子 Agent 只读比较 `claude --version` 与 `npm view @anthropic-ai/claude-code version --registry=https://registry.npmjs.org`，按 SemVer 数字段（禁止字符串排序）判断 Claude Code CLI 是否有新版本；**不核对插件版本**（用户明确不需要，也不提示）。主线程完成检查后收集其结果：CLI 有新版本时列出“Claude Code｜当前版本｜最新版本”，询问用户是否更新；无新版本时只报告已是最新。本地或上游命令失败、输出为空、版本无法解析时必须报告“无法判断”，不得当作已是最新。子 Agent 不可用时由主线程完成同一只读检查，不阻塞 baseline。
 
@@ -28,7 +28,7 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/agent-ops/cc-baseline/scripts/run.sh --health
 
 - 用“项 | 作用”表格回报缺失必需项；**未安装的可选项也必须一并列出**（项 | 作用 | 适合场景），让用户知道还有哪些可装，装不装由用户选。不向用户倾倒脚本中的长修复命令。
 - 用户确认补齐后，执行对应检查行给出的命令并重跑检查。
-- RTK、Ponytail 和 Caveman 默认 full 缺失已获长期授权，可直接补齐；其他项目先回报。
+- RTK（含其 PreToolUse hook）、Ponytail 和 Caveman 默认 full 缺失已获长期授权，可直接补齐；其他项目先回报。
 - MCP、插件或全局规范变更后提醒用户新开 Claude Code 会话。
 
 ## 基线
@@ -42,7 +42,7 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/agent-ops/cc-baseline/scripts/run.sh --health
 | MCP | codegraph、code-review-graph、lighthouse-mcp                                                                                                  | - |
 | 插件 | superpowers、skill-creator、code-review、frontend-design、playwright、typescript-lsp、jdtls-lsp、context-mode、ponytail、caveman、gsap-skills | claude-hud、context7、grill-me、understand-anything、diagram-design、pm-skills |
 | Agent Skills | Emil 的 animate、review-animations、apple-design                                                                                               | AnySearch、Emil 其余 7 项 |
-| 系统 | bypassPermissions、bypass 警告已接受、`~` 目录已信任、CodeGraph 白名单、关闭自动更新、Codex 自动注入 `OPENAI_API_KEY`、全局 CLAUDE.md、项目 memory 目录 | claude-hud 状态栏、CC Switch |
+| 系统 | RTK hook（PreToolUse Bash 自动压缩）、bypassPermissions、bypass 警告已接受、`~` 目录已信任、CodeGraph 白名单、关闭自动更新、Codex 自动注入 `OPENAI_API_KEY`、全局 CLAUDE.md、项目 memory 目录 | claude-hud 状态栏、CC Switch |
 | 全局规范 | 中文回复、可点短链、压缩取舍、代理兜底、多 Agent 并行、CodeGraph 自动初始化、Code Review Graph 优先                                                                                         | context7 / AnySearch / context-mode 已安装时才检查对应调用规则（各 1 项） |
 
 Claude Code 2.1.59 起默认提供 auto memory，项目记忆位于 `~/.claude/projects/<project>/memory/`。不要再叠加第三方记忆插件或记忆类 MCP；只有用户明确需要外部向量检索服务时才单独评估。
@@ -90,7 +90,7 @@ cd ${CLAUDE_PLUGIN_ROOT}/skills/agent-ops/cc-baseline/scripts
 for t in test-*.sh; do bash "$t" >/dev/null 2>&1 && echo "✓ $t" || echo "✗ $t"; done
 ```
 
-覆盖：`run.sh` 的安装顺序 / 参数转发 / 退出码传播、RTK 安装、Caveman 默认 full、codegraph 与 code-review-graph 与 Emil skills 的基线判定、RTK 旧策略已移除。
+覆盖：`run.sh` 的安装顺序 / 参数转发 / 退出码传播、RTK 二进制与 hook 的幂等安装、Caveman 默认 full、codegraph 与 code-review-graph 与 Emil skills 的基线判定、RTK hook 缺失判为必需项。
 
 > 测试靠环境变量注入 mock（`RTK_SCRIPT` / `CAVEMAN_SCRIPT` / `CHECK_SCRIPT`），所以 `run.sh` 里这三个路径变量**必须保持 `${VAR:-默认值}` 形式**；写成硬编码会让 mock 注入失效、测试报出误导性的「exit code not propagated」。
 

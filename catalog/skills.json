@@ -4,12 +4,13 @@
     {
       "id": "agent-ops",
       "name": "Agent 运维",
-      "description": "Claude Code、Codex、CC Switch 与插件缓存的安装、检查和维护。",
+      "description": "Claude Code、Codex、CC Switch、插件缓存与通用通知的安装、检查和维护。",
       "skills": [
         "cc-backup-restore",
         "cc-baseline",
         "cc-switch-add-provider",
         "codex-baseline",
+        "notify",
         "ollama-local",
         "plugin-refresh"
       ]

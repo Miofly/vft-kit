@@ -115,6 +115,46 @@ cliLog((await pageInfo()).url)   // URL 出现 appmsgid=<数字> 即保存成功
 
 **发表（`发表` 按钮）要谨慎**：它是不可逆的对外动作，且未认证账号每天只有有限次群发。**除非用户明确说「发布/群发/直接发出去」，一律停在草稿**，把草稿链接给用户让他自己点发表。
 
+## 封面：别跟悬停菜单较劲
+
+封面区 `.js_cover_btn_area` 的选项菜单（`从图片库选择` / `微信扫码上传` / `AI配图` / `.js_selectCoverFromContent`）默认是 `visibility: hidden`，靠 hover 显形。**用 `offsetParent` 判可见会误判**——这些节点 `offsetParent` 非空、`getBoundingClientRect()` 有尺寸，但 `document.elementFromPoint()` 命中的是它们背后的元素，点击全部落空。判可见必须同时看 `getComputedStyle(el).visibility`。
+
+更省事的办法是**不碰封面控件**：往正文顶部粘一张图，编辑器会自动把 data URI 上传成 `mmbiz.qpic.cn` 素材，保存草稿后微信会把正文首图取作封面（草稿数据里 `cover` / `img_url` 非空即成功）。
+
+```js
+const dt = new DataTransfer()
+dt.setData('text/html', '<img src="data:image/jpeg;base64,...' + '" width="900">')
+body.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }))
+```
+
+一次 paste 常会插入**两张**相同图片，粘完数一下 `img[width>10]`，多的选中后按 Backspace 删掉。
+
+## 视口高度会吃掉点击
+
+ego/CDP 默认视口可能只有 700 多像素高，而编辑器的「保存为草稿」「发表」和弹窗按钮经常在 y > 750 的位置——真实鼠标点击直接落到屏幕外，静默失败。动手前先 `Emulation.setDeviceMetricsOverride({ width: 1512, height: 1100, deviceScaleFactor: 1, mobile: false })`，或每次点击前用 `document.elementFromPoint(cx, cy)` 确认命中目标本身。
+
+## 从草稿箱走发表流程
+
+草稿卡片上的「发表」按钮是 `<a href="javascript:;">`，处理函数走 `window.open`，**会被弹窗拦截**：真实鼠标点击和 DOM `.click()` 都表现为完全没反应——不跳转、不弹窗、不开新标签。无头/自动化环境尤其容易踩，且没有任何报错。
+
+绕过办法是在当前标签直接打开它要开的编辑器发表态 URL：
+
+```
+/cgi-bin/appmsg?t=media/appmsg_edit&action=edit&type=77&appmsgid=<app_id>&isMul=1&replaceScene=0&isSend=1&isFreePublish=0&token=<tk>&lang=zh_CN
+```
+
+`<app_id>` 从草稿列表取：草稿页的 `window.wx.cgiData` 键是 **`item`**（不是 `app_msg_list`），`item[].app_id` 是 appmsgid，`item[].multi_item[].title` 是各子图文标题。
+
+进去后按钮链是：`button.mass_send`（发表）→ 弹窗内 primary「发表」→ 二次弹窗「继续发表」。第一个弹窗会显示**今天还有几次群发通知次数**，这是决定开不开群发通知的唯一权威来源。
+
+### 最终发表要管理员扫码验证
+
+点完「继续发表」后请求链：`/cgi-bin/masssend` → `/misc/safeassistant`（拿 ticket）→ `/safe/safeqrconnect`（拿 uuid）→ 轮询 `/safe/safeuuid`。`errcode: 401` = 等待扫码。
+
+二维码是 `img.qrcode.js_qrcode`（300×300），外层容器 `.safe_check` / `.qrcode_scan`，**不在 `.weui-desktop-dialog` 内**——只查 dialog 会完全漏掉它，然后无人扫码、二维码超时、文章静默地没发出去。
+
+**成功判据只有一个**：发表记录 `/cgi-bin/appmsgpublish?sub=list` 的 `window.wx.cgiData.publish_list[].appmsg_info[]` 里按完整标题精确命中，并拿到 `content_url`。二维码消失、弹窗关闭、页面跳回 `/cgi-bin/home` 都不能算成功。
+
 ## 判断某个接口能不能调（别靠记忆）
 
 开发者平台「接口管理 → 接口权限与额度」按分类列出每个接口的**有权限 / 无权限 + 每日额度 + 当日已用**，是唯一权威来源。个人主体未认证账号的典型结论：基础接口（access_token 等）有权限，**发布能力（发布草稿、发布状态查询、获取已发布列表…）全部无权限**，提示「完成账号主体认证后，可获得权限」。
@@ -130,6 +170,8 @@ cliLog((await pageInfo()).url)   // URL 出现 appmsgid=<数字> 即保存成功
 | AppSecret 忘了 | 明文只在重置那一刻显示一次 | 只能重置，**重置后旧 secret 立即失效**，线上服务会挂，先确认能同步更新配置再点 |
 | 编辑器里粘出来两三份内容 | 在旧页面上重复 paste | 重开 `isNew=1` 的编辑器页，别试图清空 |
 | 拿不到 `.ProseMirror` | 编辑器还没初始化完 | `await wait(7)` 之后再取，必要时轮询直到出现两个 PM 节点 |
+| 点「发表」完全没反应 | 按钮走 `window.open`，被弹窗拦截 | 直接在当前标签打开 `isSend=1` 的编辑器 URL，见上文「从草稿箱走发表流程」 |
+| 点完「继续发表」文章却没发出去 | 漏了 `/safe/safeqrconnect` 的管理员验证二维码 | 找 `img.qrcode.js_qrcode`（不在 dialog 里），扫码后再查发表记录确认 |
 
 ## 参考文件
 
