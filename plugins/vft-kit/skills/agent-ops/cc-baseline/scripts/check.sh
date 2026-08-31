@@ -122,6 +122,12 @@ dir_trusted(){
   [ -f "$CLAUDE_JSON" ] || return 1
   node -e "const j=require('$CLAUDE_JSON');const p=(j.projects||{})[process.argv[1]];process.exit(p&&p.hasTrustDialogAccepted===true?0:1)" "$1" 2>/dev/null
 }
+# settings.json 的 PreToolUse 是否装了 RTK 的 Bash 改写 hook（rtk hook claude）
+# 没这条 hook，rtk 只是躺在 PATH 里没人调的二进制，Bash 输出照旧全量进上下文。
+rtk_hook_installed(){
+  [ -f "$SETTINGS" ] || return 1
+  node -e 'const s=require(process.argv[1]);const h=(s.hooks||{}).PreToolUse||[];process.exit(JSON.stringify(h).includes("rtk hook")?0:1)' "$SETTINGS" 2>/dev/null
+}
 # ~/.claude.json 顶层某布尔字段是否为 true
 claudejson_true(){
   [ -f "$CLAUDE_JSON" ] || return 1
@@ -343,6 +349,7 @@ else
 fi
 dir_trusted "$HOME"                && ok "~ 目录已信任（免文件夹信任弹窗）"    || bad "~ 目录信任" "jq '.projects[\"$HOME\"].hasTrustDialogAccepted=true' ~/.claude.json"
 perm_allows "codegraph"            && ok "codegraph 只读工具白名单（permissions.allow）" || bad "codegraph 白名单" '把 "mcp__codegraph__*" 加进 ~/.claude/settings.json 的 permissions.allow'
+rtk_hook_installed                 && ok "RTK hook（Bash 输出自动压缩）"                  || bad "RTK hook" "bash \"$SCRIPT_DIR/install-rtk.sh\""
 env_is "DISABLE_AUTOUPDATER" "1"   && ok "自动更新已关闭（env.DISABLE_AUTOUPDATER）"    || bad "关闭自动更新" "jq '.env.DISABLE_AUTOUPDATER=\"1\"' ~/.claude/settings.json > /tmp/s.json && mv /tmp/s.json ~/.claude/settings.json"
 if codex_auth_has_key; then
   codex_key_injector_installed       && ok "Codex 启动自动注入 OPENAI_API_KEY"            || bad "Codex API key 启动注入" "bash \"$SCRIPT_DIR/install-codex-key-injector.sh\""

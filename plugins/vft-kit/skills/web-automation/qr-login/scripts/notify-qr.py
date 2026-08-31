@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import html
+import importlib.util
 import json
 import os
 import subprocess
@@ -25,7 +26,6 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
-from email.header import Header
 from pathlib import Path
 
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
@@ -53,13 +53,18 @@ def validate_https_endpoint(url: str, label: str) -> str:
     return url
 
 
+def load_ntfy_module():
+    script = Path(__file__).resolve().parents[3] / "agent-ops/notify/scripts/send_ntfy.py"
+    spec = importlib.util.spec_from_file_location("vft_kit_send_ntfy", script)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"找不到公共 ntfy 脚本: {script}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def load_ntfy_config_from_env() -> dict:
-    return {
-        "base_url": os.environ.get("NTFY_BASE_URL", ""),
-        "topic": os.environ.get("NTFY_TOPIC", ""),
-        "token": os.environ.get("NTFY_TOKEN", ""),
-        "allow_short_topic": os.environ.get("NTFY_ALLOW_SHORT_TOPIC", "") == "true",
-    }
+    return load_ntfy_module().load_config_from_env()
 
 
 def validate_image_url(image_url: str, provider: str) -> str:
@@ -194,54 +199,8 @@ def build_notification(action: str, subject: str, message: str | None, title_pre
 
 
 def send_ntfy_notification(config: dict, title: str, message: str, image_file: Path) -> None:
-    base_url = config.get("base_url")
-    topic = config.get("topic")
-    token = config.get("token", "")
-    if not all(isinstance(value, str) for value in (base_url, topic, token)) or not base_url or not topic:
-        raise RuntimeError("ntfy 配置缺少 base_url 或 topic")
-    if len(topic) < 32 and config.get("allow_short_topic") is not True:
-        raise RuntimeError("ntfy 必须使用至少 32 字符的随机 topic")
-    content_type = validate_image_file(image_file)
-
-    parsed = urllib.parse.urlparse(base_url)
-    if (
-        parsed.scheme != "https"
-        or not parsed.netloc
-        or parsed.username
-        or parsed.password
-        or parsed.path not in ("", "/")
-        or parsed.params
-        or parsed.query
-        or parsed.fragment
-    ):
-        raise RuntimeError("ntfy base_url 必须是无路径和内嵌凭据的 HTTPS 根地址")
-
-    headers = {
-        "Content-Type": content_type,
-        "Filename": "qr.png" if content_type == "image/png" else "qr.jpg",
-        "Title": Header(title, "utf-8").encode(),
-        "Message": Header(message, "utf-8").encode(),
-        "Priority": "4",
-    }
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-    request = urllib.request.Request(
-        base_url.rstrip("/") + "/" + urllib.parse.quote(topic, safe=""),
-        data=image_file.read_bytes(),
-        headers=headers,
-        method="PUT",
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=30) as response:
-            status = response.status
-    except urllib.error.HTTPError as exc:
-        raise RuntimeError(f"ntfy 请求失败 (HTTP {exc.code})") from exc
-    except urllib.error.URLError as exc:
-        raise RuntimeError("ntfy 请求失败") from exc
-    except TimeoutError as exc:
-        raise RuntimeError("ntfy 请求超时") from exc
-    if status != 200:
-        raise RuntimeError(f"ntfy 请求失败 (HTTP {status})")
+    validate_image_file(image_file)
+    load_ntfy_module().send_notification(config, title, message, image_file, priority=4)
 
 
 def main() -> int:

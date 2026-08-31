@@ -1,6 +1,6 @@
 ---
 name: qr-login
-description: 用 ego-lite 在隔离空间完成掘金、知乎、简书、今日头条、博客园、51CTO、CSDN、SegmentFault、小红书、少数派的扫码登录，并把二维码经 PushPlus/ntfy 推送给用户。支持标准微信 OAuth、嵌入式 OAuth iframe、公众号二维码、CSDN 微信小程序码、小红书主站/创作平台站内二维码与少数派微信 OAuth。用户要求登录这些平台、小红书登录、小红书创作平台登录、小红书扫码登录、微信扫码登录或推送登录二维码时使用。
+description: 用 ego-lite 在隔离空间完成掘金、知乎、简书、今日头条、博客园、51CTO、CSDN、SegmentFault、小红书、少数派的扫码登录，并把二维码经 PushPlus/ntfy 推送给用户。支持标准微信 OAuth、嵌入式 OAuth iframe、公众号二维码、CSDN 微信小程序码、小红书主站/创作平台站内二维码与少数派微信 OAuth。用户要求登录这些平台、微信扫码登录或推送登录二维码时使用。
 ---
 
 # 第三方平台扫码登录
@@ -170,4 +170,4 @@ const task = await useOrCreateTaskSpace('qr-login-<平台>')
 
 `--title-prefix 公众号` 可复用公众号流程的标题格式。调用方负责从自己的凭据存储导出这些 env；公共脚本不读取仓库内的凭据文件。
 
-macOS 可用 [ntfy-macos](https://github.com/laurentftech/ntfy-macos) 订阅相同的 `NTFY_BASE_URL` / `NTFY_TOPIC`，把这条附加提醒显示到系统通知中心。它只是接收客户端，不改变本脚本“PushPlus 成功后才发送 ntfy、ntfy 失败不阻塞”的发送语义；客户端安装、私有 topic 与 token 配置由调用方负责。
+ntfy 的通用发送、macOS 接收端、自启和订阅看门狗由 `vft-kit:notify` 维护；本 skill 只保留“PushPlus 成功后发送二维码附件、ntfy 失败不阻塞”的扫码业务语义。
