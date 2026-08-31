@@ -14,7 +14,9 @@ description: 配置、检查、诊断和使用 MasterGo 官方 Vibe MCP 与 Magi
 
 ## 执行入口
 
-先定位脚本：
+### 第 0 步：status，缺就装（不可跳过）
+
+任何 MasterGo 任务——包括只读画布、导切图、走浏览器回退——的**第一条命令**都是 `status`，不是打开浏览器：
 
 ```bash
 SKILL_DIR="${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/design-content/mastergo-mcp"
@@ -22,6 +24,14 @@ node "$SKILL_DIR/scripts/mastergo-mcp.mjs" status
 ```
 
 如果宿主根变量不可用，从当前 `SKILL.md` 所在目录解析 `SKILL_DIR`，不要猜缓存路径。
+
+读当前宿主那两行（`claude` 或 `codex`）：
+
+- 任一行是 `missing` → **默认直接装，不要问、不要绕过**。用户请求执行实际设计任务即视为安装授权（见下节「配置」）。Magic 和 Vibe 两套都要补齐，不能只装当前任务直接用到的那套。
+- Magic 缺 Token 时仍先把 Vibe 装上，再请用户从安全来源提供 `MG_MCP_TOKEN`。
+- 装完提醒用户：MCP 在**新开会话**才注册，当前会话仍然用不上，本轮按浏览器回退路径继续。
+
+有浏览器回退脚本**不是**跳过这步的理由：回退只解决 MCP 覆盖不到的部分（拿 layerId、导位图切图），不替代 DSL / 文本 / 变量 / 组件那些只有 MCP 能给的读取能力。直接开浏览器等于把宿主长期留在没装的状态，下次还得重来。
 
 ### 检查和诊断
 
@@ -51,6 +61,8 @@ MG_MCP_TOKEN='从安全来源注入' node "$SKILL_DIR/scripts/mastergo-mcp.mjs" 
 - Vibe 使用 `@mastergo/vibe-mcp@latest`；端口变化时传 `--url http://localhost:<实际端口>`。
 - Magic 使用 `@mastergo/magic-mcp@latest`；公网默认 API 是 `https://mastergo.com`，私有部署必须由用户或现有配置给出 `--url`。
 - Magic Token 只能从环境变量读取。不要让用户把 Token 发到聊天，不接受 `--token`，不输出明文，不写仓库。
+- **Token 必须和域匹配。** 内网 token 打公网 `mastergo.com` 返回 `401 {"code":"10002"}`，反之亦然。一套 token 只能读它自己那个实例的稿。
+- **需要出网代理的机器要把代理写进 MCP 配置。** MCP server 是 `npx` 拉起的独立进程，**不继承 shell 的 `https_proxy`**；缺了就报 `Client network socket disconnected before secure TLS connection was established` 或 `ECONNRESET`，看起来像 Token 或权限问题。在宿主配置的 `env` 里补 `HTTPS_PROXY` / `https_proxy` / `NO_PROXY=localhost,127.0.0.1`，**新开会话才生效**。
 - 上述安装授权允许宿主原生命令写用户级 MCP 配置；写入后脚本收紧已存在的宿主配置权限。
 - 等价配置幂等退出；冲突默认停止并报告脱敏差异。只有用户明确要求覆盖或已接受该影响时使用 `--force`。
 - 不提供删除命令。确需卸载时，先确认精确宿主和 server 名，再用宿主原生命令。

@@ -115,6 +115,21 @@ cliLog((await pageInfo()).url)   // URL 出现 appmsgid=<数字> 即保存成功
 
 **发表（`发表` 按钮）要谨慎**：它是不可逆的对外动作，且未认证账号每天只有有限次群发。**除非用户明确说「发布/群发/直接发出去」，一律停在草稿**，把草稿链接给用户让他自己点发表。
 
+## 封面是发表的硬前置
+
+没有封面时点「发表」**不会弹确认框**，微信只在页面上挂一条内联 tips：`必须插入一张图片`。自动化里表现为"点了发表什么都没发生"，很容易误判成点击失败或弹窗识别有问题。发表前先确认封面已设。
+
+**读封面状态不能数 `<img>`** —— 编辑器用 CSS 背景图显示封面，节点是 `.js_cover_preview_new`，判据是它的 `background-image` 含 `mmbiz`；外层容器 class 也会变成 `has_first_cover`。草稿数据侧看 `multi_item[0].cover` 或 `item.img_url` 非空。
+
+可靠的设封面路径（每一步都用真实鼠标点击，并先把视口调到 1100 高）：
+
+1. 点 `.js_cover_btn_area` 展开菜单（**不是** hover——hover 触发不稳定）
+2. 点「从图片库选择」
+3. 素材库右侧的缩略图是 `.weui-desktop-img-picker__img-thumb`，点第一张（最近上传的排在最前）。左侧 `.weui-desktop-grid__item` 是分类菜单，点它没用
+4. 「下一步」→ 裁剪页「确认」
+
+正文首图有时会被自动取作封面，但**不保证**：同一套流程下有的草稿自动带上了、有的没有，别依赖它。
+
 ## 封面：别跟悬停菜单较劲
 
 封面区 `.js_cover_btn_area` 的选项菜单（`从图片库选择` / `微信扫码上传` / `AI配图` / `.js_selectCoverFromContent`）默认是 `visibility: hidden`，靠 hover 显形。**用 `offsetParent` 判可见会误判**——这些节点 `offsetParent` 非空、`getBoundingClientRect()` 有尺寸，但 `document.elementFromPoint()` 命中的是它们背后的元素，点击全部落空。判可见必须同时看 `getComputedStyle(el).visibility`。

@@ -45,6 +45,14 @@
 4. 默认 `json`；重复样式多、追求省 token 时用 `yaml` 或 `tree`。文本逐字还原优先 `json`。
 5. “没有权限”时依次核对 Token 是否存在、账户是否团队版、文件是否在团队项目而非草稿箱；不要反复重试或输出凭据。
 
+### 短链 `/goto/xxx`
+
+工具参数里的 `shortLink` 是客户端解析的，**裸 HTTP 接口不认**，直接传返回 `invalid fileId: empty`。自己解一次 301 就能同时拿到 `fileId` 和 `layer_id`，省掉开浏览器：
+
+```bash
+curl -s -o /dev/null -w '%{redirect_url}\n' 'https://<domain>/goto/<code>'
+```
+
 ### 链接没有 layer_id 时（`needsCanvasVisit`）
 
 `getPageLayers` 可能返回 `totalLayers: 0`、`needsCanvasVisit: true`，提示“请在 MasterGo 中打开该文件并切换到目标页面”。这是**服务端图层缓存为空**，不是权限问题——`getMeta` 同时返回空 `<info></info>`。
@@ -74,10 +82,23 @@ MasterGo 编辑器和原型预览主要渲染在 Canvas 上，普通 `curl`、DO
 
 **格式默认 PNG。** 导出设置里没写格式、或用户没点名要别的格式时，一律导 PNG（带透明通道，图标和整屏都适用）。只有用户明确要 SVG / JPG，或目标节点是纯矢量且下游要直接内联时才换。
 
-两个必须知道的行为：
+**Magic MCP 导不了位图切图。** 它的工具集（`getDsl` / `getMeta` / `getDesignSections` / `getPageLayers` / `extractSvg` / `getD2c` / `getComponentLink` / `getComponentGenerator` / `applyDesign`）只有 `extractSvg` 出图，且只出矢量。位图切图必须走画布，MCP 装没装都一样。
+
+四个必须知道的行为：
 
 - **导出尺寸按渲染边界算，不是图层框。** 带 backdrop-filter / 投影的节点会把效果外扩范围一起导出，36×36 的按钮可能出来 216×216（内容居中，四周透明）。要精确尺寸就让设计师加切片框，或导出后自己裁。
 - **文件名后缀别叠加。** 导出设置里的 `fileName` 字段（`isSuffix: true`）通常已经是 `@3x`，再按倍率自动补一次就成了 `_@3x@3x`。
+- **headless 下 `exportAsync` 会静默返回空白图。** Playwright 默认拉的是 `chromium_headless_shell`，没有可用 WebGL，画布纹理根本没渲染：导出**不报错**，尺寸也对，但字节数极小（1080×970 的图出来 4 KB、768×220 的按钮 1 KB），打开是全透明。别当成「设计师标错切图」。跳到 layer 链接聚焦画板也没用，这是渲染后端的问题不是可视区问题。装完整 chromium（`npx playwright install chromium`）走 `--headed` 可能解决，但下载常卡；卡住就直接换下面的原图路径，别干等。
+- **`SLICE` 节点导出本来就可能是空的。** 切片框自身没有填充和子节点，导不导得出取决于实现，别把它的空白当作上一条的证据——先拿一个带图片填充的叶子节点验证。
+
+**空白时的正解：取原图 + 本地合成。** 图片填充节点的 `fills[].imageRef` 能直接换回设计师上传的原始资源，分辨率通常比切图还高（实测月亮 3368×3464、按钮 1781×883）：
+
+```js
+const img = await window.mg.getImageByHref(imageRef);
+const bytes = await img.getBytesAsync();   // Uint8Array，转 base64 传回落盘
+```
+
+多图层的切图区（辉光 + 主体 + 装饰）就把每层原图按几何关系用 ffmpeg 叠起来。几何用**绝对坐标差**算，别直接用 `node.x/y`（那是相对父级的）：递归累加父级偏移拿到画板绝对坐标，再减去切片框的绝对坐标，得到每层在切图内的落点；图层的 `opacity` 用 `colorchannelmixer=aa=` 还原，`scaleMode: STRETCH` 就把原图缩到图层框尺寸。
 
 把脚本完整的 `() => { ... }` 作为浏览器 evaluate 函数执行，并直接返回数据。不要把隔离环境的 `filename` 当作可供本机读取的输出；返回过大时按页面、画板或 y 区间分批。
 
