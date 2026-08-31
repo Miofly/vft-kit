@@ -89,11 +89,29 @@ For retries, read the last phase marker and log first. A successful `probe`, `de
 
 For MiniMax-H3 on V100, use a cheap smoke run before paying for a final clip:
 
-1. Keep `768x448`, `24fps`, and the same LoRA/node graph as the final run. Run 5 seconds / 4 steps with `reserve-vram=6`, then repeat with `4` only if the first run completes.
-2. Record wall-clock time, peak allocated/reserved VRAM, OOM/offload warnings, and output validity. Keep the lowest value that completes twice; on OOM return to `6` or `8`.
-3. Submit the 10-second job only after the smoke gate passes. Use 4-step Turbo for iteration; test higher steps only after the prompt and graph are fixed. Keep ComfyUI and loaded weights warm for variants.
+1. Use normal VRAM with `--force-fp16`, `--disable-dynamic-vram`,
+   `--disable-async-offload`, and `--disable-pinned-memory`. Put the NVFP4 AWQ
+   text encoder on CPU; do not let it compete with the diffusion model for V100
+   memory.
+2. Keep the final resolution, `24fps`, Turbo LoRA, native audio VAE, and node
+   graph. Run the first gate at 5 seconds with `--reserve-vram 4`. The verified
+   `960x544` / 8-step workload OOMs at 2GB reserve; do not retest that value as
+   a normal starting point. The 4GB run completed sampling in 11m52s.
+3. Record wall-clock and sampling time, peak allocated/reserved VRAM,
+   OOM/offload warnings, and output validity. Verify the result with `ffprobe`
+   and require both a video stream and an audio stream from the native audio
+   VAE path.
+4. Keep the same ComfyUI service alive to avoid service cold start and preserve
+   cache opportunities. Confirm a CLIP cache hit in the log before excluding
+   text encoding from the ETA: model, duration, or graph changes can invalidate
+   conditioning. Restart only after a failed service or changed runtime stack.
 
 The benchmark is valid only when dependencies, weights, and service are already marked `DONE`; otherwise it measures cold-start bandwidth, not GPU performance. Report phase timings separately (restore, service, sampling, decode, verification) so a slow mirror is not mistaken for a slow sampler.
+
+Use at least an 8-hour generation-client timeout for 15-second base-model jobs.
+A client timeout does not cancel ComfyUI: verify the service and exact output
+before declaring failure. A measured `960x544` / 25-step run took 4h52m19s
+total, including 4h37m58s of sampling.
 
 ### Recovery rules for paid runs
 
