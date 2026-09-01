@@ -1,0 +1,6 @@
+interface:
+  display_name: "Git Auto Push"
+  short_description: "仅在显式要求绕过 Git hooks 时提交并推送"
+  default_prompt: "Use $git-auto-push to commit and push while bypassing Git hooks."
+policy:
+  allow_implicit_invocation: false
