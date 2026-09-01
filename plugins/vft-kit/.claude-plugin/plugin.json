@@ -8,7 +8,12 @@
   "skills": [
     "./skills/agent-ops",
     "./skills/cloud-platforms",
-    "./skills/dev-workflow",
+    "./skills/dev-workflow/dbx",
+    "./skills/dev-workflow/fe-auto-test",
+    "./skills/dev-workflow/fe-lint-fix",
+    "./skills/dev-workflow/github-ops",
+    "./skills/dev-workflow/pr-submit",
+    "./skills/dev-workflow/vue-sfc-split",
     "./skills/design-content",
     "./skills/web-automation"
   ]

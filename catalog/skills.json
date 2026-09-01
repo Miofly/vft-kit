@@ -1,5 +1,11 @@
 {
   "version": 1,
+  "invocationPolicy": {
+    "default": "auto",
+    "explicitOnly": [
+      "git-auto-push"
+    ]
+  },
   "categories": [
     {
       "id": "agent-ops",
