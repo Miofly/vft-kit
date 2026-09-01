@@ -185,7 +185,11 @@ def main() -> None:
             result = hub.create_repo(**kwargs)
         if isinstance(result, dict) and result.get("repo_id"):
             repo_id = result["repo_id"]
-            owner = os.environ.get("AISTUDIO_OWNER")
+            owner = (
+                args.repo_id.split("/", 1)[0]
+                if "/" in args.repo_id
+                else os.environ.get("AISTUDIO_OWNER")
+            )
             if "/" in repo_id or owner:
                 result["resolved_repo_id"] = resolve_repo_id(repo_id, owner)
     elif args.command == "file-exists":
