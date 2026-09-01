@@ -11,6 +11,14 @@ const catalog = JSON.parse(fs.readFileSync(path.join(repoRoot, 'catalog/skills.j
 const errors = [];
 const categoryIds = new Set();
 const catalogSkills = new Map();
+const explicitOnly = new Set(catalog.invocationPolicy?.explicitOnly ?? []);
+
+if (catalog.invocationPolicy?.default !== 'auto') {
+  errors.push('invocationPolicy.default must be auto');
+}
+if ([...explicitOnly].join('\n') !== [...explicitOnly].sort().join('\n')) {
+  errors.push('invocationPolicy.explicitOnly must be sorted');
+}
 
 for (const category of catalog.categories ?? []) {
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(category.id ?? '')) {
@@ -33,10 +41,20 @@ for (const category of catalog.categories ?? []) {
   }
 }
 
-const expectedSkillRoots = [...categoryIds].sort().map((category) => `./skills/${category}`);
-for (const manifestPath of [
-  'plugins/vft-kit/.claude-plugin/plugin.json',
-  'plugins/vft-kit/.codex-plugin/plugin.json',
+for (const skill of explicitOnly) {
+  if (!catalogSkills.has(skill)) errors.push(`explicit-only skill is not categorized: ${skill}`);
+}
+
+const expectedCodexRoots = [...categoryIds].sort().map((category) => `./skills/${category}`);
+const expectedClaudeRoots = (catalog.categories ?? []).flatMap((category) => {
+  const hasExplicitSkill = category.skills.some((skill) => explicitOnly.has(skill));
+  return hasExplicitSkill
+    ? category.skills.filter((skill) => !explicitOnly.has(skill)).map((skill) => `./skills/${category.id}/${skill}`)
+    : [`./skills/${category.id}`];
+}).sort();
+for (const [manifestPath, expectedSkillRoots] of [
+  ['plugins/vft-kit/.claude-plugin/plugin.json', expectedClaudeRoots],
+  ['plugins/vft-kit/.codex-plugin/plugin.json', expectedCodexRoots],
 ]) {
   const manifest = JSON.parse(fs.readFileSync(path.join(repoRoot, manifestPath), 'utf8'));
   const skillRoots = Array.isArray(manifest.skills) ? [...manifest.skills].sort() : [manifest.skills];
@@ -68,6 +86,17 @@ for (const entry of trackedEntries) {
   const frontmatterName = content.match(/^---\s*\n[\s\S]*?^name:\s*([^\n]+)$/m)?.[1]?.trim();
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(frontmatterName ?? '')) {
     errors.push(`invalid frontmatter name: ${entry.skill} (${frontmatterName ?? 'missing'})`);
+  }
+
+  const openaiPath = path.join(path.dirname(path.join(repoRoot, entry.file)), 'agents/openai.yaml');
+  const commandPath = path.join(repoRoot, `plugins/vft-kit/commands/${entry.skill}.md`);
+  if (explicitOnly.has(entry.skill)) {
+    if (!fs.existsSync(openaiPath) || !/allow_implicit_invocation:\s*false\b/.test(fs.readFileSync(openaiPath, 'utf8'))) {
+      errors.push(`explicit-only skill lacks Codex policy: ${entry.skill}`);
+    }
+    if (!fs.existsSync(commandPath)) errors.push(`explicit-only skill lacks Claude command: ${entry.skill}`);
+  } else if (fs.existsSync(openaiPath) && /allow_implicit_invocation:\s*false\b/.test(fs.readFileSync(openaiPath, 'utf8'))) {
+    errors.push(`Codex policy is not declared in catalog: ${entry.skill}`);
   }
 }
 
