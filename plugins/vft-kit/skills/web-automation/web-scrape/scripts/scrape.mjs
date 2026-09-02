@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * web-scrape - 智能网页抓取调度器
- * 根据场景自动选择 Scrapling / Crawl4AI / Playwright
+ * 根据场景自动选择 Scrapling / Crawl4AI / ego-lite / Playwright
  */
 
 import { spawn, execSync } from 'child_process';
@@ -31,7 +31,7 @@ const CONFIG = {
   pythonCmd: process.env.PYTHON_CMD || 'python3',
 
   // 工具优先级（fallback 顺序）
-  fallbackChain: ['scrapling', 'playwright', 'crawl4ai'],
+  fallbackChain: ['scrapling', 'ego', 'playwright', 'crawl4ai'],
 };
 
 // ============== 参数解析 ==============
@@ -160,7 +160,7 @@ function printUsage() {
 用法: node scrape.mjs <url> [options]
 
 选项:
-  --tool <name>        强制使用工具: scrapling / crawl4ai / playwright
+  --tool <name>        强制使用工具: scrapling / crawl4ai / ego / playwright
   --intent <text>      用户意图描述（用于场景识别）
   --out <dir>          输出目录（默认: other/scrape）
   --format <type>      输出格式: html / markdown / json（默认: html）
@@ -223,9 +223,14 @@ async function selectTool(url, intent, options) {
     return 'scrapling';
   }
 
-  if (/资源|截图|网络请求|接口|xhr|fetch|api.*调用/.test(intentLower)) {
+  if (/资源|网络请求|接口|xhr|fetch|api.*调用/.test(intentLower)) {
     console.log('🎯 检测到资源/网络监控需求 → Playwright');
     return 'playwright';
+  }
+
+  if (/已登录|登录态|人工接管|单页.*交互|截图/.test(intentLower)) {
+    console.log('🎯 检测到登录态/单页浏览器需求 → ego-lite');
+    return 'ego';
   }
 
   // 3. URL 模式匹配
@@ -275,6 +280,15 @@ function checkDependencies(tool) {
     crawl4ai: false,
     playwright: false,
   };
+
+  if (tool === 'ego') {
+    try {
+      execSync('command -v ego-browser', { stdio: 'ignore', shell: '/bin/sh' });
+      return true;
+    } catch {
+      return false;
+    }
+  }
 
   // 检查 Python
   try {
@@ -450,10 +464,51 @@ async function runPlaywright(url, options, outDir) {
   });
 }
 
+function runEgoProcess(source) {
+  return new Promise((resolve, reject) => {
+    const proc = spawn('ego-browser', ['nodejs'], { stdio: ['pipe', 'inherit', 'inherit'] });
+    proc.stdin.end(source);
+    proc.on('exit', (code) => code === 0 ? resolve() : reject(new Error(`ego-lite 失败，退出码: ${code}`)));
+    proc.on('error', reject);
+  });
+}
+
+async function runEgo(url, options, outDir) {
+  console.log('\n🚀 使用 ego-lite 抓取...\n');
+
+  const taskName = `web-scrape ${new URL(url).hostname} ${process.pid}`;
+  const htmlPath = join(outDir, 'index.html');
+  const screenshotPath = join(outDir, 'screenshot.png');
+  const waitSeconds = Math.max(0, Number(options.wait || 0) / 1000);
+  const timeoutSeconds = Math.max(1, Math.ceil(Number(options.timeout || CONFIG.defaultTimeout) / 1000));
+  const source = `
+const { writeFileSync } = await import('node:fs')
+const task = await useOrCreateTaskSpace(${JSON.stringify(taskName)})
+await openOrReuseTab(${JSON.stringify(url)}, { wait: true, timeout: ${timeoutSeconds} })
+await waitForLoad().catch(() => {})
+${waitSeconds ? `await wait(${waitSeconds})` : ''}
+const html = await js(String.raw\`document.documentElement.outerHTML\`)
+writeFileSync(${JSON.stringify(htmlPath)}, html, 'utf8')
+${options.screenshot ? `const shot = await cdp('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true })
+writeFileSync(${JSON.stringify(screenshotPath)}, Buffer.from(shot.data, 'base64'))` : ''}
+cliLog('EGO_SCRAPE_OK task=' + task.id)
+`;
+
+  try {
+    await runEgoProcess(source);
+  } finally {
+    await runEgoProcess(`await completeTaskSpace(${JSON.stringify(taskName)}, { keep: false })`).catch(() => {});
+  }
+  return { tool: 'ego', outDir };
+}
+
 // ============== Fallback 机制 ==============
 
 async function executeWithFallback(url, options, outDir, selectedTool) {
-  const chain = [selectedTool, ...CONFIG.fallbackChain.filter(t => t !== selectedTool)];
+  const fallbackChain = selectedTool === 'ego'
+    ? ['playwright', 'scrapling', 'crawl4ai']
+    : CONFIG.fallbackChain;
+  const chain = [selectedTool, ...fallbackChain.filter(t => t !== selectedTool)];
   const errors = [];
 
   for (const tool of chain) {
@@ -471,6 +526,8 @@ async function executeWithFallback(url, options, outDir, selectedTool) {
         result = await runCrawl4AI(url, options, outDir);
       } else if (tool === 'playwright') {
         result = await runPlaywright(url, options, outDir);
+      } else if (tool === 'ego') {
+        result = await runEgo(url, options, outDir);
       }
 
       console.log(`└─ ✅ ${tool} 成功\n`);

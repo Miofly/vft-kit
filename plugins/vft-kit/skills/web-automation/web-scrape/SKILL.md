@@ -30,7 +30,7 @@ description: 智能网页抓取与场景路由工具，按需求选择 Scrapling
 ### 必需
 - **Node.js** ≥ 18（运行调度脚本）
 - **Python** ≥ 3.8（Scrapling / Crawl4AI）
-- **Playwright** 全局安装（由本 skill 的本地 worker 调用）
+- **ego-lite / Playwright** 均为可选；普通单页先探测 ego-lite，失败再走 Playwright/其他抓取器
 
 ### Python 依赖（自动检测并提示安装）
 ```bash
@@ -58,18 +58,15 @@ playwright install chromium  # Crawl4AI 需要
 | 用户要"接口"/"XHR"/"API 调用" | **Playwright** | network.json 记录所有请求 |
 | 无明确意图 | **Scrapling** → **ego-lite（若可用）** → **Playwright** | 先试快速抓取；需登录/渲染时有 ego-lite 就复用，否则直接 Playwright |
 
-### 三种工具对比
+### 四种工具对比
 
-| 特性 | Scrapling | Crawl4AI | Playwright |
-|------|-----------|----------|------------|
-| **速度** | ⚡⚡⚡ 快 | ⚡⚡ 中等 | ⚡ 慢（需渲染） |
-| **反检测** | Cloudflare 专杀 | Stealth + 代理链 | 基础（可加 stealth） |
-| **自适应** | ✅ 网站改版自动定位 | ❌ | ❌ |
-| **深度爬取** | ✅ Spider 框架 | ✅ BFS/DFS + 崩溃恢复 | ❌ 单页 |
-| **输出格式** | HTML / 结构化 | **Markdown for LLM** | HTML + 资源 |
-| **资源下载** | ❌ | ❌ | ✅ CSS/JS/图片/字体 |
-| **网络监控** | ❌ | ❌ | ✅ network.json |
-| **截图/PDF** | ❌ | ✅ | ✅ |
+| 特性 | Scrapling | Crawl4AI | ego-lite | Playwright |
+|------|-----------|----------|----------|------------|
+| **速度** | ⚡⚡⚡ 快 | ⚡⚡ 中等 | ⚡⚡ 快 | ⚡ 慢（需渲染） |
+| **登录态** | ❌ | ❌ | ✅ 复用用户登录态 | ✅ 需 storageState |
+| **深度爬取** | ✅ Spider 框架 | ✅ BFS/DFS + 崩溃恢复 | ❌ 单页 | ❌ 单页 |
+| **输出格式** | HTML / 结构化 | **Markdown for LLM** | HTML + 截图 | HTML + 资源 |
+| **资源下载/网络监控** | ❌ | ❌ | ❌ | ✅ |
 
 ## 用法
 
@@ -91,7 +88,7 @@ node "$SKILL_DIR/scripts/scrape.mjs" <url> [options]
 
 | 选项 | 说明 | 默认值 |
 |------|------|--------|
-| `--tool <name>` | 强制使用工具：`scrapling`/`crawl4ai`/`playwright` | 自动选择 |
+| `--tool <name>` | 强制使用工具：`scrapling`/`crawl4ai`/`ego`/`playwright` | 自动选择 |
 | `--intent <text>` | 用户意图描述（用于场景识别） | - |
 | `--out <dir>` | 输出目录 | `other/scrape` |
 | `--format <type>` | 输出格式：`html`/`markdown`/`json` | `html` |
