@@ -47,6 +47,14 @@ const TEST_CASES = [
     skipIfMissing: ['playwright'],
   },
   {
+    name: '登录态单页优先 ego-lite',
+    url: 'https://example.com',
+    intent: '打开已登录单页并截图',
+    args: ['--no-resources', '--no-pdf'],
+    expectedTool: 'ego',
+    skipIfMissing: ['ego'],
+  },
+  {
     name: '强制指定工具',
     url: 'https://example.com',
     args: ['--tool', 'scrapling'],
@@ -75,7 +83,13 @@ function checkDependencies() {
     scrapling: false,
     crawl4ai: false,
     playwright: false,
+    ego: false,
   };
+
+  try {
+    execSync('command -v ego-browser', { stdio: 'pipe', shell: '/bin/sh' });
+    deps.ego = true;
+  } catch {}
 
   try {
     execSync('python3 --version', { stdio: 'pipe' });
@@ -194,6 +208,7 @@ function main() {
   log(`  Scrapling: ${deps.scrapling ? '✅' : '❌'}`, deps.scrapling ? 'green' : 'red');
   log(`  Crawl4AI: ${deps.crawl4ai ? '✅' : '❌'}`, deps.crawl4ai ? 'green' : 'red');
   log(`  Playwright: ${deps.playwright ? '✅' : '❌'}`, deps.playwright ? 'green' : 'red');
+  log(`  ego-lite: ${deps.ego ? '✅' : '❌'}`, deps.ego ? 'green' : 'red');
 
   // 清理旧测试输出
   if (existsSync(TEST_OUT_DIR)) {
