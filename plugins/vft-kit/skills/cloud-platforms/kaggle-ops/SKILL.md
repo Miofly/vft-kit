@@ -1,10 +1,6 @@
 ---
 name: kaggle-ops
-description: >-
-  通用 Kaggle API 操作封装:kernel push/status/logs、dataset push、账号配额查询。
-  基于 Kaggle CLI(kaggle 2.x),零额外依赖。多账号支持,credentials 从环境变量或配置文件读取
-  优先读取 KAGGLE_USERNAME/KAGGLE_KEY 环境变量，其次是 ~/.kaggle/kaggle.json，最后是 config file。
-  子命令:kernel push/status/logs、dataset push、quota。适合任何 Kaggle 账号,不含私有信息。
+description: "通过 Kaggle CLI/API 管理任意账号的 kernel 提交、状态、日志、dataset 上传与配额；支持多账号，凭据由环境变量或配置供给。"
 ---
 
 # kaggle-ops

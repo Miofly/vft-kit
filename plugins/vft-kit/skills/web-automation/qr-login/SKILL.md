@@ -1,6 +1,6 @@
 ---
 name: qr-login
-description: 用 ego-lite 在隔离空间完成掘金、知乎、简书、今日头条、博客园、51CTO、CSDN、SegmentFault、小红书、少数派的扫码登录，并把二维码经 PushPlus/ntfy 推送给用户。支持标准微信 OAuth、嵌入式 OAuth iframe、公众号二维码、CSDN 微信小程序码、小红书主站/创作平台站内二维码与少数派微信 OAuth。用户要求登录这些平台、微信扫码登录或推送登录二维码时使用。
+description: "使用浏览器完成掘金、知乎、简书、头条、博客园、51CTO、CSDN、SegmentFault、小红书、少数派的扫码登录，并通过 PushPlus/ntfy 推送二维码。"
 ---
 
 # 第三方平台扫码登录

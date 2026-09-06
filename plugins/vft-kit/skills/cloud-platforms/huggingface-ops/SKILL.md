@@ -1,6 +1,6 @@
 ---
 name: huggingface-ops
-description: Use when requests involve Hugging Face or HF Hub models, datasets, Spaces/创空间, repositories, files, uploads, downloads, Variables, Secrets, environment variables, logs, runtime, hardware, storage, restarts, duplication, Jobs, Inference Endpoints, sandboxes, buckets, collections, discussions or PRs, papers, webhooks, cache or sync, authentication, or token verification.
+description: "Manage Hugging Face Hub repos, models, datasets, Spaces, files, secrets and runtimes; also Jobs, endpoints, sandboxes, buckets, collections, papers and authentication."
 ---
 
 # Hugging Face Ops

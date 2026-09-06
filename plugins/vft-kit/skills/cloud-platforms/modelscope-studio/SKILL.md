@@ -1,11 +1,6 @@
 ---
 name: ms-studio-deploy
-description: >-
-  Use when the user wants to deploy, update, inspect, or repair a ModelScope Studio; manage its variables or secrets;
-  or inspect, start, open, or stop a ModelScope Notebook / PAI-DSW environment. Supports Gradio, Streamlit,
-  Docker, static websites, Studio OpenAPI operations, authenticated Notebook browser-session operations, persistent
-  workspace file transfer, and CPU-prepare/GPU-run workflows.
-  Not applicable to: Hub repository management, model/dataset operations, MCP/skill management, model training, or model evaluation.
+description: "Deploy or repair ModelScope Studio, manage secrets and Notebook/PAI-DSW CPU/GPU runtimes and workspace transfers. Excludes Hub repositories, training and evaluation."
 ---
 
 # ModelScope Studio Deployment and Notebook Operations

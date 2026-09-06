@@ -1,6 +1,6 @@
 ---
 name: fe-lint-fix
-description: 对任意前端项目（默认当前目录，也可指定任意带 package.json 的目录/子包）一键执行 ESLint / Stylelint / Prettier 自动修复 + TypeScript（vue-tsc 或 tsc）类型校验，并清晰区分「已自动修复」与「需人工处理」。自动探测包管理器（pnpm / yarn / bun / npm）与项目已有的 lint 脚本，未装的工具自动跳过。改完任何 .vue / .ts / .tsx / .js / 样式文件后都该跑一遍收尾。用户说"跑一下 lint"、"修复 lint 报错"、"格式化代码"、"eslint --fix"、"stylelint 修一下"、"prettier 格式化"、"vue-tsc/tsc 类型检查"、"type check"、"代码质量检查"、"提交前过一遍 lint"、"lint 一下这个项目"等场景时触发。即使只说"修一下格式/报错"也用本 skill，因为它封装了正确的执行顺序与包管理器/脚本探测，避免手敲 npx 命令踩 glob/cache/顺序误报的坑。
+description: "修复任意前端项目的 lint、格式或 TypeScript 类型错误；复用已有脚本和包管理器，支持 ESLint、Stylelint、Prettier、vue-tsc/tsc，缺失工具跳过。"
 ---
 
 # fe-lint-fix — 前端代码质量一键修复 + 校验（通用）

@@ -1,6 +1,6 @@
 ---
 name: aistudio
-description: Operate Baidu AI Studio through its official SDK and optional ego-lite (skill name ego-browser) when available. Use for model, dataset, or app repositories; uploads, downloads, and file checks; web login; daily points; project Fork/run; courses and contests; Notebook creation, workspace transfer, execution, start/stop; model-pipeline, script, or Notebook background tasks; GPU sessions; or AI Studio account workflows.
+description: "Operate Baidu AI Studio repositories, files, points, courses, contests and Notebook CPU/GPU sessions via SDK or browser; includes project startup and background jobs."
 ---
 
 # Baidu AI Studio
