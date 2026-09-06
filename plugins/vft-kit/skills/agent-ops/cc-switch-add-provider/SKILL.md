@@ -1,6 +1,6 @@
 ---
 name: cc-switch-add-provider
-description: 安全地把第三方模型接口新增到或修正到 macOS CC Switch 的 Claude Code 供应商列表，支持 Anthropic Messages、OpenAI Chat Completions、OpenAI Responses 协议，自动备份 SQLite 数据库、复用同名供应商、提示疑似重复项、保留当前供应商并校验写入结果。用户说“给 CC Switch 添加供应商/模型/API”“把这个接口加到 cc-switch”“修正 CC Switch 里现有供应商的协议、地址、Key 或模型映射”时使用。
+description: "添加或修正 macOS CC Switch 的 Claude Code 供应商，支持 Messages、Chat Completions 和 Responses 协议；备份并保留当前供应商。"
 ---
 
 # CC Switch 添加供应商

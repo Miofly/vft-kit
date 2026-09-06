@@ -1,6 +1,6 @@
 ---
 name: vue-sfc-split
-description: 把体量过大的 Vue 单文件组件（动辄 800~2000 行的 .vue）拆成「平铺入口 .vue + 同级同名专属目录（components / composables / *.ts / *-scoped.css）」，把输入面板、结果展示块、纯逻辑、scoped 样式各自外移，能复用的沉淀到项目公共目录，并保证路由身份、行为、lint 全部不变。用户说"这个 vue 文件太大了/超过一千行/拆一下/拆成组件/页面变成目录/把样式抽出去/这个页面重构一下/split 这个 .vue/组件化/瘦身/模块化"等场景时触发；即使只说"这文件太长了帮我拆"也用本 skill——因为在用了**文件路由（unplugin-vue-router）或组件自动导入（unplugin-vue-components）**的项目里，拆分有一套必须遵守的约束，手拆极易踩 index.vue 撞路由名、子组件被误扫成路由、丢 definePage meta、漏 import 导致运行时空白（而 lint 和 vue-tsc 静默通过）这些坑。
+description: "拆分过大的 Vue SFC，提取组件、逻辑与样式，保持行为及路由身份；尤其适用于文件路由、自动导入项目，避免子组件误扫和路由冲突。"
 ---
 
 # vue-sfc-split — 巨型 .vue 拆分

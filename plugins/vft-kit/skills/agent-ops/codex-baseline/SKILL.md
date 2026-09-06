@@ -1,6 +1,6 @@
 ---
 name: codex-baseline
-description: Use when 用户要求核对本机 Codex CLI 装配基线，例如“codex-baseline”“codex-doctor”“Codex 体检”“权限配置对吗”“插件/MCP 全不全”“换机器后核对”，或检查 dangerous full access、项目信任、hooks、Memories、multi-agent、CodeGraph、code-review-graph、MCP、插件、Agent Skills、图片生成 CLI 与全局 AGENTS 规范。支持 --health 实连 stdio MCP。
+description: "核对 Codex 通用装配、权限、Hooks、MCP、插件与技能；用于 Codex 体检、配置排障或换机核对，支持 --health 实连检查。"
 ---
 
 # codex-baseline

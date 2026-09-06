@@ -1,6 +1,6 @@
 ---
 name: cc-baseline
-description: Use when 用户要求核对本机 Claude Code / CC 装配基线，例如“cc-baseline”“cc-doctor”“工具链体检”“环境自检”“换机器后核对”“重装后哪些没恢复”，或询问 CLI、MCP、插件、Agent Skills、权限、系统配置与全局规范是否齐全。执行时自动确保 Caveman 默认 full，再只读核对必需项和可选项；传入 --health 时额外实连核心 MCP。
+description: "核对 Claude Code/CC 通用装配：CLI、MCP、插件、技能、权限和全局规范；用于工具链体检、重装后恢复检查，支持 --health 实连 MCP。"
 ---
 
 # cc-baseline

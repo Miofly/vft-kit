@@ -1,10 +1,6 @@
 ---
 name: ollama-local
-description: >-
-  Use when installing, configuring, updating, testing, or operating Ollama local models;
-  choosing a model for available memory; diagnosing pull/proxy/API failures; or calling
-  the local Ollama chat API. Also covers the boundary between Ollama text models and
-  separate ComfyUI image workflows.
+description: "Install, update, run or troubleshoot Ollama models, memory sizing, proxies and chat APIs. Covers the boundary with separate ComfyUI image workflows."
 ---
 
 # Ollama 本地模型

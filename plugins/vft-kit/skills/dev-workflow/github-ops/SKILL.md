@@ -1,6 +1,6 @@
 ---
 name: github-ops
-description: 通过 GitHub CLI 安全管理任意 GitHub 仓库、Actions、repository secrets 和 workflow。用于验证 token/仓库权限、列出或写入 Actions Secret、查看或重跑 Actions、触发 workflow；要求调用方通过 GH_TOKEN 或 gh 登录态供给凭据，不包含任何私有仓库或密钥路径。
+description: "通过 gh 管理任意 GitHub 仓库、Actions、Secrets 和 workflow，验证权限或触发/重跑任务；凭据由 GH_TOKEN 或 gh 登录态供给。"
 ---
 
 # GitHub Ops

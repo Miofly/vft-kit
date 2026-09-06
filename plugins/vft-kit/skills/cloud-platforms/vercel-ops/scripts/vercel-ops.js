@@ -6,9 +6,10 @@
  * Node 18+ required
  */
 
-import { readFile } from 'fs/promises';
+import { readFile, open } from 'fs/promises';
 import { homedir } from 'os';
 import { join, resolve } from 'path';
+import { pathToFileURL } from 'url';
 
 // ============================================================================
 // Configuration & Token Management
@@ -25,40 +26,26 @@ class VercelConfig {
   async load(options = {}) {
     const profile = options.profile || 'default';
 
-    // 1. Try environment variable (highest priority)
-    this.token = process.env.VERCEL_TOKEN;
+    const configPath = await this._findConfigFile(options.config);
+    const data = configPath ? parseJSON(await readFile(configPath, 'utf-8'), 'config file') : {};
+    if (!data || Array.isArray(data) || typeof data !== 'object') throw new Error('Config must be an object');
+    const selected = Object.hasOwn(data, profile) ? data[profile] :
+      (profile === 'default' && (['access_token', 'team_id', 'team_slug'].some(key => Object.hasOwn(data, key)) || !configPath) ? data : null);
+    if (!selected || Array.isArray(selected) || typeof selected !== 'object') throw new Error(`Config profile not found: ${profile}`);
+    this.token = process.env.VERCEL_TOKEN || selected.access_token;
+    this.teamId = options.teamId || selected.team_id || null;
+    this.teamSlug = selected.team_slug;
 
-    // 2. Try config file
-    if (!this.token) {
-      const configPath = await this._findConfigFile(options.config);
-      if (configPath) {
-        try {
-          const configData = JSON.parse(await readFile(configPath, 'utf-8'));
-          const profileConfig = configData[profile] || configData;
-
-          this.token = profileConfig.access_token;
-          this.teamId = profileConfig.team_id || options.teamId;
-          this.teamSlug = profileConfig.team_slug;
-
-          if (this.verbose) {
-            console.error(`Loaded config from: ${configPath}`);
-            console.error(`Profile: ${profile}`);
-          }
-        } catch (err) {
-          if (this.verbose) console.error(`Failed to load config: ${err.message}`);
-        }
-      }
-    }
-
-    // Override with CLI options
-    if (options.teamId) this.teamId = options.teamId;
-
-    if (!this.token) {
+    if (typeof this.token !== 'string' || !this.token.trim()) {
       throw new Error('VERCEL_TOKEN not found. Set environment variable or create config file.');
     }
   }
 
   async _findConfigFile(customPath) {
+    if (customPath) {
+      await readFile(customPath); // Explicit paths must not silently fall back to another account.
+      return resolve(customPath);
+    }
     const candidates = [
       customPath,
       './vercel-config.json',
@@ -88,7 +75,11 @@ class VercelAPI {
   }
 
   async request(method, endpoint, options = {}) {
+    if (typeof endpoint !== 'string' || !endpoint.startsWith('/') || endpoint.startsWith('//') || endpoint.includes('\\')) {
+      throw new Error('API endpoint must be an absolute path on api.vercel.com');
+    }
     const url = new URL(endpoint.startsWith('/') ? endpoint : `/${endpoint}`, this.baseURL);
+    if (url.origin !== this.baseURL) throw new Error('API endpoint origin is not allowed');
 
     // Add team ID to query params if available
     if (this.config.teamId && !url.searchParams.has('teamId')) {
@@ -111,22 +102,22 @@ class VercelAPI {
     const fetchOptions = {
       method,
       headers,
+      redirect: 'error',
     };
 
-    if (options.body) {
+    if (options.body !== undefined) {
       fetchOptions.body = JSON.stringify(options.body);
     }
 
     if (this.config.verbose) {
-      console.error(`${method} ${url.toString()}`);
-      if (options.body) console.error('Body:', JSON.stringify(options.body, null, 2));
+      console.error(`${method} ${url.pathname}`);
     }
 
-    let retries = 3;
+    // Reads may retry; a timed-out mutation may already have succeeded remotely.
+    let retries = method === 'GET' ? 3 : 1;
     while (retries > 0) {
       try {
-        const response = await fetch(url.toString(), fetchOptions);
-        const data = await response.json().catch(() => ({}));
+        const response = await fetch(url.toString(), { ...fetchOptions, signal: AbortSignal.timeout(30000) });
 
         if (!response.ok) {
           if (response.status === 429 && retries > 1) {
@@ -138,13 +129,19 @@ class VercelAPI {
             continue;
           }
 
-          throw new APIError(data.error?.message || `HTTP ${response.status}`, response.status, data.error);
+          throw new APIError(`HTTP ${response.status}`, response.status);
         }
-
-        return data;
+        const body = await response.text();
+        if (!body.trim()) return null;
+        return parseJSON(body, 'API response');
       } catch (err) {
         if (err instanceof APIError) throw err;
-        if (retries === 1) throw err;
+        if (retries === 1) {
+          if (err instanceof TypeError || /Timeout|Abort/.test(err.name)) {
+            throw new NetworkError('Request failed or timed out; check remote state before retrying a write');
+          }
+          throw err;
+        }
 
         retries--;
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -178,6 +175,48 @@ class APIError extends Error {
   }
 }
 
+class NetworkError extends Error {}
+
+function parseJSON(text, label = 'JSON') {
+  try { return JSON.parse(text); }
+  catch { throw new Error(`Invalid ${label}`); }
+}
+
+function json(value) { console.log(JSON.stringify(value, null, 2)); }
+
+function required(value, label) {
+  if (typeof value !== 'string' || !value) throw new Error(`${label} required`);
+  return value;
+}
+
+function timestamp(value) {
+  if (value === 'now') return Date.now();
+  if (/^\d+$/.test(value)) return Number(value);
+  const relative = /^(\d+)(s|m|h|d)$/.exec(value);
+  const result = relative ? Date.now() - Number(relative[1]) * { s: 1000, m: 60000, h: 3600000, d: 86400000 }[relative[2]] : Date.parse(value);
+  if (!Number.isFinite(result)) throw new Error('Time must be epoch milliseconds, ISO date, now, or a duration such as 1h');
+  return result;
+}
+
+function parseEnv(text) {
+  // ponytail: single-line dotenv values only; use JSON for multiline secrets.
+  const entries = [];
+  for (const [index, raw] of text.split(/\r?\n/).entries()) {
+    const line = raw.trim();
+    if (!line || line.startsWith('#')) continue;
+    const match = /^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/.exec(line);
+    if (!match) throw new Error(`Invalid env assignment at line ${index + 1}`);
+    let value = match[2];
+    if (/^["']/.test(value)) {
+      const quoted = /^(["'])(.*?)\1\s*(?:#.*)?$/.exec(value);
+      if (!quoted) throw new Error(`Invalid or multiline env value at line ${index + 1}; use a JSON object`);
+      value = quoted[2];
+    } else value = value.split('#')[0].trim();
+    entries.push([match[1], value]);
+  }
+  return entries;
+}
+
 // ============================================================================
 // Command Handlers
 // ============================================================================
@@ -185,6 +224,7 @@ class APIError extends Error {
 const commands = {
   async verify(api, args) {
     const user = await api.get('/v2/user');
+    if (args.json) return json(user);
     console.log('✓ Token is valid');
     console.log(`User: ${user.user?.name || user.user?.username || user.user?.email}`);
     console.log(`ID: ${user.user?.id}`);
@@ -205,7 +245,7 @@ const commands = {
     switch (subcommand) {
       case 'list': {
         const params = { limit: args.limit || 20 };
-        const result = await api.get('/v9/projects', { query: params });
+        const result = await api.get('/v10/projects', { query: params });
 
         if (args.json) {
           console.log(JSON.stringify(result, null, 2));
@@ -243,6 +283,7 @@ const commands = {
       }
 
       case 'create': {
+        required(args.name, '--name');
         const body = {
           name: args.name,
           framework: args.framework,
@@ -256,7 +297,8 @@ const commands = {
         // Remove undefined values
         Object.keys(body).forEach(key => body[key] === undefined && delete body[key]);
 
-        const project = await api.post('/v9/projects', body);
+        const project = await api.post('/v11/projects', body);
+        if (args.json) return json(project);
         console.log('✓ Project created');
         console.log(`ID: ${project.id}`);
         console.log(`Name: ${project.name}`);
@@ -279,6 +321,7 @@ const commands = {
         Object.keys(body).forEach(key => body[key] === undefined && delete body[key]);
 
         const project = await api.patch(`/v9/projects/${projectId}`, body);
+        if (args.json) return json(project);
         console.log('✓ Project updated');
         break;
       }
@@ -288,23 +331,13 @@ const commands = {
         if (!projectId) throw new Error('Project ID required');
 
         await api.delete(`/v9/projects/${projectId}`);
+        if (args.json) return json({ deleted: projectId });
         console.log('✓ Project deleted');
         break;
       }
 
       case 'link': {
-        const projectId = args._[2];
-        if (!projectId) throw new Error('Project ID required');
-
-        const body = {
-          type: 'github',
-          repo: args.repo,
-          ...(args.branch && { productionBranch: args.branch }),
-        };
-
-        await api.post(`/v9/projects/${projectId}/link`, body);
-        console.log('✓ Git repository linked');
-        break;
+        throw new Error('Use vercel link then vercel git connect in the project directory; see references/examples.md');
       }
 
       default:
@@ -314,6 +347,7 @@ const commands = {
 
   async deployments(api, args) {
     const subcommand = args._[1];
+    if (args.target && !['production', 'preview'].includes(args.target)) throw new Error('--target must be production or preview');
 
     switch (subcommand) {
       case 'list': {
@@ -322,7 +356,7 @@ const commands = {
           ...(args.project && { projectId: args.project }),
         };
 
-        const result = await api.get('/v6/deployments', { query: params });
+        const result = await api.get('/v7/deployments', { query: params });
 
         if (args.json) {
           console.log(JSON.stringify(result, null, 2));
@@ -350,7 +384,7 @@ const commands = {
           console.log(JSON.stringify(deployment, null, 2));
         } else {
           console.log(`Deployment: ${deployment.url}`);
-          console.log(`ID: ${deployment.uid}`);
+          console.log(`ID: ${deployment.id || deployment.uid}`);
           console.log(`State: ${deployment.readyState}`);
           console.log(`Target: ${deployment.target || 'preview'}`);
           console.log(`Created: ${new Date(deployment.created).toLocaleString()}`);
@@ -375,32 +409,30 @@ const commands = {
         // 构建 Git source
         const gitSource = {
           type: project.link.type,  // "github" | "gitlab" | "bitbucket"
-          repoId: project.link.repoId,
+          ...(project.link.type === 'gitlab' ? { projectId: project.link.projectId } :
+            project.link.type === 'bitbucket' ? { repoUuid: project.link.uuid, workspaceUuid: project.link.workspaceUuid } :
+            { repoId: project.link.repoId }),
           ref: args.ref || project.link.productionBranch || 'main',
         };
 
         // 允许用户覆盖（高级用法）
         if (args['git-source']) {
-          Object.assign(gitSource, JSON.parse(args['git-source']));
+          Object.assign(gitSource, parseJSON(args['git-source'], '--git-source'));
         }
 
         const body = {
           name: project.name,  // 项目名称（必需）
           project: projectId,  // 项目 ID
-          target: args.target || 'production',
+          ...(args.target === 'production' && { target: 'production' }),
           gitSource: gitSource,
         };
 
         const deployment = await api.post('/v13/deployments', body);
-
+        if (args.json) return json(deployment);
         console.log('✓ Deployment created');
         console.log(`ID: ${deployment.id}`);
         console.log(`URL: https://${deployment.url}`);
         console.log(`Status: ${deployment.readyState || 'QUEUED'}`);
-
-        if (args.json) {
-          console.log(JSON.stringify(deployment, null, 2));
-        }
 
         break;
       }
@@ -410,6 +442,7 @@ const commands = {
         if (!deploymentId) throw new Error('Deployment ID required');
 
         await api.patch(`/v12/deployments/${deploymentId}/cancel`);
+        if (args.json) return json({ canceled: deploymentId });
         console.log('✓ Deployment canceled');
         break;
       }
@@ -418,12 +451,15 @@ const commands = {
         const deploymentId = args._[2];
         if (!deploymentId) throw new Error('Deployment ID required');
 
+        const previous = await api.get(`/v13/deployments/${deploymentId}`);
         const body = {
+          name: previous.name,
           deploymentId,
-          target: args.target || 'preview',
+          ...(args.target === 'production' && { target: 'production' }),
         };
 
         const deployment = await api.post('/v13/deployments', body);
+        if (args.json) return json(deployment);
         console.log('✓ Redeployment created');
         console.log(`ID: ${deployment.id}`);
         console.log(`URL: ${deployment.url}`);
@@ -435,8 +471,25 @@ const commands = {
         if (!deploymentId) throw new Error('Deployment ID required');
 
         await api.delete(`/v13/deployments/${deploymentId}`);
+        if (args.json) return json({ deleted: deploymentId });
         console.log('✓ Deployment deleted');
         break;
+      }
+
+      case 'wait': {
+        const id = required(args._[2], 'Deployment ID');
+        const seconds = Number(args.timeout || 1800);
+        if (!Number.isFinite(seconds) || seconds <= 0) throw new Error('--timeout must be positive seconds');
+        const deadline = Date.now() + seconds * 1000;
+        while (Date.now() < deadline) {
+          const deployment = await api.get(`/v13/deployments/${id}`);
+          const state = deployment.readyState || deployment.state;
+          if (state === 'READY') return json(deployment);
+          if (['ERROR', 'CANCELED'].includes(state)) throw new Error(`Deployment ${id}: ${state}`);
+          if (!args.json) console.error(`${id}: ${state}`);
+          await new Promise(resolve => setTimeout(resolve, Math.min(5000, Math.max(0, deadline - Date.now()))));
+        }
+        throw new Error(`Deployment ${id}: wait timed out`);
       }
 
       default:
@@ -476,6 +529,7 @@ const commands = {
 
         const body = { name: domain };
         await api.post(`/v10/projects/${projectId}/domains`, body);
+        if (args.json) return json({ projectId, domain });
         console.log(`✓ Domain ${domain} added to project`);
         break;
       }
@@ -484,7 +538,8 @@ const commands = {
         const domain = args._[2];
         if (!domain) throw new Error('Domain required');
 
-        const result = await api.get(`/v6/domains/${domain}/config`);
+        const projectId = required(args.project, '--project');
+        const result = await api.post(`/v9/projects/${projectId}/domains/${domain}/verify`);
 
         if (args.json) {
           console.log(JSON.stringify(result, null, 2));
@@ -503,7 +558,9 @@ const commands = {
         const domain = args._[2];
         if (!domain) throw new Error('Domain required');
 
-        await api.delete(`/v6/domains/${domain}`);
+        const projectId = required(args.project, '--project');
+        await api.delete(`/v9/projects/${projectId}/domains/${domain}`);
+        if (args.json) return json({ projectId, removed: domain });
         console.log(`✓ Domain ${domain} removed`);
         break;
       }
@@ -530,7 +587,8 @@ const commands = {
         const projectId = args._[2];
         if (!projectId) throw new Error('Project ID required');
 
-        const result = await api.get(`/v9/projects/${projectId}/env`);
+        const result = await api.get(`/v10/projects/${projectId}/env`);
+        for (const env of result.envs || []) delete env.value;
 
         if (args.json) {
           console.log(JSON.stringify(result, null, 2));
@@ -553,7 +611,7 @@ const commands = {
         const value = args.value;
         const target = args.target ? args.target.split(',') : ['production', 'preview', 'development'];
 
-        if (!projectId || !key || !value) {
+        if (!projectId || !key || typeof value !== 'string') {
           throw new Error('Project ID, --key, and --value required');
         }
 
@@ -565,6 +623,7 @@ const commands = {
         };
 
         await api.post(`/v10/projects/${projectId}/env`, body);
+        if (args.json) return json({ added: key });
         console.log(`✓ Environment variable ${key} added`);
         break;
       }
@@ -576,11 +635,12 @@ const commands = {
         if (!projectId || !envId) throw new Error('Project ID and Env ID required');
 
         const body = {
-          ...(args.value && { value: args.value }),
+          ...(typeof args.value === 'string' && { value: args.value }),
           ...(args.target && { target: args.target.split(',') }),
         };
 
         await api.patch(`/v9/projects/${projectId}/env/${envId}`, body);
+        if (args.json) return json({ updated: envId });
         console.log('✓ Environment variable updated');
         break;
       }
@@ -592,6 +652,7 @@ const commands = {
         if (!projectId || !envId) throw new Error('Project ID and Env ID required');
 
         await api.delete(`/v9/projects/${projectId}/env/${envId}`);
+        if (args.json) return json({ removed: envId });
         console.log('✓ Environment variable removed');
         break;
       }
@@ -604,24 +665,15 @@ const commands = {
         if (!projectId || !file) throw new Error('Project ID and --file required');
 
         const envContent = await readFile(file, 'utf-8');
-        const lines = envContent.split('\n').filter(line => line.trim() && !line.startsWith('#'));
-
-        for (const line of lines) {
-          const [key, ...valueParts] = line.split('=');
-          const value = valueParts.join('=').trim();
-
-          try {
-            await api.post(`/v10/projects/${projectId}/env`, {
-              key: key.trim(),
-              value,
-              type: 'encrypted',
-              target,
-            });
-            console.log(`✓ ${key.trim()}`);
-          } catch (err) {
-            console.error(`✗ ${key.trim()}: ${err.message}`);
-          }
+        const entries = file.endsWith('.json') ? Object.entries(parseJSON(envContent, 'env JSON file')) : parseEnv(envContent);
+        if (entries.some(([key, value]) => !/^[A-Za-z_][A-Za-z0-9_]*$/.test(key) || typeof value !== 'string')) {
+          throw new Error('Environment values must be strings with valid variable names');
         }
+        for (const [key, value] of entries) {
+          await api.post(`/v10/projects/${projectId}/env`, { key, value, type: 'encrypted', target }, { query: { upsert: 'true' } });
+          if (!args.json) console.log(`✓ ${key}`);
+        }
+        if (args.json) return json({ imported: entries.map(([key]) => key) });
         break;
       }
 
@@ -639,18 +691,19 @@ const commands = {
         if (!deploymentId) throw new Error('Deployment ID required');
 
         const params = {
-          ...(args.since && { since: args.since }),
-          ...(args.until && { until: args.until }),
-          ...(args.source && { source: args.source }),
+          ...(args.since && { since: timestamp(args.since) }),
+          ...(args.until && { until: timestamp(args.until) }),
+          builds: 1,
+          direction: 'backward',
           limit: args.limit || 100,
         };
-
-        const result = await api.get(`/v2/deployments/${deploymentId}/events`, { query: params });
+        if (args.source && args.source !== 'build') throw new Error('logs get returns build logs; use vercel logs for runtime logs');
+        const result = await api.get(`/v3/deployments/${deploymentId}/events`, { query: params });
 
         if (args.json) {
           console.log(JSON.stringify(result, null, 2));
         } else {
-          for (const event of result) {
+          for (const event of result || []) {
             const timestamp = new Date(event.created).toISOString();
             console.log(`[${timestamp}] ${event.text || event.payload?.text || ''}`);
           }
@@ -659,26 +712,7 @@ const commands = {
       }
 
       case 'follow': {
-        const deploymentId = args._[2];
-        if (!deploymentId) throw new Error('Deployment ID required');
-
-        console.log('Following logs (Ctrl+C to stop)...\n');
-
-        let lastTimestamp = Date.now();
-        while (true) {
-          const result = await api.get(`/v2/deployments/${deploymentId}/events`, {
-            query: { since: lastTimestamp, limit: 100 }
-          });
-
-          for (const event of result) {
-            const timestamp = new Date(event.created).toISOString();
-            console.log(`[${timestamp}] ${event.text || event.payload?.text || ''}`);
-            lastTimestamp = Math.max(lastTimestamp, event.created);
-          }
-
-          await new Promise(resolve => setTimeout(resolve, 2000));
-        }
-        break;
+        throw new Error('Build logs: vercel inspect <deployment> --logs --wait. Runtime stream: vercel logs <deployment> --follow');
       }
 
       default:
@@ -715,6 +749,7 @@ const commands = {
         if (!deploymentId || !alias) throw new Error('Deployment ID and --alias required');
 
         await api.post(`/v2/deployments/${deploymentId}/aliases`, { alias });
+        if (args.json) return json({ deploymentId, alias });
         console.log(`✓ Alias ${alias} assigned to deployment`);
         break;
       }
@@ -724,6 +759,7 @@ const commands = {
         if (!alias) throw new Error('Alias required');
 
         await api.delete(`/v2/aliases/${alias}`);
+        if (args.json) return json({ removed: alias });
         console.log(`✓ Alias ${alias} removed`);
         break;
       }
@@ -767,7 +803,7 @@ const commands = {
         const teamId = args._[2];
         if (!teamId) throw new Error('Team ID required');
 
-        const result = await api.get(`/v2/teams/${teamId}/members`);
+        const result = await api.get(`/v3/teams/${teamId}/members`);
 
         if (args.json) {
           console.log(JSON.stringify(result, null, 2));
@@ -790,7 +826,8 @@ const commands = {
 
         if (!teamId || !email) throw new Error('Team ID and --email required');
 
-        await api.post(`/v1/teams/${teamId}/members`, { email, role });
+        await api.post(`/v2/teams/${teamId}/members`, { email, role });
+        if (args.json) return json({ invited: email, teamId });
         console.log(`✓ Invitation sent to ${email}`);
         break;
       }
@@ -810,14 +847,15 @@ const commands = {
 
     const options = {};
 
+    if (!['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'HEAD'].includes(method)) throw new Error('Unsupported HTTP method');
+    if (args.data !== undefined && args['data-file']) throw new Error('Use either --data or --data-file');
     if (args.data) {
-      options.body = JSON.parse(args.data);
+      options.body = parseJSON(args.data, '--data');
     }
+    if (args['data-file']) options.body = parseJSON(await readFile(args['data-file'], 'utf8'), '--data-file');
 
     if (args.query) {
-      options.query = Object.fromEntries(
-        args.query.split('&').map(p => p.split('='))
-      );
+      options.query = Object.fromEntries(new URLSearchParams(args.query));
     }
 
     const result = await api.request(method, endpoint, options);
@@ -825,25 +863,61 @@ const commands = {
   },
 };
 
-// Add placeholders for remaining commands
-['edge-config', 'blob', 'functions', 'crons', 'webhooks', 'monitoring'].forEach(cmd => {
-  commands[cmd] = async (api, args) => {
-    console.log(`\n⚠️  Command "${cmd}" not yet implemented.`);
-    console.log(`This is a placeholder. The full implementation will include:`);
+commands['edge-config'] = async (api, args) => {
+  // Current official OpenAPI calls the control-plane resource global-config.
+  const base = '/v1/global-config';
+  const sub = args._[1];
+  if (sub === 'list') return json(await api.get(base));
+  if (sub === 'create') return json(await api.post(base, { slug: required(args.name, '--name') }));
+  const id = encodeURIComponent(required(args._[2], 'Edge Config ID'));
+  const key = args.key && encodeURIComponent(args.key);
+  if (sub === 'get') return json(await api.get(`${base}/${id}/${key ? `item/${key}` : 'items'}`));
+  let items;
+  if (sub === 'set' || sub === 'delete') {
+    required(args.key, '--key');
+    items = [{ operation: sub === 'set' ? 'upsert' : 'delete', key: args.key,
+      ...(sub === 'set' && { value: parseJSON(required(args.value, '--value (JSON)'), '--value') }) }];
+  } else if (sub === 'update') {
+    const values = parseJSON(await readFile(required(args.file, '--file'), 'utf8'), 'Edge Config file');
+    if (!values || Array.isArray(values) || typeof values !== 'object') throw new Error('Edge Config file must contain an object of key/value pairs');
+    items = Object.entries(values).map(([key, value]) => ({ operation: 'upsert', key, value }));
+  } else throw new Error(`Unknown edge-config subcommand: ${sub}`);
+  if (items.some(item => !/^[\w-]{1,256}$/.test(item.key))) throw new Error('Invalid Edge Config key');
+  json(await api.patch(`${base}/${id}/items`, { items }));
+};
 
-    const features = {
-      'edge-config': ['list', 'create', 'get', 'set', 'delete', 'update'],
-      'blob': ['list', 'create', 'put', 'get', 'delete', 'list-keys'],
-      'functions': ['list', 'get', 'logs', 'invoke'],
-      'crons': ['list', 'create', 'update', 'delete', 'trigger'],
-      'webhooks': ['list', 'create', 'delete', 'test'],
-      'monitoring': ['analytics', 'bandwidth', 'build-time', 'errors'],
-    };
-
-    console.log(`  Subcommands: ${features[cmd].join(', ')}`);
-    console.log(`\nFeel free to implement this using the "api" command or extend this script.\n`);
-  };
-});
+commands.webhooks = async (api, args) => {
+  const sub = args._[1];
+  if (sub === 'list') {
+    const result = await api.get('/v1/webhooks', { query: args.project ? { projectId: args.project } : {} });
+    for (const webhook of Array.isArray(result) ? result : result.webhooks || []) delete webhook.secret;
+    return json(result);
+  }
+  if (sub === 'create') {
+    const url = new URL(required(args.url, '--url'));
+    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error('Webhook URL must be HTTP(S) without credentials');
+    const events = required(args.events, '--events').split(',').filter(Boolean);
+    if (!events.length) throw new Error('--events must not be empty');
+    // Reserve the destination before creating a remote resource; never overwrite a secret.
+    const file = await open(required(args['secret-file'], '--secret-file'), 'wx', 0o600);
+    try {
+      const result = await api.post('/v1/webhooks', { url: url.href, events,
+        ...(args.project && { projectIds: args.project.split(',') }) });
+      if (!result.secret) throw new Error('Webhook created but no signing secret returned; inspect webhooks before retrying');
+      await file.writeFile(result.secret);
+      delete result.secret;
+      return json(result);
+    } finally { await file.close(); }
+  }
+  const id = encodeURIComponent(required(args._[2], 'Webhook ID'));
+  if (sub === 'get') {
+    const result = await api.get(`/v1/webhooks/${id}`);
+    delete result.secret;
+    return json(result);
+  }
+  if (sub === 'delete') { await api.delete(`/v1/webhooks/${id}`); return json({ deleted: args._[2] }); }
+  throw new Error('Supported webhook commands: list, create, get, delete. No public test endpoint is assumed.');
+};
 
 // ============================================================================
 // CLI Parser
@@ -851,20 +925,35 @@ const commands = {
 
 function parseArgs(argv) {
   const args = { _: [] };
+  const flags = new Set(['json', 'verbose', 'help']);
+  const values = new Set(['profile', 'config', 'team-id', 'limit', 'name', 'framework', 'build-command',
+    'output-directory', 'install-command', 'dev-command', 'root-directory', 'repo', 'branch', 'project',
+    'ref', 'git-source', 'target', 'domain', 'key', 'value', 'type', 'file', 'since', 'until', 'source',
+    'alias', 'email', 'role', 'data', 'data-file', 'query', 'timeout', 'url', 'events', 'secret-file']);
 
   for (let i = 0; i < argv.length; i++) {
-    const arg = argv[i];
+    const arg = argv[i] === '-h' ? '--help' : argv[i];
 
     if (arg.startsWith('--')) {
-      const key = arg.slice(2);
+      const separator = arg.indexOf('=');
+      const key = arg.slice(2, separator < 0 ? undefined : separator);
+      if (flags.has(key)) {
+        if (separator >= 0) throw new Error(`--${key} does not take a value`);
+        args[key] = true;
+        continue;
+      }
+      if (!values.has(key)) throw new Error(`Unknown option: --${key}`);
+      if (separator >= 0) { args[key] = arg.slice(separator + 1); continue; }
       const value = argv[i + 1];
 
       if (value && !value.startsWith('--')) {
         args[key] = value;
         i++;
       } else {
-        args[key] = true;
+        throw new Error(`--${key} requires a value`);
       }
+    } else if (arg.startsWith('-')) {
+      throw new Error(`Unknown option: ${arg}`);
     } else {
       args._.push(arg);
     }
@@ -878,7 +967,9 @@ function parseArgs(argv) {
 // ============================================================================
 
 async function main() {
-  const args = parseArgs(process.argv.slice(2));
+  let args = {};
+  try {
+  args = parseArgs(process.argv.slice(2));
 
   if (args._.length === 0 || args.help || args.h) {
     console.log(`
@@ -888,19 +979,15 @@ Usage: node vercel-ops.js <command> <subcommand> [options]
 
 Commands:
   verify          Verify token and show account info
-  projects        Manage projects (list, get, create, update, delete, link)
-  deployments     Manage deployments (list, get, create, cancel, redeploy, delete)
+  projects        Manage projects (list, get, create, update, delete)
+  deployments     Manage deployments (list, get, create, cancel, redeploy, delete, wait)
   domains         Manage domains (list, add, verify, remove, get)
   env             Manage environment variables (list, add, update, remove, import)
-  logs            Query deployment logs (get, follow)
+  logs            Query build logs (get); runtime/follow: use official vercel CLI
   aliases         Manage aliases (list, assign, remove)
   teams           Manage teams (list, get, members, invite)
-  edge-config     Manage Edge Config [coming soon]
-  blob            Manage Blob storage [coming soon]
-  functions       Manage Serverless Functions [coming soon]
-  crons           Manage Cron Jobs [coming soon]
-  webhooks        Manage webhooks [coming soon]
-  monitoring      Query monitoring data [coming soon]
+  edge-config     Manage Edge Config (list, create, get, set, delete, update)
+  webhooks        Manage webhooks (list, create, get, delete)
   api             Direct API call (GET/POST/PATCH/DELETE <endpoint>)
 
 Global Options:
@@ -923,10 +1010,21 @@ Environment Variables:
 
 For detailed documentation, see SKILL.md
 `);
-    process.exit(0);
+    return;
   }
 
-  try {
+    const command = args._[0];
+    const native = {
+      blob: 'vercel blob --help (Blob uses a separate store token; see references/examples.md)',
+      functions: 'vercel inspect <deployment> or vercel logs <deployment>',
+      crons: 'edit crons in vercel.json, then deploy; see references/examples.md',
+      monitoring: 'vercel metrics schema, then vercel metrics <metric-id>',
+    };
+    if (native[command]) throw new Error(`Use the official workflow: ${native[command]}`);
+    if (!Object.hasOwn(commands, command)) throw new Error(`Unknown command: ${command}. Run with --help.`);
+    if (command !== 'api' && args._.slice(2).some(value => /[/?#\\]/.test(value) || value === '.' || value === '..')) {
+      throw new Error('Resource identifiers must be IDs/names, not URLs or paths');
+    }
     const config = new VercelConfig();
     config.verbose = args.verbose;
 
@@ -937,27 +1035,18 @@ For detailed documentation, see SKILL.md
     });
 
     const api = new VercelAPI(config);
-    const command = args._[0];
-
-    if (!commands[command]) {
-      throw new Error(`Unknown command: ${command}. Run with --help to see available commands.`);
-    }
-
     await commands[command](api, args);
 
   } catch (err) {
     if (err instanceof APIError) {
       console.error(`API Error (${err.statusCode}): ${err.message}`);
-      if (err.details) {
-        console.error('Details:', JSON.stringify(err.details, null, 2));
-      }
-      process.exit(2);
+      process.exitCode = 2;
     } else {
       console.error(`Error: ${err.message}`);
-      if (args.verbose) console.error(err.stack);
-      process.exit(1);
+      process.exitCode = err instanceof NetworkError ? 3 : 1;
     }
   }
 }
 
-main();
+export { VercelConfig, VercelAPI, commands, parseArgs, parseEnv, timestamp };
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) main();

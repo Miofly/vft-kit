@@ -1,10 +1,6 @@
 ---
 name: cloudflare-ops
-description: >-
-  通用 Cloudflare API 操作封装:zones 查询、DNS 记录 CRUD、Cache Rules CRUD、purge 缓存(URL/tag/host/prefix)、Zone 设置 get/set、Ruleset 通用命令(redirect/transform/origin/waf 等所有 phase)、通用 API 透传。
-  零依赖(Node 18+),多 profile 支持。token 从环境变量或配置文件读取，环境变量优先于 config file。
-  子命令:verify、zones、dns、cache、purge、settings、ruleset、api。
-  适合任何 Cloudflare 账号,不含私有信息。Workers/R2/KV/Zero Trust 走官方 cloudflare MCP + wrangler,本 skill 专注 zone/HTTP 域名级运维。
+description: "通过 Cloudflare API 管理任意账号的 zone、DNS、缓存规则、purge、域名设置与 Ruleset。Workers/R2/KV/Zero Trust 使用官方 MCP 或 wrangler。"
 ---
 
 # cloudflare-ops

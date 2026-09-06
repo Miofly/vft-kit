@@ -1,6 +1,6 @@
 ---
 name: replicate-web-style
-description: Use when a user asks to high-fidelity copy, reproduce, clone, restyle, or migrate the visual design of a reference website, screenshot, design source, or local frontend into an existing Vue, React, Astro, or static HTML project, especially when typography, fonts, colors, spacing, layout, responsive behavior, interaction states, or motion must closely match.
+description: "Reproduce a reference website, screenshot or design in an existing frontend, matching typography, layout, responsive behavior, interaction states and motion."
 ---
 
 # Replicate Web Style

@@ -1,7 +1,6 @@
 ---
 name: keyboard-maestro
-description: >-
-  在 macOS 上创建、导入、运行、查询和管理 Keyboard Maestro 宏与自动化。用户提到 Keyboard Maestro、KM 宏、kmmacros、定时执行 Shell/AppleScript、快捷键、Typed String、宏组、变量/字典、执行或编辑宏、导入导出、启停或删除宏、通过 AppleScript/CLI/kmtrigger 控制 Keyboard Maestro 时使用。覆盖 Keyboard Maestro 11 的官方 Editor/Engine 脚本接口和任意原生 Action XML；不要直接修改 Keyboard Maestro Macros.plist 或 Variables.sqlite。
+description: "通过 macOS 官方脚本接口创建、运行、导入导出或管理 Keyboard Maestro 宏、动作、变量与定时任务；禁止直接改 Macros.plist 或 Variables.sqlite。"
 ---
 
 # Keyboard Maestro
