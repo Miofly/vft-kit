@@ -477,21 +477,6 @@ agents_has 'codex-imagegen generate|不要先声明“我会走 imagegen skill�
 
 sec "系统辅助工具（可选）"
 [ -d "$CC_SWITCH_APP_PATH" ] && ok "cc-switch App" || opt "cc-switch App" "brew install --cask cc-switch"
-if cfg_has_line '^\[mcp_servers\.(node_repl|"node_repl")\][[:space:]]*$' && mcp_enabled "node_repl"; then
-  node_repl_command="$(awk '
-    $0 ~ /^\[mcp_servers\.(node_repl|"node_repl")\][[:space:]]*$/ { in_section=1; next }
-    /^\[/ { in_section=0 }
-    in_section && /^[[:space:]]*command[[:space:]]*=/ {
-      value=$0; sub(/^[^"]*"/, "", value); sub(/".*$/, "", value); print value; exit
-    }
-  ' "$CONFIG")"
-  if [ -n "$node_repl_command" ]; then
-    case "$node_repl_command" in
-      */*) [ -e "$node_repl_command" ] || opt "node_repl command 不存在" "禁用该 MCP，或修正 command: $node_repl_command" ;;
-      *) has_cmd "$node_repl_command" || opt "node_repl command 不存在" "禁用该 MCP，或修正 command: $node_repl_command" ;;
-    esac
-  fi
-fi
 
 if [ "$HEALTH" -eq 1 ]; then
   sec "MCP 实连健康检查"

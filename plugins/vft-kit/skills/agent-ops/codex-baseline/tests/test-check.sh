@@ -116,10 +116,6 @@ url = "https://context7.example/mcp"
 [mcp_servers.openaiDeveloperDocs]
 url = "https://developers.openai.com/mcp"
 
-[mcp_servers.node_repl]
-enabled = false
-command = "/missing/Codex.app/node_repl"
-
 [plugins."github@openai-api-curated"]
 enabled = true
 
@@ -266,7 +262,6 @@ grep -Fq 'Codex multi_agent' <<< "$output" && { printf 'FAIL: enabled multi_agen
 grep -Fq 'OpenAI Developer Docs MCP 已配置' <<< "$output" || { printf 'FAIL: docs MCP check missing\n' >&2; exit 1; }
 grep -Fiq 'vercel' <<< "$output" && { printf 'FAIL: Vercel should not be managed by the baseline\n' >&2; exit 1; }
 grep -Fq 'GITHUB_PAT_TOKEN 已注入' <<< "$output" || { printf 'FAIL: injected GitHub token not detected\n' >&2; exit 1; }
-grep -Fq 'node_repl command 不存在' <<< "$output" && { printf 'FAIL: disabled node_repl should be ignored\n' >&2; exit 1; }
 
 : > "$TMP_ROOT/mcp-health.log"
 output="$(run_check --health)"
@@ -406,15 +401,6 @@ output="$(TEST_GITHUB_PAT_TOKEN= TEST_GH_TOKEN_AVAILABLE=true run_check)"
 grep -Fq 'GitHub 能力（gh 已登录；API curated 当前未提供插件）' <<< "$output" || { printf 'FAIL: authenticated gh fallback not accepted\n' >&2; exit 1; }
 mv "$TEST_CODEX_HOME/config.toml.bak" "$TEST_CODEX_HOME/config.toml"
 mkdir -p "$TEST_CODEX_HOME/plugins/cache/openai-api-curated/github/v1"
-
-sed -i.bak 's/^enabled = false$/enabled = true/' "$TEST_CODEX_HOME/config.toml"
-set +e
-output="$(run_check 2>&1)"
-status=$?
-set -e
-[ "$status" -eq 0 ] || { printf 'FAIL: missing node_repl command should remain optional\n' >&2; exit 1; }
-grep -Fq 'node_repl command 不存在' <<< "$output" || { printf 'FAIL: enabled node_repl missing command not reported\n' >&2; exit 1; }
-mv "$TEST_CODEX_HOME/config.toml.bak" "$TEST_CODEX_HOME/config.toml"
 
 mv "$NPM_ROOT_FIXTURE/@danielsogl/lighthouse-mcp" "$TMP_ROOT/lighthouse-mcp.disabled"
 set +e
