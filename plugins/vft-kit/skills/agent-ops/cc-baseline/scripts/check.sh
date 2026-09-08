@@ -19,8 +19,8 @@ ZSHENV="${ZDOTDIR:-$HOME}/.zshenv"
 pass=0; fail=0; warn=0; declined=0
 
 # CC_BASELINE_SKIP：本机「刻意不装」的必需项清单（空格或逗号分隔的关键字，对检查项标签做子串匹配）。
-# 用途：基线里的必需项若与本机既有方案互斥（如 claude-hud 状态栏 vs ai-helper island statusline，
-# 二者抢同一个 settings.statusLine，只能留一个），它永远补不齐，每次都报 ✗ 并让退出码=1 —— 那是
+# 用途：基线里的必需项若与本机既有方案互斥（例如两个状态栏实现争用同一个
+# settings.statusLine，只能留一个），它永远补不齐，每次都报 ✗ 并让退出码=1 —— 那是
 # 恒假的噪音，会淹掉真实缺失。声明进本变量后降级为中性「⊘ 刻意不装」，不计 fail、不影响退出码。
 # 例：CC_BASELINE_SKIP="claude-hud" bash check.sh
 # 只按逗号分隔，不按空格：检查项标签本身含空格（如「claude-hud 状态栏」），

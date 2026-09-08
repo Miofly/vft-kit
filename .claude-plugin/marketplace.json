@@ -10,13 +10,13 @@
     {
       "name": "vft-kit",
       "source": "./plugins/vft-kit",
-      "description": "Claude Code / Codex 运维与通用开发工具，并提供 ai-helper macOS 应用的安全安装入口",
+      "description": "Claude Code / Codex 运维与通用开发工具",
       "version": "0.2.0",
       "author": {
         "name": "wfly"
       },
       "category": "productivity",
-      "tags": ["claude-code", "codex", "devops", "backup", "ai-helper", "playwright"]
+      "tags": ["claude-code", "codex", "devops", "backup", "playwright"]
     }
   ]
 }

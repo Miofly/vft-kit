@@ -15,6 +15,12 @@ if ! command -v rtk >/dev/null 2>&1; then
 fi
 
 CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
+NODE_BIN="${NODE_BIN:-node}"
+NODE_PATH="$(command -v "$NODE_BIN" 2>/dev/null || true)"
+[ -n "$NODE_PATH" ] || {
+  printf '  ✗ Node.js 缺失，无法安装 RTK Codex Hook\n' >&2
+  exit 1
+}
 if [ -n "${CODEX_AGENTS:-}" ]; then
   AGENTS="$CODEX_AGENTS"
 elif [ -f "$CODEX_HOME/AGENTS.override.md" ]; then
@@ -24,6 +30,10 @@ else
 fi
 START_MARKER='<!-- >>> vft-kit rtk safe shell usage >>> -->'
 END_MARKER='<!-- <<< vft-kit rtk safe shell usage <<< -->'
+HOOK_SOURCE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/rtk-pre-tool-use.mjs"
+HOOK_DIR="$CODEX_HOME/hooks"
+HOOK_PATH="$HOOK_DIR/vft-kit-rtk-pre-tool-use.mjs"
+HOOKS_FILE="$CODEX_HOME/hooks.json"
 
 target_dir="$(dirname "$AGENTS")"
 mkdir -p "$target_dir"
@@ -62,5 +72,47 @@ cat >> "$tmp" <<'EOF'
 EOF
 
 chmod "$mode" "$tmp" 2>/dev/null || true
+mkdir -p "$HOOK_DIR"
+install -m 755 "$HOOK_SOURCE" "$HOOK_PATH"
+
+"$NODE_PATH" - "$HOOKS_FILE" "$HOOK_PATH" "$NODE_PATH" <<'NODE'
+const fs = require('fs');
+const [file, hookPath, nodePath] = process.argv.slice(2);
+let config = { hooks: {} };
+let mode = 0o600;
+if (fs.existsSync(file)) {
+  config = JSON.parse(fs.readFileSync(file, 'utf8'));
+  mode = fs.statSync(file).mode & 0o777;
+}
+if (!config || typeof config !== 'object' || Array.isArray(config)) throw new Error('hooks.json 顶层必须是对象');
+if (!config.hooks) config.hooks = {};
+if (typeof config.hooks !== 'object' || Array.isArray(config.hooks)) throw new Error('hooks 字段必须是对象');
+if (!config.hooks.PreToolUse) config.hooks.PreToolUse = [];
+if (!Array.isArray(config.hooks.PreToolUse)) throw new Error('PreToolUse 字段必须是数组');
+
+const shellQuote = (value) => `'${value.replaceAll("'", `'"'"'`)}'`;
+const hookName = 'vft-kit-rtk-pre-tool-use.mjs';
+config.hooks.PreToolUse = config.hooks.PreToolUse.flatMap((group) => {
+  if (!group || typeof group !== 'object' || !Array.isArray(group.hooks)) return [group];
+  const hooks = group.hooks.filter((hook) => !(hook && typeof hook.command === 'string' && hook.command.includes(hookName)));
+  return hooks.length ? [{ ...group, hooks }] : [];
+});
+config.hooks.PreToolUse.push({
+  matcher: '(^Bash$|^shell_command$|^exec_command$)',
+  hooks: [{
+    type: 'command',
+    command: `${shellQuote(nodePath)} ${shellQuote(hookPath)}`,
+    timeout: 5,
+    statusMessage: 'Applying safe RTK compression',
+  }],
+});
+
+const temp = `${file}.tmp-${process.pid}`;
+fs.writeFileSync(temp, `${JSON.stringify(config, null, 2)}\n`, { mode });
+fs.chmodSync(temp, mode);
+fs.renameSync(temp, file);
+NODE
+
 mv "$tmp" "$AGENTS"
-printf '  ✓ RTK 已安装（%s），安全规则已写入 %s\n' "$(rtk --version 2>/dev/null)" "$AGENTS"
+trap - EXIT
+printf '  ✓ RTK 已安装（%s），安全规则与 Hook 已接入 %s\n' "$(rtk --version 2>/dev/null)" "$AGENTS"
