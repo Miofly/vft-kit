@@ -27,7 +27,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MCP_HEALTH_SCRIPT="${MCP_HEALTH_SCRIPT:-$SCRIPT_DIR/check-mcp-health.mjs}"
 CODEX_STATE_SCRIPT="${CODEX_STATE_SCRIPT:-$SCRIPT_DIR/inspect-codex-state.mjs}"
 CODEX_STATE_NODE="${CODEX_STATE_NODE:-node}"
-RTK_MD="$CODEX_HOME/RTK.md"
+RTK_START_MARKER='<!-- >>> vft-kit rtk safe shell usage >>> -->'
+RTK_END_MARKER='<!-- <<< vft-kit rtk safe shell usage <<< -->'
 CODEGRAPH_INSTALL='curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh'
 CODE_REVIEW_GRAPH_INSTALL='pipx install code-review-graph'
 CODE_REVIEW_GRAPH_CONFIGURE='codex mcp add code-review-graph -- code-review-graph serve'
@@ -224,7 +225,11 @@ gsap_skills_installed(){
   done
 }
 rtk_codex_ready(){
-  [ -f "$RTK_MD" ] && agents_has 'RTK\.md|rtk.*命令|token-optimized|token.*优化'
+  [ -f "$ACTIVE_AGENTS" ] || return 1
+  grep -Fq "$RTK_START_MARKER" "$ACTIVE_AGENTS" || return 1
+  grep -Fq "$RTK_END_MARKER" "$ACTIVE_AGENTS" || return 1
+  grep -Fq 'RTK 是受限使用的输出压缩器，不是 Shell 通用前缀' "$ACTIVE_AGENTS" || return 1
+  grep -Fq '命令同时满足以下条件时必须使用' "$ACTIVE_AGENTS"
 }
 chromium_installed(){
   local dir
@@ -315,7 +320,7 @@ has_cmd jq    && ok "jq"                                                   || op
 has_cmd gh    && ok "gh ($(gh --version 2>/dev/null | head -1 | awk '{print $3}'))" || opt "gh" "brew install gh（GitHub CLI：PR/Actions/仓库操作，可选）"
 has_cmd rtk && ok "RTK ($(rtk --version 2>/dev/null))" || bad "RTK" "brew install rtk"
 if has_cmd rtk; then
-  rtk_codex_ready && ok "RTK Codex 指令已接入" || opt "RTK Codex 指令" "rtk init --codex --global"
+  rtk_codex_ready && ok "RTK Codex 安全规则已接入" || bad "RTK Codex 安全规则" "运行 $SCRIPT_DIR/install-rtk.sh"
 fi
 
 sec "dangerous full access 权限基线"
