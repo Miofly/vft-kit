@@ -63,8 +63,9 @@
     {
       "id": "web-automation",
       "name": "Web 与自动化",
-      "description": "浏览器发布、网页抓取和 macOS 自动化。",
+      "description": "浏览器发布、网页抓取、Android 与 macOS 自动化。",
       "skills": [
+        "android-ui-automation",
         "chrome-web-store-publish",
         "keyboard-maestro",
         "qr-login",
