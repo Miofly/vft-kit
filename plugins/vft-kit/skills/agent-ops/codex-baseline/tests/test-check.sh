@@ -206,7 +206,11 @@ write_agents() {
       '- context7 查询最新官方文档。' \
       '- anysearch 联网搜索优先。' \
       '- Caveman 默认 full 自动启用，每个新会话直接使用极简表达。' \
-      '- 生图使用 codex-imagegen generate。'
+      '- 生图使用 codex-imagegen generate。' \
+      '<!-- >>> vft-kit rtk safe shell usage >>> -->' \
+      '## RTK 安全使用' \
+      '- RTK 是受限使用的输出压缩器，不是 Shell 通用前缀。命令同时满足以下条件时必须使用。' \
+      '<!-- <<< vft-kit rtk safe shell usage <<< -->'
   } > "$TEST_CODEX_HOME/AGENTS.md"
 }
 
@@ -249,6 +253,7 @@ grep -Fq 'code-review-graph 索引维护规范' <<< "$output" || { printf 'FAIL:
 grep -Fq 'context7 官方文档优先' <<< "$output" || { printf 'FAIL: context7 AGENTS check missing\n' >&2; exit 1; }
 grep -Fq 'anysearch 联网搜索优先' <<< "$output" || { printf 'FAIL: anysearch AGENTS check missing\n' >&2; exit 1; }
 grep -Fq 'Caveman 默认 full 自动启用' <<< "$output" || { printf 'FAIL: Caveman default activation check missing\n' >&2; exit 1; }
+grep -Fq 'RTK Codex 安全规则已接入' <<< "$output" || { printf 'FAIL: active RTK rule check missing\n' >&2; exit 1; }
 grep -Fq 'grill-me skill' <<< "$output" || { printf 'FAIL: optional grill-me skill check missing\n' >&2; exit 1; }
 grep -Fq 'diagram-design@diagram-design' <<< "$output" || { printf 'FAIL: optional diagram-design plugin check missing\n' >&2; exit 1; }
 grep -Fq 'understand-anything skills' <<< "$output" || { printf 'FAIL: optional understand-anything check missing\n' >&2; exit 1; }
@@ -280,6 +285,19 @@ grep -Fq 'Caveman 默认 full 自动启用' <<< "$output" || { printf 'FAIL: act
 cp "$TEST_CODEX_HOME/AGENTS.md" "$TEST_CODEX_HOME/AGENTS.override.md"
 output="$(run_check)"
 grep -Fq 'Caveman 默认 full 自动启用' <<< "$output" || { printf 'FAIL: active override Caveman rule not detected\n' >&2; exit 1; }
+
+sed -i.bak '/<!-- >>> vft-kit rtk safe shell usage >>> -->/,/<!-- <<< vft-kit rtk safe shell usage <<< -->/d' "$TEST_CODEX_HOME/AGENTS.override.md"
+rm "$TEST_CODEX_HOME/AGENTS.override.md.bak"
+set +e
+output="$(run_check 2>&1)"
+status=$?
+set -e
+[ "$status" -eq 1 ] || { printf 'FAIL: active override without RTK safety rule should fail\n' >&2; exit 1; }
+grep -Fq 'RTK Codex 安全规则' <<< "$output" || { printf 'FAIL: active override RTK gap not reported\n' >&2; exit 1; }
+
+cp "$TEST_CODEX_HOME/AGENTS.md" "$TEST_CODEX_HOME/AGENTS.override.md"
+output="$(run_check)"
+grep -Fq 'RTK Codex 安全规则已接入' <<< "$output" || { printf 'FAIL: restored active override RTK rule not detected\n' >&2; exit 1; }
 rm "$TEST_CODEX_HOME/AGENTS.override.md"
 
 mkdir -p "$TEST_HOME/.agents/skills/understand"

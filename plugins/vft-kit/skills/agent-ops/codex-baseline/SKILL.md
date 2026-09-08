@@ -21,7 +21,7 @@ bash ${CODEX_PLUGIN_ROOT:-${VFT_PLUGIN_ROOT:-.}}/skills/agent-ops/codex-baseline
 bash ${CODEX_PLUGIN_ROOT:-${VFT_PLUGIN_ROOT:-.}}/skills/agent-ops/codex-baseline/scripts/run.sh --health
 ```
 
-`run.sh` 会执行已授权的常设维护：RTK 缺失时通过 Homebrew 直接安装、同步 CC-Switch 认证、准备 imagegen CLI、缺失时安装 Caveman Codex skills，并维护 imagegen 与 Caveman 默认 full 的全局 AGENTS 托管块。Caveman 规则写入当前实际生效文件：存在 `~/.codex/AGENTS.override.md` 时写 override，否则写 `~/.codex/AGENTS.md`。不得输出完整 Key。其余检查只读。
+`run.sh` 会执行已授权的常设维护：RTK 缺失时通过 Homebrew 直接安装，并把 RTK 安全使用规则写入当前实际生效的全局 AGENTS 文件；同时同步 CC-Switch 认证、准备 imagegen CLI、缺失时安装 Caveman Codex skills，并维护 imagegen 与 Caveman 默认 full 的全局 AGENTS 托管块。AGENTS 目标优先级为 `CODEX_AGENTS`、`~/.codex/AGENTS.override.md`、`~/.codex/AGENTS.md`。不得输出完整 Key。其余检查只读。
 
 启动 skill 后立即新建一个子 Agent，与主线程的 baseline 检查并行，并把本 skill 的绝对目录传给它。子 Agent 只读运行 `node <SKILL_DIR>/scripts/check-versions.mjs`，不得自行拼装版本检查命令，也不得执行 upgrade、add、remove 或 cache 刷新。脚本按 SemVer 数字段比较 Codex CLI、RTK、CodeGraph、code-review-graph，以及 Git marketplace 安装的第三方 Codex 插件；OpenAI 内置、本地 bundled 和本地开发插件不进入外部版本审计。单项默认超时 10 秒、总计 45 秒，失败或无公开上游时输出“无法判断”。主线程仅在结果含 `VERSION_AUDIT_DONE` 时视为审计完成；子 Agent 不可用、超时或缺少完成标记时，由主线程运行同一脚本兜底，不阻塞 baseline。CLI 或插件有更新候选时列出“项｜当前版本｜最新版本”并询问是否更新；均无候选时只报告已是最新，同时保留所有“无法判断”项。
 
@@ -46,7 +46,7 @@ bash ${CODEX_PLUGIN_ROOT:-${VFT_PLUGIN_ROOT:-.}}/skills/agent-ops/codex-baseline
 | Agent Skills | Caveman + 默认 full、GSAP 8 项、Emil 3 项 | AnySearch、Grill-me、Understand Anything、PM Skills、Emil 其余 7 项 |
 | 系统 skills | openai-docs、imagegen、skill-creator、plugin-creator、skill-installer | - |
 | 图片生成 | imagegen 脚本、专用 venv、依赖、`codex-imagegen`、认证注入源 | - |
-| 全局 AGENTS | `AGENTS.md` 中的中文回复、可点短链、压缩取舍、代理兜底、多 Agent 并行、code-review-graph review-first/索引维护、生图规则；Caveman 额外检查实际生效文件 | Context7 / AnySearch 已安装时才检查对应调用规则 |
+| 全局 AGENTS | `AGENTS.md` 中的中文回复、可点短链、压缩取舍、代理兜底、多 Agent 并行、code-review-graph review-first/索引维护、生图规则；RTK 与 Caveman 额外检查实际生效文件 | Context7 / AnySearch 已安装时才检查对应调用规则 |
 
 Codex 原生 `features.memories = true` 已承担跨会话回忆，不叠加第三方记忆类 MCP。
 
@@ -101,4 +101,5 @@ npx skills add emilkowalski/skills \
 - CodeGraph 新项目用 `codegraph init`，增量刷新用 `codegraph sync`，完整重建用 `codegraph index -f`。
 - code-review-graph 用 `pipx install code-review-graph` 安装，再用 `codex mcp add code-review-graph -- code-review-graph serve` 注册用户级 MCP；项目首次建图、增量更新、状态检查分别用 `build`、`update`、`status`。
 - 所有 code review 先通过 code-review-graph 获取最小审查上下文、影响半径和相关测试，再按需读取源码，避免无差别扫描。
+- RTK 对它明确支持、输出仅供人阅读的安全单命令必须启用；复杂 `find`、Shell 复合语法、机器可读管道、重定向和文件生成必须使用原生命令，避免改变命令语义或产物内容。
 - `--health` 只对已启用的 stdio MCP 做真实 `initialize` 握手，并回收子进程。
