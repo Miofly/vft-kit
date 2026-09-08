@@ -6,12 +6,16 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 TEST_HOME="$tmp/home"
 TEST_CODEX_HOME="$TEST_HOME/.codex"
+REAL_NODE="$(node -p 'process.execPath')"
 mkdir -p "$tmp/bin" "$TEST_CODEX_HOME"
 
 printf '%s\n' '# inactive global' > "$TEST_CODEX_HOME/AGENTS.md"
 cat > "$TEST_CODEX_HOME/AGENTS.override.md" <<EOF
 # active override
 @$TEST_CODEX_HOME/RTK.md
+EOF
+cat > "$TEST_CODEX_HOME/hooks.json" <<'EOF'
+{"hooks":{"PreToolUse":[{"matcher":"*","hooks":[{"type":"command","command":"keep-existing-hook"}]}]}}
 EOF
 
 cat > "$tmp/bin/brew" <<'EOF'
@@ -24,7 +28,7 @@ chmod +x "$tmp/bin/brew"
 
 run_install() {
   env HOME="$TEST_HOME" CODEX_HOME="$TEST_CODEX_HOME" PATH="$tmp/bin:/usr/bin:/bin" \
-    TEST_LOG="$tmp/brew.log" FAKE_RTK="$tmp/bin/rtk" bash "$SKILL_DIR/scripts/install-rtk.sh"
+    TEST_LOG="$tmp/brew.log" FAKE_RTK="$tmp/bin/rtk" NODE_BIN="$REAL_NODE" bash "$SKILL_DIR/scripts/install-rtk.sh"
 }
 
 run_install
@@ -40,6 +44,14 @@ grep -Fq '命令同时满足以下条件时必须使用' "$TEST_CODEX_HOME/AGENT
 grep -Fq '复杂 `find`' "$TEST_CODEX_HOME/AGENTS.override.md" || { printf 'FAIL: compound find exclusion missing\n' >&2; exit 1; }
 grep -Fq '含管道、重定向' "$TEST_CODEX_HOME/AGENTS.override.md" || { printf 'FAIL: pipeline and redirect exclusion missing\n' >&2; exit 1; }
 ! grep -Fq "@$TEST_CODEX_HOME/RTK.md" "$TEST_CODEX_HOME/AGENTS.override.md" || { printf 'FAIL: unsafe RTK.md import should be removed from active file\n' >&2; exit 1; }
+[ -x "$TEST_CODEX_HOME/hooks/vft-kit-rtk-pre-tool-use.mjs" ] || { printf 'FAIL: RTK hook script missing\n' >&2; exit 1; }
+"$REAL_NODE" - "$TEST_CODEX_HOME/hooks.json" <<'NODE'
+const fs = require('fs');
+const config = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const commands = config.hooks.PreToolUse.flatMap((group) => group.hooks.map((hook) => hook.command));
+if (!commands.includes('keep-existing-hook')) throw new Error('existing hook was not preserved');
+if (commands.filter((command) => command.includes('vft-kit-rtk-pre-tool-use.mjs')).length !== 1) throw new Error('managed RTK hook must be unique');
+NODE
 
 CUSTOM_AGENTS="$tmp/custom-AGENTS.md"
 printf '%s\n' '# custom target' > "$CUSTOM_AGENTS"

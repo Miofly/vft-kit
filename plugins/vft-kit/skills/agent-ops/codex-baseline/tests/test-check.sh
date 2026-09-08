@@ -13,6 +13,12 @@ FAKE_BIN="$TMP_ROOT/bin"
 NPM_ROOT_FIXTURE="$TMP_ROOT/npm-root"
 CC_SWITCH_FIXTURE="$TMP_ROOT/CC Switch.app"
 mkdir -p "$TEST_CODEX_HOME" "$FAKE_BIN" "$NPM_ROOT_FIXTURE" "$CC_SWITCH_FIXTURE"
+mkdir -p "$TEST_CODEX_HOME/hooks"
+printf '#!/usr/bin/env node\n' > "$TEST_CODEX_HOME/hooks/vft-kit-rtk-pre-tool-use.mjs"
+chmod +x "$TEST_CODEX_HOME/hooks/vft-kit-rtk-pre-tool-use.mjs"
+cat > "$TEST_CODEX_HOME/hooks.json" <<EOF
+{"hooks":{"PreToolUse":[{"matcher":"(^Bash$|^shell_command$|^exec_command$)","hooks":[{"type":"command","command":"node '$TEST_CODEX_HOME/hooks/vft-kit-rtk-pre-tool-use.mjs'"}]}]}}
+EOF
 
 cat > "$FAKE_BIN/codex" <<'EOF'
 #!/usr/bin/env bash

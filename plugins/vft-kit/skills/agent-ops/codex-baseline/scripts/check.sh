@@ -29,6 +29,8 @@ CODEX_STATE_SCRIPT="${CODEX_STATE_SCRIPT:-$SCRIPT_DIR/inspect-codex-state.mjs}"
 CODEX_STATE_NODE="${CODEX_STATE_NODE:-node}"
 RTK_START_MARKER='<!-- >>> vft-kit rtk safe shell usage >>> -->'
 RTK_END_MARKER='<!-- <<< vft-kit rtk safe shell usage <<< -->'
+RTK_HOOK="$CODEX_HOME/hooks/vft-kit-rtk-pre-tool-use.mjs"
+HOOKS_FILE="$CODEX_HOME/hooks.json"
 CODEGRAPH_INSTALL='curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh'
 CODE_REVIEW_GRAPH_INSTALL='pipx install code-review-graph'
 CODE_REVIEW_GRAPH_CONFIGURE='codex mcp add code-review-graph -- code-review-graph serve'
@@ -229,7 +231,22 @@ rtk_codex_ready(){
   grep -Fq "$RTK_START_MARKER" "$ACTIVE_AGENTS" || return 1
   grep -Fq "$RTK_END_MARKER" "$ACTIVE_AGENTS" || return 1
   grep -Fq 'RTK 是受限使用的输出压缩器，不是 Shell 通用前缀' "$ACTIVE_AGENTS" || return 1
-  grep -Fq '命令同时满足以下条件时必须使用' "$ACTIVE_AGENTS"
+  grep -Fq '命令同时满足以下条件时必须使用' "$ACTIVE_AGENTS" || return 1
+  [ -x "$RTK_HOOK" ] || return 1
+  "$CODEX_STATE_NODE" - "$HOOKS_FILE" "$RTK_HOOK" <<'NODE' >/dev/null 2>&1
+const fs = require('fs');
+const [file, hookPath] = process.argv.slice(2);
+const config = JSON.parse(fs.readFileSync(file, 'utf8'));
+const groups = config?.hooks?.PreToolUse;
+if (!Array.isArray(groups)) process.exit(1);
+const found = groups.some((group) =>
+  typeof group?.matcher === 'string' && group.matcher.includes('Bash') &&
+  Array.isArray(group.hooks) && group.hooks.some((hook) =>
+    hook?.type === 'command' && typeof hook.command === 'string' && hook.command.includes(hookPath)
+  )
+);
+process.exit(found ? 0 : 1);
+NODE
 }
 chromium_installed(){
   local dir

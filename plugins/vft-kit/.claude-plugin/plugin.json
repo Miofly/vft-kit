@@ -1,7 +1,7 @@
 {
   "name": "vft-kit",
   "version": "0.2.0",
-  "description": "Claude Code / Codex 运维与通用开发工具，并提供 ai-helper macOS 应用的安全安装入口",
+  "description": "Claude Code / Codex 运维与通用开发工具",
   "author": {
     "name": "wfly"
   },
