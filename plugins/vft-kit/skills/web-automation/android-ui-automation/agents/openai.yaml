@@ -1,0 +1,4 @@
+interface:
+  display_name: "Android 真机自动化"
+  short_description: "通过 ADB 和 uiautomator2 快速、准确地操控 Android 真机"
+  default_prompt: "Use $android-ui-automation to inspect and control the connected Android device safely."
