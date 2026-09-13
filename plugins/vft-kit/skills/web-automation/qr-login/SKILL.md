@@ -18,7 +18,7 @@ description: "使用浏览器完成掘金、知乎、简书、头条、博客园
 | 掘金 juejin | 完整登录确认 | `https://juejin.cn/`；可见 `.login-button` → `.oauth-box .oauth-bg` 第 2 个 | `open.weixin.qq.com` 标准图片；首页 `.login-button` 消失才算成功 |
 | 知乎 zhihu | 完整登录确认 | `https://www.zhihu.com/signin`；`.Login-socialButton` 或 `button[class*="socialButton"]` 第 1 个 | `open.weixin.qq.com` 标准图片；访问 `/signin` 自动跳走、头像可见、登录控件消失才算成功 |
 | 简书 jianshu | 完整登录确认 | `https://www.jianshu.com/sign_in`；`a#weixin.weixin` | ego 可能抑制 `_blank`；在同 task tab 打开该元素的官方 `href=/users/auth/wechat`，随后进入标准微信 OAuth |
-| 今日头条 | 完整登录确认 | `https://www.toutiao.com/`；`a.login-button` → 真实点击 `span.web-login-confirm-info__checkbox[role="checkbox"]` → 严格确认 `aria-checked="true"` → `.web-login-other-login-method__list__item:nth-child(3)` | 默认码是头条 App；协议控件不是原生 `input`，微信入口创建标准微信 OAuth popup |
+| 今日头条 | 完整登录确认 | `https://www.toutiao.com/`；`.toutiao-header .header-right a.login-button` | 保留默认头条 App 二维码；确认刷新遮罩隐藏后截取并发送完整 `.web-login-union__login__scan-code` 卡片，不切换微信、不只抓内部二维码图片；使用今日头条 App 扫码 |
 | 博客园 | 完整登录确认 | `https://account.cnblogs.com/signin`；`app-external-sign-in-providers .providers button:first-of-type`（子图 `WeChat.png`） | 站内 popup 的 `app-wechat-mp-qr img[alt="微信二维码"]`，扫码会关注博客园服务号并登录 |
 | 51CTO | 完整登录确认 | `https://home.51cto.com/index?reback=https%3A%2F%2Fwww.51cto.com%2F`；`.login-type-switch:nth-child(1)` | 站内 `#login-wechat img.qr-img`，图片来自 `mp.weixin.qq.com/cgi-bin/showqrcode` |
 | CSDN | 完整登录确认 | `https://www.csdn.net/`；`a.toolbar-btn-loginfun` → iframe `#passportbox iframe[name="passport_iframe"]` → “微信登录” tab | `https://passport.csdn.net/login?code=applets` 内 `.login-code-wechat .public-code img`；280×280 JPEG data URI 微信小程序码 |
@@ -26,7 +26,7 @@ description: "使用浏览器完成掘金、知乎、简书、头条、博客园
 | 小红书 xiaohongshu | 主站、创作平台完整登录确认 | 主站 `https://www.xiaohongshu.com/explore`；创作平台 `https://creator.xiaohongshu.com/publish/publish?from=menu&target=article` 被 401 重定向后，真实点击短信登录卡右上角 64×64 模式图标 | 主站 `.login-modal img.qrcode-img`，小红书 App 或微信可扫；创作平台为 160×160 PNG data URI，页面要求小红书 App 扫码 |
 | 少数派 sspai | 完整登录确认 | `https://sspai.com/write` → `/login`；`.ssCommunityIcon__weixin` | 当前 tab 进入 `open.weixin.qq.com/connect/qrconnect`；切换后 `img.js_qrcode_img.web_qrcode_img` 160×160 标准图片；扫码后回调 `/callback/weixin` |
 
-掘金、知乎、今日头条默认码不是微信；必须依据矩阵进入微信入口，不能看到二维码就抓。当前 skill 只支持表中十个平台，其余平台不要自动套用。
+掘金、知乎默认码不是微信，必须依据矩阵进入微信入口，不能看到二维码就抓。今日头条例外：保留默认 App 码并发送完整扫码卡片。当前 skill 只支持表中十个平台，其余平台不要自动套用。
 
 ## 与文章发布扩展的边界
 
@@ -40,9 +40,9 @@ description: "使用浏览器完成掘金、知乎、简书、头条、博客园
 const task = await useOrCreateTaskSpace('qr-login-<平台>')
 ```
 
-1. 只接受矩阵中的十个平台；用一个 `ego-browser nodejs` heredoc 完成整个浏览器阶段，不逐步探测已记录选择器。SegmentFault 走 OAuth iframe 分支，博客园/51CTO 走公众号二维码分支，CSDN 走小程序码分支，小红书走站内二维码分支，少数派走标准 OAuth 分支，其余四站走标准 OAuth 分支。
-2. `gotoAndWait(<登录页>)` 强制刷新首页；按「登录成功判定」检查。未登录时按站点表打开登录弹窗，记录微信点击前的 `Target.getTargets`。微信入口必须取可见元素中心点后调用 ego `click({ x, y })` 真实鼠标点击；DOM `el.click()` 没有用户激活，Chromium 会拦截 popup，造成空等。
-3. 按站点进入真实 OAuth：掘金/知乎从 targetId 差集取新 popup；简书在当前 task tab 打开 `a#weixin` 的官方站内 href；今日头条必须真实点击可见 `span.web-login-confirm-info__checkbox[role="checkbox"]` 中心点，并在点击微信入口前严格确认该节点 `aria-checked === "true"`。它不是原生 `input`，禁止用 `input.checked`、类名或点击结果推断状态；校验失败立即停止。确认后点“其他登录”第 3 项并取新 popup。最终 target 都必须匹配 `open.weixin.qq.com/connect/qrconnect`。
+1. 只接受矩阵中的十个平台；用一个 `ego-browser nodejs` heredoc 完成整个浏览器阶段，不逐步探测已记录选择器。SegmentFault 走 OAuth iframe 分支，博客园/51CTO 走公众号二维码分支，CSDN 走小程序码分支，小红书走站内二维码分支，今日头条走 App 二维码分支，其余四站走标准 OAuth 分支。
+2. `gotoAndWait(<登录页>)` 强制刷新首页；按「登录成功判定」检查。未登录时按站点表打开登录弹窗。需要微信 OAuth 的站点记录微信点击前的 `Target.getTargets`，并取可见入口中心点后调用 ego `click({ x, y })` 真实鼠标点击；DOM `el.click()` 没有用户激活，Chromium 会拦截 popup，造成空等。今日头条打开弹窗后直接走 App 二维码分支。
+3. 标准 OAuth 站点按矩阵进入真实 OAuth：掘金/知乎从 targetId 差集取新 popup；简书在当前 task tab 打开 `a#weixin` 的官方站内 href。最终 target 都必须匹配 `open.weixin.qq.com/connect/qrconnect`。今日头条不执行本步，直接走下方 App 二维码分支。
 4. **保留原始 OAuth target，禁止关闭后复制 URL 到新 tab。** 微信 OAuth 的 state 与 opener 上下文有关，复制 URL 会让掘金回调报 `error_code: 4 / 参数错误`。popup 用 `Target.attachToTarget({ targetId, flatten: false })` 附着；简书直接使用当前 tab。
 5. 在 OAuth target 中只读取 `.js_switchToNormal` 的可见 rect，再连续发送真实 `Input.dispatchMouseEvent`。禁止元素 `.click()`。点击后必须同时确认切换按钮不可见，且 `img.js_qrcode_img` 的 `offsetParent` 存在、可见宽高都不少于 100px；两项缺一即失败。然后在同一 target 抓二维码：
 
@@ -87,6 +87,13 @@ const task = await useOrCreateTaskSpace('qr-login-<平台>')
 7. 告诉用户按平台提示使用微信或对应 App 扫码/确认后停止浏览器操作，不轮询，也不 `handOffTaskSpace`（用户无需碰浏览器窗口）。用户回复「继续」后复用同一 task space；只有用户明确要求在浏览器内接管时才 handoff。
 8. 验证成功：用户回复后直接重新接管同一 task space。OAuth 分支检查原 target 已离开微信域名并跳到平台回调，再刷新首页按矩阵复核登录态；站内二维码分支按各自章节复核。二维码过期时从平台登录页重新取得新 state，不能刷新或复制旧 OAuth URL。
 9. 结束删除 `imageFile`，`completeTaskSpace(task.id, { keep: false })`。
+
+## 今日头条 App 二维码分支
+
+1. 打开首页并真实点击 `.toutiao-header .header-right a.login-button`，等待 `.web-login-union__login__scan-code` 可见。不要勾协议、不要点击“微信登录”；目标就是弹窗默认展示的头条 App 码。
+2. 在该容器内同时确认标题文本为“扫码登录”、说明含“今日头条App”，`img.web-login-scan-code__content__qrcode-wrapper__qrcode` 可见宽高都不少于 100px，且 `.web-login-scan-code__content__qrcode-wrapper__mask` 不可见。若遮罩显示“点击刷新”，必须点击刷新并等待二维码源变化；不发送空白、旧码或刷新遮罩状态。
+3. 用 `Page.captureScreenshot` 按 `.web-login-union__login__scan-code` 的可见 rect 截取完整卡片并写入 `imageFile`。必须包含“扫码登录”标题、二维码和“请使用今日头条App扫码登录”说明；禁止只下载或截取内部 `img`。
+4. 回到主流程第 6 步推送。用户扫码确认后复用原 task space，刷新首页；顶部 `a.login-button` 和侧栏“立即登录”入口消失、已登录头像/账号入口可见才算成功。
 
 ## SegmentFault 微信 OAuth iframe 分支
 
