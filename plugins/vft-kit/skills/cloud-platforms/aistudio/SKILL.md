@@ -50,6 +50,8 @@ Set `AISTUDIO_OWNER` to allow short repo names; otherwise transfers require `OWN
 
 Use one named ego-browser task space for the user task. Complete it with `keep: false` unless the user needs the live page.
 
+When a private wrapper reserves a dedicated space for a scheduled task, other AI Studio tasks must not reuse it. Existing user authorization to resume/reclaim that task carries across retries; follow the documented ownership-specific claim/takeOver API. `useOrCreateTaskSpace` metadata is not a Page-capable TaskSpace; use `taskSpace(id)` and enumerate managed Pages instead of assuming a stale page label exists. CAPTCHA, QR login and 2FA still require the handoff below.
+
 1. Open `https://aistudio.baidu.com` in the task space.
 2. If logged out, click the normal login control and call `handOffTaskSpace`.
 3. Ask the user to finish password, QR, captcha, or 2FA in the visible browser.
@@ -79,6 +81,8 @@ Require confirmation before commenting, changing the avatar, creating content fr
 If the user explicitly authorizes the current task “公开数据集积分+5”, an existing suitable dataset may be published, or a clearly licensed public dataset such as a ModelScope benchmark may be imported into a new AI Studio dataset and published, after checking its contents, license, and final public status. Do not create a duplicate dataset or toggle visibility solely to retrigger a reward; an already-public dataset is a verification result, not a reason to mutate it.
 
 There may be no points ledger. Verify each action by its success toast/task state and, when visible, the total-points delta. Report completed, skipped, blocked, and unverified items separately.
+
+For daily acceptance, reload the document and reopen the points popover; a query-only SPA navigation can retain old state. Read only the unique visible, fully loaded panel and record the account's calendar date, capture time, URL, total points and each task row. Do not delete popover DOM to simulate freshness. Earlier `已签到` days, a previously public project, an accumulated log, a prior final report, or an Agent process exit=0 cannot prove today's completion. Missing/hidden/conflicting rows are unverified; any required `去完成` row prevents an overall success result. Bind sign-in click verification to the same highlighted index and observed reward delta, not just the count of historical completed days. Recheck exact created/published IDs, real dataset files and target runtime state separately. Scheduled wrappers should isolate each run's artifacts and independently read the final UI before returning success; serialize retries and verify previous child processes have ended before starting another run.
 
 ## Notebook and GPU
 
