@@ -31,7 +31,7 @@ Codex 入口在 `plugins/vft-kit/.codex-plugin/plugin.json`，skill 目录仍是
 - [vft-kit 总览](https://wflynn.cn/pages/2607131001) —— 定位、安装、全量速查表、FAQ
 - **CC 运维**：[cc-baseline](https://wflynn.cn/pages/2607131002) · [cc-backup-restore](https://wflynn.cn/pages/2607131003) · [plugin-refresh](https://wflynn.cn/pages/2607131004)
 - **Codex 运维**：[codex-baseline](https://wflynn.cn/pages/2607131010)
-- **通用工具**：[fe-auto-test](https://wflynn.cn/pages/2607131005) · [fe-lint-fix](https://wflynn.cn/pages/2607131012) · [co-infographic-generator](https://wflynn.cn/pages/2607131006) · [pr-submit](https://wflynn.cn/pages/2607131013) · [git-auto-push](https://wflynn.cn/pages/2607131007) · [vue-sfc-split](https://wflynn.cn/pages/2607131008) · [office-doc-rewrite](https://wflynn.cn/pages/2607131011)
+- **通用工具**：[fe-auto-test](https://wflynn.cn/pages/2607131005) · [fe-lint-fix](https://wflynn.cn/pages/2607131012) · [co-infographic-generator](https://wflynn.cn/pages/2607131006) · [git-ops](https://wflynn.cn/pages/2607131013) · [git-auto-push](https://wflynn.cn/pages/2607131007) · [vue-sfc-split](https://wflynn.cn/pages/2607131008) · [office-doc-rewrite](https://wflynn.cn/pages/2607131011)
 ## Skill 分类
 
 运行目录使用 `plugins/vft-kit/skills/<category>/<skill-name>/`。分类清单以 [`catalog/skills.json`](catalog/skills.json) 为唯一来源，目录分类、Claude manifest 和 Codex manifest 必须一致。
@@ -40,7 +40,7 @@ Codex 入口在 `plugins/vft-kit/.codex-plugin/plugin.json`，skill 目录仍是
 |---|---|---|
 | Agent 运维 (`agent-ops`) | Claude Code、Codex、CC Switch 与插件缓存 | `cc-backup-restore` · `cc-baseline` · `cc-switch-add-provider` · `codex-baseline` · `plugin-refresh` |
 | 云平台 (`cloud-platforms`) | 云服务、模型托管、部署平台和账号资源 | `aistudio` · `cloudflare-ops` · `huggingface-ops` · `kaggle-ops` · `modelscope-studio` · `vercel-ops` |
-| 开发工作流 (`dev-workflow`) | 数据库工具、前端质量、Git、代码托管和 PR 交付 | `dbx` · `fe-auto-test` · `fe-lint-fix` · `git-auto-push` · `github-ops` · `pr-submit` · `vue-sfc-split` |
+| 开发工作流 (`dev-workflow`) | 数据库工具、前端质量、Git、代码托管和 PR 交付 | `dbx` · `fe-auto-test` · `fe-lint-fix` · `git-auto-push` · `git-ops` · `github-ops` · `vue-sfc-split` |
 | 设计与内容 (`design-content`) | 设计还原、信息图、Office 文档和视觉内容 | `co-infographic-generator` · `mastergo-mcp` · `office-doc-rewrite` · `replicate-web-style` |
 | Web 与自动化 (`web-automation`) | 浏览器发布、网页抓取、Android 与 macOS 自动化 | `android-ui-automation` · `chrome-web-store-publish` · `keyboard-maestro` · `qr-login` · `web-scrape` · `wechat-mp` |
 
