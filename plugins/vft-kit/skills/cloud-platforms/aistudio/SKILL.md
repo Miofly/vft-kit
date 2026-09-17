@@ -59,6 +59,8 @@ When a private wrapper reserves a dedicated space for a scheduled task, other AI
 
 Never ask for, read, store, inject, or replay cookies/passwords. Do not use `AISTUDIO_ACCESS_TOKEN` to bypass web login.
 
+For a second AI Studio account, isolate by ego lite profile, not by task space: every space on one profile shares its cookie jar, so logging in another account there signs out the first. Create the space with `taskSpace(name, { profileId })` (list ids with `profiles()`), verify `listTaskSpaces()` reports that `profileId`, and pass `profileId` explicitly for every scheduled space because ego creates unpinned spaces in the most recently active profile. Private wrappers own the account-to-profile mapping.
+
 ## Points workflow
 
 Read the current rules page before automation because rewards and limits can change. Prefer truthful, useful actions and stop if the page conflicts with this skill.

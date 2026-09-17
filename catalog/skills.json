@@ -44,8 +44,8 @@
         "fe-auto-test",
         "fe-lint-fix",
         "git-auto-push",
+        "git-ops",
         "github-ops",
-        "pr-submit",
         "vue-sfc-split"
       ]
     },
