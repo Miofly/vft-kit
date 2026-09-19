@@ -57,7 +57,8 @@
         "co-infographic-generator",
         "mastergo-mcp",
         "office-doc-rewrite",
-        "replicate-web-style"
+        "replicate-web-style",
+        "wxapkg-unpack"
       ]
     },
     {

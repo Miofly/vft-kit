@@ -31,7 +31,8 @@ Codex 入口在 `plugins/vft-kit/.codex-plugin/plugin.json`，skill 目录仍是
 - [vft-kit 总览](https://wflynn.cn/pages/2607131001) —— 定位、安装、全量速查表、FAQ
 - **CC 运维**：[cc-baseline](https://wflynn.cn/pages/2607131002) · [cc-backup-restore](https://wflynn.cn/pages/2607131003) · [plugin-refresh](https://wflynn.cn/pages/2607131004)
 - **Codex 运维**：[codex-baseline](https://wflynn.cn/pages/2607131010)
-- **通用工具**：[fe-auto-test](https://wflynn.cn/pages/2607131005) · [fe-lint-fix](https://wflynn.cn/pages/2607131012) · [co-infographic-generator](https://wflynn.cn/pages/2607131006) · [git-ops](https://wflynn.cn/pages/2607131013) · [git-auto-push](https://wflynn.cn/pages/2607131007) · [vue-sfc-split](https://wflynn.cn/pages/2607131008) · [office-doc-rewrite](https://wflynn.cn/pages/2607131011)
+- **规则模块（hook）**：[vft-rules 按路径注入规范 + 保存后自动检查](https://wflynn.cn/pages/2607131014)
+- **通用工具**：[fe-auto-test](https://wflynn.cn/pages/2607131005) · [fe-lint-fix](https://wflynn.cn/pages/2607131012) · [co-infographic-generator](https://wflynn.cn/pages/2607131006) · [git-ops](https://wflynn.cn/pages/2607131013) · [git-auto-push](https://wflynn.cn/pages/2607131007) · [vue-sfc-split](https://wflynn.cn/pages/2607131008) · [office-doc-rewrite](https://wflynn.cn/pages/2607131011) · [wxapkg-unpack](https://wflynn.cn/pages/2607131015)
 ## Skill 分类
 
 运行目录使用 `plugins/vft-kit/skills/<category>/<skill-name>/`。分类清单以 [`catalog/skills.json`](catalog/skills.json) 为唯一来源，目录分类、Claude manifest 和 Codex manifest 必须一致。
@@ -41,7 +42,7 @@ Codex 入口在 `plugins/vft-kit/.codex-plugin/plugin.json`，skill 目录仍是
 | Agent 运维 (`agent-ops`) | Claude Code、Codex、CC Switch 与插件缓存 | `cc-backup-restore` · `cc-baseline` · `cc-switch-add-provider` · `codex-baseline` · `plugin-refresh` |
 | 云平台 (`cloud-platforms`) | 云服务、模型托管、部署平台和账号资源 | `aistudio` · `cloudflare-ops` · `huggingface-ops` · `kaggle-ops` · `modelscope-studio` · `vercel-ops` |
 | 开发工作流 (`dev-workflow`) | 数据库工具、前端质量、Git、代码托管和 PR 交付 | `dbx` · `fe-auto-test` · `fe-lint-fix` · `git-auto-push` · `git-ops` · `github-ops` · `vue-sfc-split` |
-| 设计与内容 (`design-content`) | 设计还原、信息图、Office 文档和视觉内容 | `co-infographic-generator` · `mastergo-mcp` · `office-doc-rewrite` · `replicate-web-style` |
+| 设计与内容 (`design-content`) | 设计还原、信息图、Office 文档和视觉内容 | `co-infographic-generator` · `mastergo-mcp` · `office-doc-rewrite` · `replicate-web-style` · `wxapkg-unpack` |
 | Web 与自动化 (`web-automation`) | 浏览器发布、网页抓取、Android 与 macOS 自动化 | `android-ui-automation` · `chrome-web-store-publish` · `keyboard-maestro` · `qr-login` · `web-scrape` · `wechat-mp` |
 
 新增、删除或改名 skill 时同步更新分类，并运行：
@@ -51,6 +52,26 @@ node scripts/validate-skill-catalog.mjs
 ```
 
 校验器保证每个已跟踪 skill 恰好属于一个分类，并具有有效的 frontmatter `name`。插件 skill 的调用名允许与目录名不同。未跟踪的开发中 skill 只提示，不阻塞验证。
+
+## 规则模块（rules + hooks）
+
+Claude Code 插件不能直接提供 `.claude/rules/`，vft-kit 用钩子实现同等效果，且带自动检查：
+
+| 钩子 | 时机 | 作用 |
+|---|---|---|
+| `scripts/rules/inject.mjs` | PreToolUse（Read/Edit/Write/MultiEdit） | 文件路径命中规则 `paths` 时，把规则正文注入上下文；同会话每条只注入一次 |
+| `scripts/rules/check.mjs` | PostToolUse（Edit/Write/MultiEdit） | 运行规则声明的 `checks`；error 退回模型修复，warn 只提示 |
+| `scripts/rules/reset.mjs` | SessionStart（compact/clear） | 上下文压缩后清注入记录，下次命中重新注入 |
+
+插件自带规则在 `plugins/vft-kit/rules/`（目前：`vue-sfc`）。项目继承与私有规则放在项目根（从被操作文件向上逐级合并，monorepo 根与子项目可各放一份）：
+
+```text
+.claude/vft-rules.json        # { "disable": ["vue-sfc"], "checks": { "v-for-needs-key": "off" } }
+.claude/vft-rules/*.md        # 私有规则；frontmatter 写 extends: vue-sfc 表示继承并追加
+.claude/vft-rules/checks.mjs  # 私有自动检查：export default { id: { level, run({ src, blocks, filePath }) } }
+```
+
+Codex 没有对应钩子时用 CLI：`node "$VFT_PLUGIN_ROOT/scripts/rules/check.mjs" <file...>`（有 error 退出码 1）、`node "$VFT_PLUGIN_ROOT/scripts/rules/inject.mjs" <file>`（打印适用规则）。改动后跑 `node plugins/vft-kit/scripts/rules/selftest.mjs`。
 
 ### fe-auto-test 的依赖
 

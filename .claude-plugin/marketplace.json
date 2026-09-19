@@ -11,7 +11,7 @@
       "name": "vft-kit",
       "source": "./plugins/vft-kit",
       "description": "Claude Code / Codex 运维与通用开发工具",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "author": {
         "name": "wfly"
       },
