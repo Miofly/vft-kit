@@ -16,11 +16,13 @@ import { pathToFileURL } from 'node:url';
 
 import { matchRules, readHookInput } from './lib.mjs';
 import { splitSfc, vueChecks } from './checks/vue.mjs';
+import { styleChecks, styleExts } from './checks/style.mjs';
 
-/** 内置检查：vue 类检查只对 .vue 生效 */
-const builtinChecks = Object.fromEntries(
-  Object.entries(vueChecks).map(([id, c]) => [id, { ...c, ext: '.vue' }]),
-);
+/** 内置检查：vue 类检查只对 .vue 生效，样式类检查对 .vue 与样式文件生效 */
+const builtinChecks = {
+  ...Object.fromEntries(Object.entries(vueChecks).map(([id, c]) => [id, { ...c, exts: ['.vue'] }])),
+  ...Object.fromEntries(Object.entries(styleChecks).map(([id, c]) => [id, { ...c, exts: styleExts }])),
+};
 
 /** 各级私有检查：<root>/.claude/vft-rules/checks.mjs 的 default export，由外到内合并，同名内层覆盖 */
 async function loadProjectChecks(roots) {
@@ -46,7 +48,9 @@ async function checkFile(filePath, cwd) {
   const results = [];
   for (const id of ids) {
     const check = registry[id];
-    if (!check || (check.ext && !abs.endsWith(check.ext))) continue;
+    if (!check) continue;
+    const exts = check.exts || (check.ext ? [check.ext] : null); // ext 为旧写法，私有检查仍可用
+    if (exts && !exts.some(ext => abs.endsWith(ext))) continue;
     const level = levels[id] || check.level || 'error';
     if (level === 'off') continue;
     for (const hit of check.run({ src, blocks, filePath: abs }) || [])

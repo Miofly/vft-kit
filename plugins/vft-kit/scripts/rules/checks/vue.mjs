@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 /** 行号（1 起） */
-const lineAt = (src, index) => src.slice(0, index).split('\n').length;
+export const lineAt = (src, index) => src.slice(0, index).split('\n').length;
 
 /** 按块切 SFC：返回 template 与各 script 块（保留原始偏移，用于算行号） */
 export function splitSfc(src) {
@@ -39,7 +39,7 @@ export function splitSfc(src) {
 }
 
 /** 把注释替换成等长空白，保持偏移与行号不变 */
-function blankComments(code) {
+export function blankComments(code) {
   return code
     .replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, ' '))
     .replace(/(^|[^:'"`])\/\/[^\n]*/g, (m, p) => p + ' '.repeat(m.length - p.length));
@@ -67,7 +67,7 @@ function* scanTags(tpl) {
 }
 
 /** 从文件向上找项目实际使用的 vue 版本：优先 node_modules 安装版本，其次 package.json 声明 */
-function vueVersion(filePath) {
+export function vueVersion(filePath) {
   let dir = path.dirname(filePath);
   while (true) {
     const installed = path.join(dir, 'node_modules', 'vue', 'package.json');
