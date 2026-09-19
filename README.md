@@ -63,7 +63,7 @@ Claude Code 插件不能直接提供 `.claude/rules/`，vft-kit 用钩子实现�
 | `scripts/rules/check.mjs` | PostToolUse（Edit/Write/MultiEdit） | 运行规则声明的 `checks`；error 退回模型修复，warn 只提示 |
 | `scripts/rules/reset.mjs` | SessionStart（compact/clear） | 上下文压缩后清注入记录，下次命中重新注入 |
 
-插件自带规则在 `plugins/vft-kit/rules/`（目前：`vue-sfc`）。项目继承与私有规则放在项目根（从被操作文件向上逐级合并，monorepo 根与子项目可各放一份）：
+插件自带规则在 `plugins/vft-kit/rules/`（目前：`vue-sfc`、`style-layout`）。项目继承与私有规则放在项目根（从被操作文件向上逐级合并，monorepo 根与子项目可各放一份）：
 
 ```text
 .claude/vft-rules.json        # { "disable": ["vue-sfc"], "checks": { "v-for-needs-key": "off" } }
