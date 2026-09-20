@@ -50,12 +50,24 @@ GitLab 可用 `glab mr view` / `glab mr diff`；无平台 CLI 时读取已获取
 2. 有未提交工作时先按 [commits.md](commits.md) 完成授权范围内提交。生成标题与模板正文并完成相关验证，内容可审阅后再发布。
 3. 刷新目标远端引用，Review 整个分支；不仅检查最后一次提交，也检查被后续删除的敏感文件是否进入待推送历史。文件名筛查之外复用已有内容扫描器；不打印真实密钥。
 4. 同仓库 GitHub/GitLab 可运行 `git-pr.sh --base <branch> --title <title> --body-file <file> [--draft]`。脚本只推送当前 HEAD；有未提交修改时拒绝执行，避免用户误以为已交付。无关脏改动不应被清理，可先完成内容准备，再用精确 refspec 的手动平台流程交付已提交部分并注明范围。
-5. GitHub 创建前 `gh pr list --state open --head <branch> --base <base> --json number,url`，查询失败即停止；已有 PR 则复用，不自动改其描述。GitLab 同样按 source/target 查询打开的 MR。创建失败/超时先回查，不能直接重跑 create。
-6. 脚本或手动流程均需回读：远端分支 SHA 等于预期 HEAD；GitHub `gh pr view --json url,state,baseRefName,headRefName,headRefOid,isDraft`，GitLab `glab mr view --output json`，核对分支、状态与 SHA。正文通过 `gh pr view --json body` 等回读；CI 单独报告。
-7. GitHub 多行正文用 `--body-file`，不要把正文拼进 shell。GitLab 用 CLI 支持的 description 参数安全传值；不使用 `--fill` 或 `--fill-commit-body` 冒充生成的语义描述。
+5. 平台 CLI 的 `--repo` 使用含域名的完整仓库 URL，避免环境默认 host 指向另一实例。GitHub 创建前按 head/base 查询打开的 PR，并读取 `isCrossRepository`；GitLab 核对 `source_project_id` / `target_project_id`。同名 fork 分支不能当作同仓库已有 PR。查询失败/结构异常即停止；脚本候选满 100 条时停止，需手动分页核对。已有同仓库 PR 则复用，不自动改其描述。创建失败/超时先回查，不能直接重跑 create。
+6. 脚本或手动流程均需回读：远端分支 SHA 等于预期 HEAD；GitHub `gh pr view --repo <完整URL> --json url,state,baseRefName,headRefName,headRefOid,isDraft,isCrossRepository,title,body`，GitLab `glab mr view --repo <完整URL> --output json`，核对仓库身份、分支、状态与 SHA。新建时标题、正文和草稿状态也必须一致；GitLab 草稿允许平台添加 `Draft: ` 前缀。已有 PR 保留原标题正文，CI 单独报告。
+7. GitHub 多行正文用 `--body-file`，不要把正文拼进 shell；脚本把预检时读取的正文通过 `--body-file -` 传入 stdin，避免发布时重新读取已变化的文件。GitLab 同样使用预检正文快照，以 description 参数安全传值；不使用 `--fill` 或 `--fill-commit-body` 冒充生成的语义描述。
 
 Gitee 脚本输出的是“待创建链接”，不能报告 PR 已创建；浏览器创建需遵循宿主浏览器规则并读取最终 PR URL/状态。已有 PR 的标题正文修改需用户授权；“生成描述”本身不授权编辑远端。
 
 脚本适用范围：origin 指向标准 GitHub/GitLab/Gitee 同仓库；自建域名、fork、多 remote 使用平台 CLI 明确指定目标，不猜。脚本不安装 CLI、不登录、不运行测试、不执行 merge；这些状态分别验证。
 
-参考：[gh pr create](https://cli.github.com/manual/gh_pr_create)、[gh pr view](https://cli.github.com/manual/gh_pr_view)、[glab mr list](https://docs.gitlab.com/cli/mr/list/)、[glab mr view](https://docs.gitlab.com/cli/mr/view/)。
+## 失败后的下一步
+
+| 阻塞 | 恢复方式 |
+|---|---|
+| 无 origin/HEAD 或本地 base 引用 | 明确 `--base`；需要刷新引用时执行授权范围内的 `git fetch origin`，再重新预检 |
+| 缺 gh/glab 或认证失败 | 保留本地草稿；使用现有安装，或本地检查指定 host 的 auth status。不要展示 token、带凭据 URL 或完整认证日志 |
+| 推送被拒绝 | 核对写权限、保护规则和分叉情况；不自动强推。再次交付前重做范围检查 |
+| 预检后分支、HEAD、工作区或 remote 改变 | 保留并发修改，停止推送；重新确认目标和提交范围，不把状态强行恢复成旧值 |
+| 创建或回读失败 | 先按目标仓库和分支查询是否已有 PR/MR；已创建则核对/修复获授权的具体字段，不重复创建 |
+
+脚本在联网前检查必需 CLI，正文中的 NUL 在参数校验时拒绝。推送前再次核对 branch、HEAD、所有未提交文件、origin 及 push URL；即使 Git 配置隐藏未跟踪文件，也不能跳过此检查。
+
+参考：[gh pr create](https://cli.github.com/manual/gh_pr_create)、[gh pr view](https://cli.github.com/manual/gh_pr_view)、[glab mr list](https://docs.gitlab.com/cli/mr/list/)、[glab mr view](https://docs.gitlab.com/cli/mr/view/)、[glab auth status](https://docs.gitlab.com/cli/auth/status/)。
