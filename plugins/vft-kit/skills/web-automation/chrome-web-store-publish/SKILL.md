@@ -46,7 +46,7 @@ node <skill-dir>/scripts/preflight.mjs <extension-directory-or-zip> [--profile /
 
 1. 打开模板指定或用户给出的发布者仪表板，确认账号与发布者。
 2. 上传已验证 ZIP，核对平台解析出的名称、版本、语言、权限和包类型。
-3. 按 locale 填写描述、分类、128x128 图标、截图、官网、主页和支持链接。截图只能使用 1280x800 或 640x400 的 JPEG/无 alpha 24-bit PNG。
+3. 按 locale 填写描述、分类、128x128 图标、截图，以及三个网址字段：官方网址（从已验证网站下拉列表中选，不是自由输入）、首页网址、支持信息页面网址，分别对应模板的 `listing.officialSiteUrl`、`homepageUrl`、`supportUrl`。截图只能使用 1280x800 或 640x400 的 JPEG/无 alpha 24-bit PNG。
 4. 填写隐私页：
    - 写一个与真实功能一致的单一用途说明。
    - 为每项 permission 和 host pattern 写实现依据。
