@@ -1,278 +1,184 @@
 #!/usr/bin/env bash
-# git-pr.sh - git-ops 的 PR 交付子流程：分析改动 → 分支 → 提交 → 推送 → 创建 PR/MR
-#
-# 用法：git-pr.sh [--base <branch>] [--title <title>] [--draft] [--dry-run]
-#   --base     目标分支，默认取远端默认分支
-#   --title    PR 标题 / commit 首行，默认按改动自动生成
-#   --draft    创建 Draft PR（仅 GitHub/GitLab）
-#   --dry-run  只输出分析结果，不改分支、不提交、不推送
+# Deliver an already committed branch. No staging, commits, branch changes or remote rewrites.
+# Requires Python 3.9+ (stdlib), git and gh/glab for the selected platform.
 set -euo pipefail
+exec python3 - "$@" <<'PY'
+import argparse
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+from urllib.parse import quote, urlsplit
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
 
-log_info() { echo -e "${BLUE}ℹ${NC} $*"; }
-log_success() { echo -e "${GREEN}✓${NC} $*"; }
-log_warn() { echo -e "${YELLOW}⚠${NC} $*"; }
-log_error() { echo -e "${RED}✗${NC} $*" >&2; }
+def fail(message, code=1):
+    print(message, file=sys.stderr)
+    raise SystemExit(code)
 
-TARGET_REPO=""
-BASE_BRANCH=""
-CURRENT_BRANCH=""
-BRANCH_NAME=""
-PR_TITLE=""
-PR_BODY=""
-COMMIT_MSG=""
-PLATFORM="unknown"  # github/gitlab/gitee/unknown
-DRAFT=false
-DRY_RUN=false
 
-parse_args() {
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      --base) BASE_BRANCH="${2:?--base 需要分支名}"; shift 2 ;;
-      --title) PR_TITLE="${2:?--title 需要标题}"; shift 2 ;;
-      --draft) DRAFT=true; shift ;;
-      --dry-run) DRY_RUN=true; shift ;;
-      -h|--help) sed -n '2,9p' "$0"; exit 0 ;;
-      *) log_error "未知参数: $1"; exit 2 ;;
-    esac
-  done
-}
+def run(*args, check=True):
+    result = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if check and result.returncode:
+        # Do not echo argv/remote stderr: either may contain credentials.
+        fail(f'{args[0]} {args[1]} 失败（退出码 {result.returncode}）；请在本地检查，勿盲目重试。')
+    return result
 
-check_dependencies() {
-  log_info "检查依赖..."
 
-  command -v git &>/dev/null || { log_error "未安装 git"; exit 1; }
-  git rev-parse --is-inside-work-tree &>/dev/null || { log_error "当前目录不是 git 仓库"; exit 1; }
+def output(*args):
+    return run(*args).stdout.decode('utf-8').strip()
 
-  local remote_url
-  remote_url=$(git remote get-url origin 2>/dev/null || echo "")
-  [[ -n "$remote_url" ]] || { log_error "缺少 origin remote"; exit 1; }
 
-  case "$remote_url" in
-    *github.com*)
-      PLATFORM="github"
-      command -v gh &>/dev/null || { log_error "未安装 GitHub CLI (gh)，请运行: brew install gh"; exit 1; }
-      gh auth status &>/dev/null || { log_error "gh 未登录，请运行: gh auth login"; exit 1; }
-      ;;
-    *gitlab*)
-      PLATFORM="gitlab"
-      command -v glab &>/dev/null || log_warn "未安装 GitLab CLI (glab)，将只推送分支"
-      ;;
-    *gitee.com*)
-      PLATFORM="gitee"
-      ;;
-  esac
+def data(*args):
+    return json.loads(output(*args))
 
-  log_success "依赖检查完成 (平台: $PLATFORM)"
-}
 
-get_repo_info() {
-  log_info "分析仓库信息..."
+def main():
+    parser = argparse.ArgumentParser(description='推送已提交分支并创建/复用 PR；不暂存、不提交、不切分支。')
+    parser.add_argument('--base', help='目标分支，默认使用本地 origin/HEAD')
+    parser.add_argument('--title', required=True)
+    parser.add_argument('--body-file', required=True, type=Path)
+    parser.add_argument('--draft', action='store_true')
+    parser.add_argument('--dry-run', action='store_true', help='仅本地预检，不联网或写入仓库')
+    args = parser.parse_args()
+    if not args.title.strip() or '\n' in args.title or '\r' in args.title:
+        parser.error('标题必须是非空单行')
+    try:
+        body = args.body_file.read_text(encoding='utf-8')
+    except (OSError, UnicodeError):
+        parser.error('正文文件不可读或不是 UTF-8')
+    if not body.strip():
+        parser.error('正文不能为空')
 
-  local remote_url path
-  remote_url=$(git remote get-url origin)
-  # 兼容 git@host:owner/repo.git 与 https://host/owner/repo.git，保留仓库名中的点号
-  path="${remote_url#*://*/}"
-  [[ "$path" == "$remote_url" ]] && path="${remote_url#*:}"
-  TARGET_REPO="${path%.git}"
+    output('git', 'rev-parse', '--show-toplevel')
+    branch = output('git', 'branch', '--show-current')
+    if not branch:
+        fail('当前为 detached HEAD；请明确目标分支。')
+    head = output('git', 'rev-parse', '--verify', 'HEAD')
+    for marker in ('MERGE_HEAD', 'CHERRY_PICK_HEAD', 'REVERT_HEAD', 'rebase-merge', 'rebase-apply', 'sequencer'):
+        if Path(output('git', 'rev-parse', '--git-path', marker)).exists():
+            fail('存在未结束的 Git 操作，请先完成或按授权中止。')
+    if output('git', 'status', '--porcelain', '--untracked-files=all'):
+        fail('存在未提交修改；先核对并提交授权范围，脚本不会自动暂存或提交。')
 
-  CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+    remote = output('git', 'remote', 'get-url', 'origin')
+    push_urls = output('git', 'remote', 'get-url', '--push', '--all', 'origin').splitlines()
+    if push_urls != [remote]:
+        fail('origin 推送与读取地址不同或有多个推送地址；请使用明确目标的手动流程。')
+    match = re.fullmatch(r'git@([^:]+):(.+)', remote)
+    if match:
+        host, repo = match.groups()
+    else:
+        parsed = urlsplit(remote)
+        if parsed.scheme not in ('https', 'ssh') or parsed.password or parsed.port or parsed.query or parsed.fragment:
+            fail('不支持的 remote 格式或包含凭据；请使用平台手动流程。')
+        if parsed.scheme == 'https' and parsed.username:
+            fail('remote 内含认证信息；不将其传入平台 CLI。')
+        host, repo = parsed.hostname, parsed.path.lstrip('/')
+    repo = repo.removesuffix('.git')
+    if host not in ('github.com', 'gitlab.com', 'gitee.com') or not re.fullmatch(r'[\w.-]+(?:/[\w.-]+)+', repo):
+        fail('脚本仅支持标准 GitHub/GitLab/Gitee 同仓库；其他目标使用平台手动流程。')
+    if args.draft and host == 'gitee.com':
+        parser.error('Gitee 路径仅提供待创建链接，不支持 --draft')
 
-  if [[ -z "$BASE_BRANCH" ]]; then
-    if [[ "$PLATFORM" == "github" ]]; then
-      BASE_BRANCH=$(gh repo view "$TARGET_REPO" --json defaultBranchRef -q .defaultBranchRef.name 2>/dev/null || true)
-    fi
-    if [[ -z "$BASE_BRANCH" ]]; then
-      BASE_BRANCH=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's#^origin/##' || true)
-    fi
-    BASE_BRANCH="${BASE_BRANCH:-main}"
-  fi
+    base = args.base
+    if not base:
+        ref = output('git', 'symbolic-ref', '--short', 'refs/remotes/origin/HEAD')
+        base = ref.removeprefix('origin/')
+    if base.startswith('-') or run('git', 'check-ref-format', f'refs/heads/{base}', check=False).returncode:
+        parser.error('无效目标分支')
+    if branch == base:
+        fail('当前分支就是 PR 目标；脚本不会自动创建分支。')
+    base_ref = f'refs/remotes/origin/{base}'
+    if not args.dry_run:
+        run('git', 'fetch', '--no-tags', 'origin', f'+refs/heads/{base}:{base_ref}')
+    output('git', 'rev-parse', '--verify', base_ref)
+    output('git', 'merge-base', base_ref, head)
+    if output('git', 'rev-list', '--count', f'{base_ref}..{head}') == '0':
+        fail('当前分支没有待交付提交。')
+    if run('git', 'diff', '--quiet', f'{base_ref}...{head}', check=False).returncode == 0:
+        fail('当前分支相对目标没有最终文件差异。')
+    run('git', 'diff', '--check', f'{base_ref}...{head}')
 
-  log_success "仓库: $TARGET_REPO, 当前分支: $CURRENT_BRANCH, 目标分支: $BASE_BRANCH"
-}
+    # Check history too: a secret added then deleted is still pushed.
+    paths = run('git', 'log', '-m', '--format=', '--name-only', '-z', '--diff-filter=AM',
+                '--no-renames', f'{base_ref}..{head}').stdout.split(b'\0')
+    for raw in paths:
+        path = raw.lstrip(b'\n').decode('utf-8', errors='surrogateescape')
+        name = path.rsplit('/', 1)[-1]
+        if name in ('.env.example', '.env.sample', '.env.template'):
+            continue
+        if name == '.env' or name.startswith('.env.') or name in ('id_rsa', 'id_ed25519', 'credentials.json') or name.endswith(('.pem', '.key', '.p12')):
+            fail('待推送历史包含疑似敏感文件；请在本地检查并清理，未推送。', 3)
 
-# 敏感文件出现在待提交列表时直接中止，交给用户判断
-check_sensitive_files() {
-  local hits
-  hits=$(git status --porcelain --untracked-files=all | cut -c4- \
-    | grep -E '(^|/)(\.env(\..+)?|id_rsa|id_ed25519|credentials\.json)$|\.(pem|key|p12)$' \
-    | grep -vE '\.env\.(example|sample|template)$' || true)
-  if [[ -n "$hits" ]]; then
-    log_error "检测到疑似敏感文件，已中止："
-    echo "$hits" >&2
-    exit 3
-  fi
-}
+    print(f'{branch} → {base} | HEAD {head}', flush=True)
+    if args.dry_run:
+        print('本地预检通过；未联网，未验证远端权限、引用新鲜度或内容安全。')
+        print(args.title)
+        print(body)
+        return
 
-analyze_changes() {
-  log_info "分析改动..."
+    github = host == 'github.com'
+    cli = 'gh' if github else 'glab'
 
-  local status
-  status=$(git status --porcelain --untracked-files=all)
-  if [[ -z "$status" ]]; then
-    log_error "工作区没有改动"
-    exit 1
-  fi
+    def find_existing():
+        if github:
+            return data('gh', 'pr', 'list', '--repo', repo, '--state', 'open', '--head', branch,
+                        '--base', base, '--json', 'number,url')
+        return data('glab', 'mr', 'list', '--repo', repo, '--source-branch', branch,
+                    '--target-branch', base, '--output', 'json')
 
-  local added deleted changed_files new_files md_files
-  added=$(git diff --numstat HEAD | awk '{sum+=$1} END {print sum+0}')
-  deleted=$(git diff --numstat HEAD | awk '{sum+=$2} END {print sum+0}')
-  changed_files=$(echo "$status" | wc -l | tr -d ' ')
-  new_files=$(echo "$status" | grep -cE '^(A|\?\?)' || true)
-  md_files=$(echo "$status" | grep -c '\.md$' || true)
+    existing = [] if host == 'gitee.com' else find_existing()
+    if len(existing) > 1:
+        fail('发现多个匹配 PR/MR，请先明确目标。')
+    # Freeze the refspec at the reviewed SHA; disable automatic tag following.
+    if output('git', 'rev-parse', 'HEAD') != head or output('git', 'status', '--porcelain'):
+        fail('预检后仓库状态发生变化，请重新检查。')
+    run('git', '-c', 'push.followTags=false', 'push', 'origin', f'{head}:refs/heads/{branch}')
+    remote_head = output('git', 'ls-remote', '--heads', 'origin', f'refs/heads/{branch}').split()
+    if not remote_head or remote_head[0] != head:
+        fail('远端分支 SHA 与预期不一致，停止创建 PR。')
+    if host == 'gitee.com':
+        print(f'分支已推送；PR 尚未创建：https://gitee.com/{repo}/compare/{quote(base, safe="")}...{quote(branch, safe="")}')
+        return
 
-  local change_type="chore" change_desc="更新"
-  if [[ "$new_files" -gt $((changed_files * 6 / 10)) ]]; then
-    change_type="feat"; change_desc="新增"
-  elif [[ "$md_files" -eq "$changed_files" ]]; then
-    change_type="docs"; change_desc="文档更新"
-  elif echo "$status" | grep -qE '(test|spec)'; then
-    change_type="test"; change_desc="测试相关"
-  elif echo "$status" | grep -qE '(package\.json|\.github/|\.ya?ml$|\.config\.)'; then
-    change_type="chore"; change_desc="配置调整"
-  elif [[ "$added" -gt $((deleted * 2)) ]]; then
-    change_type="feat"; change_desc="新增"
-  elif [[ "$changed_files" -le 3 ]]; then
-    change_type="fix"; change_desc="修复"
-  fi
+    created = not existing
+    if created:
+        if github:
+            command = ['gh', 'pr', 'create', '--repo', repo, '--base', base, '--head', branch,
+                       '--title', args.title, '--body-file', str(args.body_file.resolve())]
+        else:
+            command = ['glab', 'mr', 'create', '--repo', repo, '--source-branch', branch,
+                       '--target-branch', base, '--title', args.title, '--description', body, '--yes']
+        if args.draft:
+            command.append('--draft')
+        result = run(*command, check=False)
+        # Always query after create, including timeout/failure; never blindly recreate.
+        existing = find_existing()
+        if len(existing) != 1:
+            fail(f'创建后未查到唯一 PR/MR（create 退出码 {result.returncode}）；请回查，勿直接重复创建。')
+    number = str(existing[0]['number' if github else 'iid'])
+    if github:
+        pr = data(cli, 'pr', 'view', number, '--repo', repo, '--json',
+                  'url,state,baseRefName,headRefName,headRefOid,isDraft,title,body')
+        actual = (pr['baseRefName'], pr['headRefName'], pr['headRefOid'], pr['state'])
+        expected = (base, branch, head, 'OPEN')
+        actual_body, draft, url = pr['body'], pr['isDraft'], pr['url']
+    else:
+        pr = data(cli, 'mr', 'view', number, '--repo', repo, '--output', 'json')
+        actual = (pr['target_branch'], pr['source_branch'], pr['sha'], pr['state'])
+        expected = (base, branch, head, 'opened')
+        actual_body, draft, url = pr['description'], pr['draft'], pr['web_url']
+    if actual != expected:
+        fail('PR/MR 回读的分支、SHA 或状态不符；已推送，请回查。')
+    if created and (actual_body.rstrip() != body.rstrip() or draft != args.draft):
+        fail('PR/MR 已创建，但正文或草稿状态回读不符，请回查。')
+    print(('已创建并验证：' if created else '已复用并验证（保留原描述）：') + url)
+    print('CI 与合并状态未验证。')
 
-  local main_dir
-  main_dir=$(echo "$status" | cut -c4- | sed 's#.* -> ##' | cut -d'/' -f1 | sort | uniq -c | sort -rn | head -1 | awk '{print $2}')
-  main_dir="${main_dir%.*}"
-  main_dir=$(echo "${main_dir:-repo}" | tr -c 'A-Za-z0-9._\n-' '-')
 
-  # 已在功能分支上就沿用，只有在目标分支/主干上才新建
-  if [[ "$CURRENT_BRANCH" == "$BASE_BRANCH" || "$CURRENT_BRANCH" =~ ^(main|master)$ ]]; then
-    BRANCH_NAME="${change_type}/${main_dir}-updates-$(date +%Y%m%d)"
-    if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
-      BRANCH_NAME="${BRANCH_NAME}-$(date +%H%M%S)"
-    fi
-  else
-    BRANCH_NAME="$CURRENT_BRANCH"
-  fi
-
-  PR_TITLE="${PR_TITLE:-${change_type}: ${change_desc} ${main_dir}}"
-  COMMIT_MSG="${PR_TITLE}
-
-- 新增 ${added} 行
-- 删除 ${deleted} 行
-- 改动 ${changed_files} 个文件"
-
-  log_success "改动类型: $change_type, 分支: $BRANCH_NAME"
-}
-
-generate_pr_body() {
-  PR_BODY="## 变更说明
-
-${PR_TITLE}
-
-## 主要改动
-
-\`\`\`
-$(git diff --stat HEAD | tail -1)
-\`\`\`
-
-## 改动文件
-
-\`\`\`
-$(git status --porcelain --untracked-files=all | cut -c4- | head -20)
-\`\`\`
-
-## 测试
-
-- [ ] 本地测试通过
-"
-}
-
-# macOS 上 GitHub HTTPS push 会卡 osxkeychain 弹框；只转 GitHub，Gitee 本机无 SSH key 不转
-convert_remote_to_ssh() {
-  local remote_url
-  remote_url=$(git remote get-url origin)
-  if [[ "$remote_url" == https://github.com/* ]]; then
-    local ssh_url="git@github.com:${remote_url#https://github.com/}"
-    ssh_url="${ssh_url%.git}.git"
-    git remote set-url origin "$ssh_url"
-    log_success "origin 已转为 SSH: $ssh_url"
-  fi
-}
-
-commit_and_push() {
-  if [[ "$BRANCH_NAME" != "$CURRENT_BRANCH" ]]; then
-    log_info "创建分支 $BRANCH_NAME..."
-    git checkout -b "$BRANCH_NAME"
-  fi
-
-  git add -A
-  git commit -m "$COMMIT_MSG"
-  log_success "已提交到本地分支"
-
-  convert_remote_to_ssh
-  git push -u origin "$BRANCH_NAME"
-  log_success "已推送到 origin/$BRANCH_NAME"
-}
-
-create_pull_request() {
-  log_info "创建 PR..."
-  local pr_url=""
-
-  case "$PLATFORM" in
-    github)
-      local args=(--title "$PR_TITLE" --body "$PR_BODY" --base "$BASE_BRANCH" --head "$BRANCH_NAME")
-      $DRAFT && args+=(--draft)
-      pr_url=$(gh pr create "${args[@]}" 2>&1) || { log_error "PR 创建失败: $pr_url"; exit 1; }
-      ;;
-    gitlab)
-      if command -v glab &>/dev/null; then
-        local args=(--title "$PR_TITLE" --description "$PR_BODY" --target-branch "$BASE_BRANCH" --source-branch "$BRANCH_NAME" --yes)
-        $DRAFT && args+=(--draft)
-        pr_url=$(glab mr create "${args[@]}" 2>&1) || { log_error "MR 创建失败: $pr_url"; exit 1; }
-      else
-        log_warn "请手动在 GitLab 创建 Merge Request"
-      fi
-      ;;
-    gitee)
-      pr_url="https://gitee.com/${TARGET_REPO}/compare/${BASE_BRANCH}...${BRANCH_NAME}"
-      log_warn "Gitee 无 CLI，请打开链接手动创建 PR"
-      ;;
-    *)
-      log_warn "未知托管平台，分支已推送，请手动创建 PR"
-      ;;
-  esac
-
-  echo ""
-  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  [[ -n "$pr_url" ]] && echo "🔗 PR: $(echo "$pr_url" | grep -Eo 'https://[^ ]+' | tail -1)"
-  echo "📝 标题: $PR_TITLE"
-  echo "🌿 分支: $BRANCH_NAME → $BASE_BRANCH"
-  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-}
-
-main() {
-  parse_args "$@"
-  check_dependencies
-  get_repo_info
-  check_sensitive_files
-  analyze_changes
-  generate_pr_body
-
-  if $DRY_RUN; then
-    echo ""
-    echo "[dry-run] 分支: $BRANCH_NAME → $BASE_BRANCH"
-    echo "[dry-run] commit message:"
-    echo "$COMMIT_MSG"
-    echo ""
-    echo "[dry-run] PR 描述:"
-    echo "$PR_BODY"
-    exit 0
-  fi
-
-  commit_and_push
-  create_pull_request
-}
-
-main "$@"
+try:
+    main()
+except (OSError, ValueError, KeyError, TypeError) as error:
+    fail(f'环境或平台返回数据异常（{type(error).__name__}）；请检查现状后再重试。')
+PY
