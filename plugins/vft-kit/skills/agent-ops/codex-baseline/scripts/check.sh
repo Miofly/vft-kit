@@ -353,10 +353,10 @@ codex_feature_enabled "multi_agent" && ok "multi_agent feature 已启用" || bad
 cfg_has_line '^[[:space:]]*check_for_update_on_startup[[:space:]]*=[[:space:]]*false[[:space:]]*$' && ok "启动自动更新检查已关闭" || opt "启动自动更新检查" '仅由 Volta/Homebrew/公司统一管版本时，在 config.toml 顶层加入: check_for_update_on_startup = false'
 if project_trusted "/"; then
   ok "/ 已信任"
-elif project_trusted "$HOME/Documents/code/wfly"; then
-  ok "$HOME/Documents/code/wfly 已信任"
+elif [ -n "${CODEX_PROJECT_ROOT:-}" ] && project_trusted "$CODEX_PROJECT_ROOT"; then
+  ok "$CODEX_PROJECT_ROOT 已信任"
 else
-  bad "项目 trust_level" '在 ~/.codex/config.toml 加入 [projects."/"] trust_level = "trusted" 或信任常用代码根'
+  bad "项目 trust_level" '在 ~/.codex/config.toml 加入 [projects."/"] trust_level = "trusted"，或设置 CODEX_PROJECT_ROOT 指向要信任的代码根'
 fi
 
 sec "Playwright MCP"

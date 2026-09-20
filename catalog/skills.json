@@ -15,6 +15,7 @@
         "cc-backup-restore",
         "cc-baseline",
         "cc-switch-add-provider",
+        "co-work-summary",
         "codex-baseline",
         "email-ops",
         "notify",
@@ -36,6 +37,25 @@
       ]
     },
     {
+      "id": "design-content",
+      "name": "设计与内容",
+      "description": "设计还原、信息图、Office 文档和视觉内容生产。",
+      "skills": [
+        "co-infographic-generator",
+        "co-vision-understanding",
+        "code-wiki",
+        "llm-wiki-generate",
+        "llm-wiki-ingest",
+        "llm-wiki-lint",
+        "llm-wiki-query",
+        "llm-wiki-setup",
+        "mastergo-mcp",
+        "office-doc-rewrite",
+        "replicate-web-style",
+        "wxapkg-unpack"
+      ]
+    },
+    {
       "id": "dev-workflow",
       "name": "开发工作流",
       "description": "数据库工具、前端质量、Git、代码托管和 PR 交付流程。",
@@ -43,22 +63,24 @@
         "dbx",
         "fe-auto-test",
         "fe-lint-fix",
+        "fe-user-agent-resolver",
         "git-auto-push",
         "git-ops",
         "github-ops",
-        "vue-sfc-split"
+        "vue-sfc-split",
+        "vue27-vite-config"
       ]
     },
     {
-      "id": "design-content",
-      "name": "设计与内容",
-      "description": "设计还原、信息图、Office 文档和视觉内容生产。",
+      "id": "requirements",
+      "name": "需求质量",
+      "description": "需求文档、业务规则和专项质量检查。",
       "skills": [
-        "co-infographic-generator",
-        "mastergo-mcp",
-        "office-doc-rewrite",
-        "replicate-web-style",
-        "wxapkg-unpack"
+        "req-check-activity",
+        "req-check-admin-system",
+        "req-check-quick-app",
+        "req-check-scheduled-task",
+        "req-quality-check"
       ]
     },
     {
@@ -72,6 +94,14 @@
         "qr-login",
         "web-scrape",
         "wechat-mp"
+      ]
+    },
+    {
+      "id": "workplace-tools",
+      "name": "工作台工具",
+      "description": "Lark/飞书的文档、表格、云盘、任务和知识库操作。",
+      "skills": [
+        "lark-cli"
       ]
     }
   ]

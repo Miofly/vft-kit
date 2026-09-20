@@ -1,0 +1,4 @@
+interface:
+  display_name: "LLM Wiki Ingest"
+  short_description: "Ingest raw sources into a maintained wiki"
+  default_prompt: "Use $llm-wiki-ingest to process new raw sources and merge them into the wiki with source tracking."

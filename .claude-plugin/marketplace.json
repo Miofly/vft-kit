@@ -1,7 +1,7 @@
 {
   "name": "vft-kit",
   "owner": {
-    "name": "wfly"
+    "name": "VFT contributors"
   },
   "metadata": {
     "description": "Claude Code 运维与通用工具集"
@@ -13,7 +13,7 @@
       "description": "Claude Code / Codex 运维与通用开发工具",
       "version": "0.3.0",
       "author": {
-        "name": "wfly"
+        "name": "VFT contributors"
       },
       "category": "productivity",
       "tags": ["claude-code", "codex", "devops", "backup", "playwright"]

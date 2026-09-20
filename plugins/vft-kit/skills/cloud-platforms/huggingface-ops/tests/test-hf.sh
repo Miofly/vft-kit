@@ -77,8 +77,8 @@ HF_STANDARD_TOKEN="$TMP_ROOT/standard-token"
 UV_CAPTURE="$TMP_ROOT/uv-args"
 mkdir -p "$CONFIG_DIR" "$NONREGULAR_CONFIG" "$FAKE_BIN" "$FAKE_PYTHON/huggingface_hub"
 
-printf '%s\n' '{"token":"config-token","username":"vftfnn"}' > "$CONFIG"
-printf '%s\n' '{"username":"vftfnn"}' > "$UNSUPPORTED_CONFIG"
+printf '%s\n' '{"token":"config-token","username":"example-user"}' > "$CONFIG"
+printf '%s\n' '{"username":"example-user"}' > "$UNSUPPORTED_CONFIG"
 printf '%s\n' '{"token":' > "$INVALID_CONFIG"
 
 cat > "$FAKE_BIN/hf" <<'EOF'
@@ -298,8 +298,8 @@ expect_failure 'SDK unsupported config' 1 'config has no supported token field' 
 expect_failure 'SDK exception token redaction' 1 'failed with [REDACTED]' \
   env HF_TOKEN='env-token' HF_FAKE_CAPTURE="$HF_FAKE_CAPTURE" PYTHONPATH="$FAKE_PYTHON" python3 "$HF_API" token_error
 assert_not_contains 'SDK exception token redaction' "$(< "$TMP_ROOT/failure.stderr")" 'env-token'
-expect_failure 'SDK Space secret value redaction' 1 'failed to update vftfnn/wfly-spring/REDIS_PASSWORD with [REDACTED]' \
-  env HF_TOKEN='env-token' HF_FAKE_CAPTURE="$HF_FAKE_CAPTURE" PYTHONPATH="$FAKE_PYTHON" python3 "$HF_API" add_space_secret --kwargs '{"repo_id":"vftfnn/wfly-spring","key":"REDIS_PASSWORD","value":"space-secret-value"}'
+expect_failure 'SDK Space secret value redaction' 1 'failed to update example-user/example-space/REDIS_PASSWORD with [REDACTED]' \
+  env HF_TOKEN='env-token' HF_FAKE_CAPTURE="$HF_FAKE_CAPTURE" PYTHONPATH="$FAKE_PYTHON" python3 "$HF_API" add_space_secret --kwargs '{"repo_id":"example-user/example-space","key":"REDIS_PASSWORD","value":"space-secret-value"}'
 assert_not_contains 'SDK Space secret value redaction' "$(< "$TMP_ROOT/failure.stderr")" 'space-secret-value'
 expect_failure 'SDK cyclic result' 1 'result contains a cycle' \
   env -u HF_TOKEN HF_FAKE_CAPTURE="$HF_FAKE_CAPTURE" PYTHONPATH="$FAKE_PYTHON" python3 "$HF_API" --config "$CONFIG" cyclic_result

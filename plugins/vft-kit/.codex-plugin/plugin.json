@@ -3,7 +3,7 @@
   "version": "0.3.0+codex.20260919094819",
   "description": "Claude Code and Codex operations and reusable development utilities.",
   "author": {
-    "name": "wfly"
+    "name": "VFT contributors"
   },
   "keywords": [
     "vft",
@@ -15,15 +15,17 @@
   "skills": [
     "./skills/agent-ops",
     "./skills/cloud-platforms",
-    "./skills/dev-workflow",
     "./skills/design-content",
-    "./skills/web-automation"
+    "./skills/dev-workflow",
+    "./skills/requirements",
+    "./skills/web-automation",
+    "./skills/workplace-tools"
   ],
   "interface": {
     "displayName": "VFT Kit",
     "shortDescription": "Claude Code and Codex operations and shared development tools.",
     "longDescription": "A local toolbox for Claude Code and Codex operations and reusable development workflows.",
-    "developerName": "wfly",
+    "developerName": "VFT contributors",
     "category": "Productivity",
     "capabilities": [
       "Write",
