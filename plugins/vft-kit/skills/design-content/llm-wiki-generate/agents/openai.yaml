@@ -1,0 +1,4 @@
+interface:
+  display_name: "LLM Wiki Generate"
+  short_description: "Generate reports and outputs from a wiki"
+  default_prompt: "Use $llm-wiki-generate to turn wiki content into a report or slide-ready document with traceable sources."

@@ -2,7 +2,7 @@
 
 Claude Code / Codex 运维工具箱与通用开发工具。插件主体在 `plugins/vft-kit/`。
 
-做这个的起因很实际：Claude Code 用久了，配置、插件、登录态会散落在本机各处，换电脑或者插件坏掉时没人救你。官方文档在这块写得很薄，社区踩的坑倒是不少。这些 skill 是踩坑之后沉淀下来的。
+这些 Skill 面向需要把 Claude Code / Codex 工作流做成可复用工具的开发者：安装、检查、部署、抓取、文档处理、需求评审和前端质量验证都能在项目里直接复用。账号、域名、数据库和密钥通过环境变量或本地忽略配置提供，仓库不包含个人环境。
 
 ## 装
 
@@ -24,25 +24,28 @@ Codex 入口在 `plugins/vft-kit/.codex-plugin/plugin.json`，skill 目录仍是
 
 新增或修改非平台专属能力时，必须遵循 `plugins/vft-kit/docs/codex-compat.md`。
 
-## 详细文档
+公开边界和导入规则见 [`docs/public-boundary.md`](docs/public-boundary.md)。改动目录或内容后运行：
 
-每个 skill / hook 的完整用法、踩坑与配置，见博客的逐篇文档（下面「Skill 分类」是速览，想看细节点进去）：
+```bash
+node scripts/validate-skill-catalog.mjs
+node scripts/audit-public.mjs
+```
 
-- [vft-kit 总览](https://wflynn.cn/pages/2607131001) —— 定位、安装、全量速查表、FAQ
-- **CC 运维**：[cc-baseline](https://wflynn.cn/pages/2607131002) · [cc-backup-restore](https://wflynn.cn/pages/2607131003) · [plugin-refresh](https://wflynn.cn/pages/2607131004)
-- **Codex 运维**：[codex-baseline](https://wflynn.cn/pages/2607131010)
-- **规则模块（hook）**：[vft-rules 按路径注入规范 + 保存后自动检查](https://wflynn.cn/pages/2607131014)
-- **通用工具**：[fe-auto-test](https://wflynn.cn/pages/2607131005) · [fe-lint-fix](https://wflynn.cn/pages/2607131012) · [co-infographic-generator](https://wflynn.cn/pages/2607131006) · [git-ops](https://wflynn.cn/pages/2607131013) · [git-auto-push](https://wflynn.cn/pages/2607131007) · [vue-sfc-split](https://wflynn.cn/pages/2607131008) · [office-doc-rewrite](https://wflynn.cn/pages/2607131011) · [wxapkg-unpack](https://wflynn.cn/pages/2607131015)
+## 使用边界
+
+每个 Skill 的完整用法在对应目录的 `SKILL.md`，脚本和参考资料跟随 Skill 发布。需要账号或外部服务时，先阅读该文件中的配置表；不要把 token、Cookie、密码或真实业务数据写入仓库。带有上传、发布、删除、部署等副作用的流程会先要求确认目标，完成后应回读外部状态。
 ## Skill 分类
 
 运行目录使用 `plugins/vft-kit/skills/<category>/<skill-name>/`。分类清单以 [`catalog/skills.json`](catalog/skills.json) 为唯一来源，目录分类、Claude manifest 和 Codex manifest 必须一致。
 
 | 分类 | 定位 | skills |
 |---|---|---|
-| Agent 运维 (`agent-ops`) | Claude Code、Codex、CC Switch 与插件缓存 | `cc-backup-restore` · `cc-baseline` · `cc-switch-add-provider` · `codex-baseline` · `plugin-refresh` |
+| Agent 运维 (`agent-ops`) | Claude Code、Codex、CC Switch、插件缓存与工作总结 | `cc-backup-restore` · `cc-baseline` · `cc-switch-add-provider` · `codex-baseline` · `co-work-summary` · `plugin-refresh` |
 | 云平台 (`cloud-platforms`) | 云服务、模型托管、部署平台和账号资源 | `aistudio` · `cloudflare-ops` · `huggingface-ops` · `kaggle-ops` · `modelscope-studio` · `vercel-ops` |
-| 开发工作流 (`dev-workflow`) | 数据库工具、前端质量、Git、代码托管和 PR 交付 | `dbx` · `fe-auto-test` · `fe-lint-fix` · `git-auto-push` · `git-ops` · `github-ops` · `vue-sfc-split` |
-| 设计与内容 (`design-content`) | 设计还原、信息图、Office 文档和视觉内容 | `co-infographic-generator` · `mastergo-mcp` · `office-doc-rewrite` · `replicate-web-style` · `wxapkg-unpack` |
+| 开发工作流 (`dev-workflow`) | 数据库工具、前端质量、Git、代码托管、UA 解析和 Vue 配置 | `dbx` · `fe-auto-test` · `fe-lint-fix` · `fe-user-agent-resolver` · `git-auto-push` · `git-ops` · `github-ops` · `vue27-vite-config` · `vue-sfc-split` |
+| 设计与内容 (`design-content`) | 代码知识库、信息图、视觉理解、Office 文档和视觉内容 | `co-infographic-generator` · `co-vision-understanding` · `code-wiki` · `llm-wiki-generate` · `llm-wiki-ingest` · `llm-wiki-lint` · `llm-wiki-query` · `llm-wiki-setup` · `mastergo-mcp` · `office-doc-rewrite` · `replicate-web-style` · `wxapkg-unpack` |
+| 需求质量 (`requirements`) | 需求文档通用检查和专项质量检查 | `req-check-activity` · `req-check-admin-system` · `req-check-quick-app` · `req-check-scheduled-task` · `req-quality-check` |
+| 工作台工具 (`workplace-tools`) | Lark/飞书文档、表格、云盘、任务和知识库 | `lark-cli` |
 | Web 与自动化 (`web-automation`) | 浏览器发布、网页抓取、Android 与 macOS 自动化 | `android-ui-automation` · `chrome-web-store-publish` · `keyboard-maestro` · `qr-login` · `web-scrape` · `wechat-mp` |
 
 新增、删除或改名 skill 时同步更新分类，并运行：

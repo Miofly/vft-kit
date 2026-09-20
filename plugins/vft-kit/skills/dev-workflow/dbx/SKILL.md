@@ -24,8 +24,8 @@ DBX 是本地优先的数据库客户端。默认走 DBX MCP 的 stdio 路径，
    ```bash
    DBXCTL="${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/dev-workflow/dbx/scripts/dbx-mcp.mjs"
    printf '%s' "$DB_PASSWORD" | node "$DBXCTL" add-mysql \
-     --name 'wfly-spring-local' --host 'mysql6.sqlpub.com' --port 3311 \
-     --username 'vftshare' --database 'spring_local' --password-stdin --probe
+     --name 'my-local-db' --host '127.0.0.1' --port 3306 \
+     --username 'app_user' --database 'app_db' --password-stdin --probe
    ```
 
    脚本先列出现有连接：同名且目标一致时幂等跳过，目标不一致时失败；新增后自动执行 `SELECT 1 AS dbx_probe`。`DB_PASSWORD` 只在当前进程内从用户已授权的本地配置读取后通过 stdin 传入，禁止打印或写文件。
@@ -56,14 +56,9 @@ DBX 是本地优先的数据库客户端。默认走 DBX MCP 的 stdio 路径，
 
 点击“测试”确认网络、凭据和权限。MCP 新增连接时用 `dbx_add_connection`，随后用 `dbx_execute_query` 执行只读探针；不要为了“测试”执行写入 SQL。报告时只说连接名、类型、主机/端口的非敏感部分和测试结果，不输出密码、完整 URL、SSH 私钥或连接字符串。
 
-### wfly-spring 两库
+### 多环境连接
 
-用户说“wfly-spring 的两个数据库”时，默认只处理两个 `master` 数据源：
-
-- `application-local.yaml` → `spring_local`，连接名 `wfly-spring-local`
-- `application-dev.yaml` / `application-prod.yaml` → `vftdream`，连接名 `wfly-spring-prod`
-
-从对应 JDBC URL 所在的 `master` 块读取 host、port、username、password；不要把 `slave` 的 `yjsydzm` 顺手加入，也不要把 profile 名 `dev` 当成非生产库。两个连接都添加后分别执行 `SELECT 1 AS dbx_probe`，再列出连接回读名称、类型、主机、端口和数据库。
+用户要求配置多个环境时，先从项目实际配置读取每个环境的 `master` 数据源，逐个确认连接名、主机、端口、数据库和权限；不要根据 profile 名猜测环境，也不要顺手加入未要求的副本或从库。每个连接添加后执行 `SELECT 1 AS dbx_probe`，再列出连接回读名称、类型、主机、端口和数据库。
 
 ### 驱动管理
 

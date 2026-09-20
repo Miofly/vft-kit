@@ -140,7 +140,7 @@ bash "${VFT_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}}/plugins/
 例如刷新本地 `vft-kit`：
 
 ```bash
-bash "${VFT_PLUGIN_ROOT:-$HOME/Documents/code/wfly/bolierplate/project/vft-kit}/plugins/vft-kit/skills/agent-ops/plugin-refresh/scripts/refresh-local-codex-plugin.sh" -p vft-kit
+bash "${VFT_PLUGIN_ROOT:?set VFT_PLUGIN_ROOT}/skills/agent-ops/plugin-refresh/scripts/refresh-local-codex-plugin.sh" -p vft-kit
 ```
 
 ## 远端 marketplace 插件

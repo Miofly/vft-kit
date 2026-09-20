@@ -170,7 +170,7 @@ web-scrape/
 ### Step 1：安装依赖
 
 ```bash
-cd /Users/wfly/Documents/code/wfly/bolierplate/project/vft-kit/plugins/vft-kit/skills/web-automation/web-scrape
+cd <vft-kit-root>/plugins/vft-kit/skills/web-automation/web-scrape
 ./install-deps.sh
 ```
 

@@ -179,7 +179,6 @@ get_vercel_ops_script() {
   # 尝试几个可能的位置
   local candidates=(
     "$(dirname "${BASH_SOURCE[0]}")/../scripts/vercel-ops.js"
-    "/Users/wfly/Documents/code/wfly/bolierplate/project/vft-kit/plugins/vft-kit/skills/cloud-platforms/vercel-ops/scripts/vercel-ops.js"
   )
 
   for path in "${candidates[@]}"; do
