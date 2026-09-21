@@ -15,7 +15,6 @@
         "cc-backup-restore",
         "cc-baseline",
         "cc-switch-add-provider",
-        "co-work-summary",
         "codex-baseline",
         "email-ops",
         "notify",
@@ -42,11 +41,8 @@
       "description": "设计还原、信息图、Office 文档和视觉内容生产。",
       "skills": [
         "co-infographic-generator",
-        "co-vision-understanding",
-        "code-wiki",
         "mastergo-mcp",
         "office-doc-rewrite",
-        "replicate-web-style",
         "wxapkg-unpack"
       ]
     },
@@ -58,23 +54,9 @@
         "dbx",
         "fe-auto-test",
         "fe-lint-fix",
-        "fe-user-agent-resolver",
         "git-auto-push",
         "git-ops",
-        "github-ops",
-        "vue27-vite-config"
-      ]
-    },
-    {
-      "id": "requirements",
-      "name": "需求质量",
-      "description": "需求文档、业务规则和专项质量检查。",
-      "skills": [
-        "req-check-activity",
-        "req-check-admin-system",
-        "req-check-quick-app",
-        "req-check-scheduled-task",
-        "req-quality-check"
+        "github-ops"
       ]
     },
     {
