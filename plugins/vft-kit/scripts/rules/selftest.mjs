@@ -267,6 +267,52 @@ test('样式规则注入到 .vue 与样式文件', () => {
   assert.match(r.json.hookSpecificOutput.additionalContext, /<vft-rule name="style-layout">/);
 });
 
+// ---- package.json 精确版本 ----
+test('package.json：范围版本阻断，提示已安装版本，协议写法与 peerDependencies 放行', () => {
+  write('pkg/node_modules/font-spider/package.json', JSON.stringify({ version: '1.3.5' }));
+  const pkg = write(
+    'pkg/package.json',
+    `{
+  "name": "demo",
+  "dependencies": {
+    "vue": "3.5.40",
+    "font-spider": "^1.3.5",
+    "lodash": "~4.17.21",
+    "vue2": "npm:vue@^2.7.16",
+    "shared": "workspace:*",
+    "axios": "catalog:",
+    "local": "file:../local",
+    "repo": "user/repo#v1.0.0"
+  },
+  "devDependencies": {
+    "sass": ">=1.50.0",
+    "any": "*"
+  },
+  "peerDependencies": {
+    "vue": "^3.0.0"
+  }
+}
+`,
+  );
+  const r = run('check.mjs', { session_id: 's14', cwd: tmp, tool_input: { file_path: pkg } });
+  assert.equal(r.json?.decision, 'block');
+  const reason = r.json.reason;
+  assert.match(reason, /package\.json:5 \(pin-exact-version\) dependencies\.font-spider[^\n]*"1\.3\.5"/);
+  assert.match(reason, /package\.json:6 \(pin-exact-version\) dependencies\.lodash[^\n]*锁文件/);
+  assert.match(reason, /dependencies\.vue2/);
+  assert.match(reason, /package\.json:14 \(pin-exact-version\) devDependencies\.sass/);
+  assert.match(reason, /devDependencies\.any/);
+  for (const ok of ['dependencies.vue ', 'shared', 'axios', 'local', 'repo', 'peerDependencies'])
+    assert.ok(!reason.includes(ok), `${ok} 不应报错`);
+});
+
+test('package.json：全部精确版本无输出，规则会注入', () => {
+  const pkg = write('pkg2/package.json', JSON.stringify({ dependencies: { vue: '3.5.40' } }, null, 2));
+  assert.equal(run('check.mjs', { session_id: 's15', cwd: tmp, tool_input: { file_path: pkg } }).stdout.trim(), '');
+  const inj = run('inject.mjs', { session_id: 's15', cwd: tmp, tool_input: { file_path: pkg } });
+  assert.match(inj.json.hookSpecificOutput.additionalContext, /<vft-rule name="package-json">/);
+});
+
 test('异常输入静默放行', () => {
   const r = spawnSync('node', [path.join(here, 'check.mjs')], { input: 'not json', env, encoding: 'utf8' });
   assert.equal(r.status, 0);

@@ -15,7 +15,6 @@
     "./skills/dev-workflow/fe-user-agent-resolver",
     "./skills/dev-workflow/git-ops",
     "./skills/dev-workflow/github-ops",
-    "./skills/dev-workflow/vue-sfc-split",
     "./skills/dev-workflow/vue27-vite-config",
     "./skills/requirements",
     "./skills/web-automation",

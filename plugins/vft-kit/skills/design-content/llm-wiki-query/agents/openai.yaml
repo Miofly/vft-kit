@@ -1,4 +1,0 @@
-interface:
-  display_name: "LLM Wiki Query"
-  short_description: "Answer questions from a structured wiki"
-  default_prompt: "Use $llm-wiki-query to answer a question from the wiki and cite the relevant pages."

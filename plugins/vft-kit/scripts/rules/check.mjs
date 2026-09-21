@@ -17,11 +17,13 @@ import { pathToFileURL } from 'node:url';
 import { matchRules, readHookInput } from './lib.mjs';
 import { splitSfc, vueChecks } from './checks/vue.mjs';
 import { styleChecks, styleExts } from './checks/style.mjs';
+import { packageChecks, packageExts } from './checks/package.mjs';
 
-/** 内置检查：vue 类检查只对 .vue 生效，样式类检查对 .vue 与样式文件生效 */
+/** 内置检查：vue 类检查只对 .vue 生效，样式类检查对 .vue 与样式文件生效，依赖检查只对 package.json 生效 */
 const builtinChecks = {
   ...Object.fromEntries(Object.entries(vueChecks).map(([id, c]) => [id, { ...c, exts: ['.vue'] }])),
   ...Object.fromEntries(Object.entries(styleChecks).map(([id, c]) => [id, { ...c, exts: styleExts }])),
+  ...Object.fromEntries(Object.entries(packageChecks).map(([id, c]) => [id, { ...c, exts: packageExts }])),
 };
 
 /** 各级私有检查：<root>/.claude/vft-rules/checks.mjs 的 default export，由外到内合并，同名内层覆盖 */
