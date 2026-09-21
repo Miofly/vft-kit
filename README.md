@@ -40,11 +40,10 @@ node scripts/audit-public.mjs
 
 | 分类 | 定位 | skills |
 |---|---|---|
-| Agent 运维 (`agent-ops`) | Claude Code、Codex、CC Switch、插件缓存与工作总结 | `cc-backup-restore` · `cc-baseline` · `cc-switch-add-provider` · `codex-baseline` · `co-work-summary` · `plugin-refresh` |
+| Agent 运维 (`agent-ops`) | Claude Code、Codex、CC Switch、插件缓存与工作总结 | `cc-backup-restore` · `cc-baseline` · `cc-switch-add-provider` · `codex-baseline` · `plugin-refresh` |
 | 云平台 (`cloud-platforms`) | 云服务、模型托管、部署平台和账号资源 | `aistudio` · `cloudflare-ops` · `huggingface-ops` · `kaggle-ops` · `modelscope-studio` · `vercel-ops` |
-| 开发工作流 (`dev-workflow`) | 数据库工具、前端质量、Git、代码托管、UA 解析和 Vue 配置 | `dbx` · `fe-auto-test` · `fe-lint-fix` · `fe-user-agent-resolver` · `git-auto-push` · `git-ops` · `github-ops` · `vue27-vite-config` |
-| 设计与内容 (`design-content`) | 代码知识库、信息图、视觉理解、Office 文档和视觉内容 | `co-infographic-generator` · `co-vision-understanding` · `code-wiki` · `mastergo-mcp` · `office-doc-rewrite` · `replicate-web-style` · `wxapkg-unpack` |
-| 需求质量 (`requirements`) | 需求文档通用检查和专项质量检查 | `req-check-activity` · `req-check-admin-system` · `req-check-quick-app` · `req-check-scheduled-task` · `req-quality-check` |
+| 开发工作流 (`dev-workflow`) | 数据库工具、前端质量、Git、代码托管和 Vue 配置 | `dbx` · `fe-auto-test` · `fe-lint-fix` · `git-auto-push` · `git-ops` · `github-ops` |
+| 设计与内容 (`design-content`) | 信息图、Office 文档和视觉内容 | `co-infographic-generator` · `mastergo-mcp` · `office-doc-rewrite` · `wxapkg-unpack` |
 | 工作台工具 (`workplace-tools`) | Lark/飞书文档、表格、云盘、任务和知识库 | `lark-cli` |
 | Web 与自动化 (`web-automation`) | 浏览器发布、网页抓取、Android 与 macOS 自动化 | `android-ui-automation` · `chrome-web-store-publish` · `keyboard-maestro` · `qr-login` · `web-scrape` · `wechat-mp` |
 
