@@ -17,6 +17,7 @@ checks:
 
 - **确认项目 Vue 大版本**：看 `node_modules/vue/package.json` 或 `package.json` 的 `vue` 依赖。Vue 2 项目通常要兼容旧 WebView / 低版本浏览器，布局能力按第 3 节收紧。
 - **看设计稿的图层结构，不只看坐标**：MasterGo 的「自动布局」对应 flex，方向、间距、对齐、padding 要直接翻译成 flex 属性。设计工具导出的 `left/top` 绝对坐标只是画布上的位置，不是布局意图。
+- **先找重复的样式单元**：设计稿里反复出现的卡片、按钮、列表项、标题栏，先抽成组件，差异用 props / 插槽表达，再拼页面（见 vue-sfc 规则「组件复用」）。设计稿里的组件 / 实例（Component / Instance）通常就是应该抽组件的位置。
 
 ## 1. 文档流优先，定位只做点缀
 
@@ -31,11 +32,25 @@ checks:
 
 按顺序选，前面的能用就不要往后退：
 
-1. **flex 居中**：父级 `display: flex; align-items: center; justify-content: center;`。单行文本垂直居中也可以用 `line-height` 等于高度。
+1. **flex 居中**：父级 `display: flex; align-items: center; justify-content: center;`。文本垂直居中也用这种方式，高度写 `min-height`，上下留白用 `padding`。
 2. **块级水平居中**：定宽块用 `margin: 0 auto`。
 3. **定位居中**：元素必须脱离文档流（弹窗、浮层、覆盖在图片上的标记）时，用 `position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);`。只需水平居中就只写 `left: 50%` + `translateX(-50%)`。
 
 不要用 `left: 137px` 这类按设计稿算出来的值实现「看起来居中」；容器宽度一变就偏移。
+
+**文本居中不要用 `line-height` 等于容器高度**（如 `height: 44px; line-height: 44px`）。原因是设计要兼容大字体：
+
+- 用户调大系统字体、浏览器缩放或 App 适老化模式时，字号变大，写死的 `line-height` 不变，文字会溢出或被裁切。
+- 文案换行后，每行都占满容器高度，多行文本会把容器撑破或重叠。
+- 容器内含图标、多个行内元素时，基线对齐会让视觉中心偏移。
+
+改用 flex 居中 + `min-height` + `padding`。`line-height` 只写无单位的倍数（如 `1.5`），用来控制行距，不承担居中。
+
+## 2.1 大字体适配
+
+- 字号用 `rem` / `em` 或项目约定的适配单位，不在行高、按钮高度等地方写死与字号相关的 `px`。
+- 含文字的容器（按钮、标签、导航项、列表行）不写固定 `height`，用 `min-height`；需要单行显示时明确写 `white-space: nowrap; overflow: hidden; text-overflow: ellipsis;`。
+- 图标与文字并排时用 flex `align-items: center` 对齐，图标尺寸可用 `em` 跟随字号。
 
 ## 3. Vue 2 项目
 
@@ -51,6 +66,7 @@ checks:
 - 列表条数变多或变少，后续内容跟着移动，不被盖住。
 - 容器宽度变化（375 / 414 / 桌面宽度），居中元素仍居中。
 - 除角标、浮层、装饰层外，没有绝对定位。
+- 字号放大到 1.5 倍（系统大字体或浏览器缩放），文字不溢出、不被裁切，居中仍成立。
 
 ## 项目覆盖
 

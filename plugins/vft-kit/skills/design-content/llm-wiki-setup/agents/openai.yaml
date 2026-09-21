@@ -1,4 +1,0 @@
-interface:
-  display_name: "LLM Wiki Setup"
-  short_description: "Initialize an LLM-maintained wiki workspace"
-  default_prompt: "Use $llm-wiki-setup to create a new LLM wiki with schema files for Codex and Claude Code."

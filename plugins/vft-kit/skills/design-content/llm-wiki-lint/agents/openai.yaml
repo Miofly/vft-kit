@@ -1,4 +1,0 @@
-interface:
-  display_name: "LLM Wiki Lint"
-  short_description: "Health-check and maintain a structured wiki"
-  default_prompt: "Use $llm-wiki-lint to inspect a wiki for contradictions, stale claims, orphan pages, and missing cross-references."

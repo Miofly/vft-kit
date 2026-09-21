@@ -44,11 +44,6 @@
         "co-infographic-generator",
         "co-vision-understanding",
         "code-wiki",
-        "llm-wiki-generate",
-        "llm-wiki-ingest",
-        "llm-wiki-lint",
-        "llm-wiki-query",
-        "llm-wiki-setup",
         "mastergo-mcp",
         "office-doc-rewrite",
         "replicate-web-style",
@@ -67,7 +62,6 @@
         "git-auto-push",
         "git-ops",
         "github-ops",
-        "vue-sfc-split",
         "vue27-vite-config"
       ]
     },
