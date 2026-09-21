@@ -27,7 +27,7 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/agent-ops/cc-baseline/scripts/run.sh --health
 ## 回报与修复
 
 - 用“项 | 作用”表格回报缺失必需项；**未安装的可选项也必须一并列出**（项 | 作用 | 适合场景），让用户知道还有哪些可装，装不装由用户选。不向用户倾倒脚本中的长修复命令。
-- 用户确认补齐后，执行对应检查行给出的命令并重跑检查。
+- 用[SKILL.md](SKILL.md)户确认补齐后，执行对应检查行给出的命令并重跑检查。
 - RTK（含其 PreToolUse hook）、Ponytail 和 Caveman 默认 full 缺失已获长期授权，可直接补齐；其他项目先回报。
 - MCP、插件或全局规范变更后提醒用户新开 Claude Code 会话。
 
