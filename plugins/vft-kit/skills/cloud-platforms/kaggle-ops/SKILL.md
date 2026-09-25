@@ -221,10 +221,20 @@ node "<skill-dir>/scripts/probe-gpu.mjs"
 - `--limit=N` - 只测试前 N 个账号
 - `--concurrency=N` - 并发数（建议 3-5）
 - `--accelerator <type>` - 指定 GPU 型号（默认 NvidiaTeslaT4）
+- `--poll-max=N` - 单账号等待终态的最长秒数（默认 300，最小 120）
+- `--output <prefix>` - 报告文件名前缀（默认 `gpu-probe-report`）
+- `--slug-prefix <p>` - probe kernel 的 slug 前缀（默认 `kaggle-`）。账号池规范要求 Kaggle 资源一律 `kaggle-` 开头，改这里适配其他约定
+- `--keep-remote` - 探测后保留远端 probe kernel（默认删除，否则每轮探测会在每个账号留下一个垃圾 kernel）
+
+**凭据隔离**: 探测时用临时 `HOME` + `KAGGLE_API_TOKEN` 注入凭据，并显式清掉宿主的
+`KAGGLE_USERNAME` / `KAGGLE_KEY` / `KAGGLE_CONFIG_DIR`。否则 kaggle CLI 2.x 会回落到
+`~/.kaggle/kaggle.json`，用宿主账号去 push，探测结果记到别人头上。
 
 **输出**:
-- `gpu-probe-report.json` - 完整探测结果
-- `gpu-probe-report.csv` - CSV 格式
+- `<仓库根>/other/temp/kaggle/<prefix>[-<accelerator>].json` / `.csv`
+- 仓库根用「从脚本目录向上找第一个含 `other/` 的祖先」定位，不数固定层数：本脚本在插件树里的
+  深度会变，硬编码层数曾把报告写到 `project/other`，导致下游汇总脚本读不到。找不到 `other/`
+  时回落到系统临时目录。
 
 #### 2. mark-gpu-verified.mjs
 

@@ -81,8 +81,12 @@ if (!Array.isArray(report.results)) {
 }
 
 // ── 分类账号 ──────────────────────────────────────────
+// 三类而不是两类：TIMEOUT / 拉不到日志 / push 网络失败都拿不到 cuda 结论，归 inconclusive。
+// 若把它们并进 gpu_not_verified，下游按「连续 N 次不可用即物理删除」计数时，
+// 几次网络抖动就足以误删可用账号。
 const gpuVerified = [];
 const gpuNotVerified = [];
+const inconclusive = [];
 
 for (const r of report.results) {
   if (r.cuda === true) {
@@ -93,10 +97,18 @@ for (const r of report.results) {
       count: r.count || 1,
       accelerator: r.gpu ? r.gpu.replace(/^Tesla\s+/i, '') : '',
     });
-  } else {
+  } else if (r.cuda === false || r.push === '403') {
+    // 明确结论：探到无 CUDA，或被 Kaggle 直接拒绝（未手机验证/权限不足）
     gpuNotVerified.push({
       username: r.username,
-      note: r.note || (r.push === '403' ? 'push 403' : r.push === 'fail' ? 'push 失败' : '无 GPU'),
+      note: r.note || (r.push === '403' ? 'push 403' : '无 GPU'),
+    });
+  } else {
+    inconclusive.push({
+      username: r.username,
+      note: r.note || (r.status === 'TIMEOUT' ? '轮询超时未拿到终态' : r.push === 'fail' ? 'push 失败(疑网络)' : '无探测结论'),
+      push: r.push,
+      status: r.status,
     });
   }
 }
@@ -105,10 +117,12 @@ for (const r of report.results) {
 const result = {
   gpu_verified: gpuVerified,
   gpu_not_verified: gpuNotVerified,
+  inconclusive,
   summary: {
     total: report.results.length,
     gpu_ok: gpuVerified.length,
     gpu_no: gpuNotVerified.length,
+    gpu_inconclusive: inconclusive.length,
     checked_at: report.at || new Date().toISOString(),
     accelerator: report.accelerator || null,
   },
@@ -124,5 +138,7 @@ console.log('══════════════════════�
 console.log(`总计: ${result.summary.total}`);
 console.log(`✅ GPU 可用: ${result.summary.gpu_ok}`);
 console.log(`❌ GPU 不可用: ${result.summary.gpu_no}`);
+console.log(`❔ 未定论(超时/无日志，不计入不可用，需复验): ${result.summary.gpu_inconclusive}`);
+for (const r of inconclusive) console.log(`   - ${r.username}  ${r.note}`);
 console.log(`\n结果文件: ${outputPath}`);
 console.log('\n调用方可以读取此文件并根据需求处理（回写 DB / 更新 CSV / 发送通知等）');
