@@ -54,12 +54,20 @@ const POLL_INTERVAL = 15;
 const KAGGLE_BIN = process.env.KAGGLE_BIN || 'kaggle';
 const ACCELERATOR = args.accelerator || null;
 const OUTPUT_PREFIX = args.output || 'gpu-probe-report';
+// Kaggle 资源 slug 前缀：账号池规范要求 kaggle- 开头，改这里即可适配其他约定
+const SLUG_PREFIX = args['slug-prefix'] || 'kaggle-';
+// 探测完默认删掉远端 probe kernel，避免每个账号堆积垃圾；--keep-remote 可保留复查
+const KEEP_REMOTE = !!args['keep-remote'];
 
 // ── 隔离环境 ──────────────────────────────────────────
 const PROBE_HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'kprobe-home-'));
 function kaggleEnv(token) {
   const e = { ...process.env, KAGGLE_API_TOKEN: token, HOME: PROBE_HOME };
+  // 必须清掉宿主的 username/key：否则 CLI 可能拿宿主账号的 basic auth 去 push，
+  // 探测结果会记到别人头上（表现为“账号与 token 不匹配”的假象）
   delete e.KAGGLE_CONFIG_DIR;
+  delete e.KAGGLE_USERNAME;
+  delete e.KAGGLE_KEY;
   return e;
 }
 
@@ -116,9 +124,12 @@ sys.stdout.flush()
 async function probeAccount(acc) {
   const rec = { username: acc.username, push: '?', status: '?', cuda: null, gpu: '', cap: '', count: 0, note: '' };
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), `kprobe-${acc.username}-`));
-  const slug = `gpuprobe-${Date.now().toString().slice(-7)}`;
+  const slug = `${SLUG_PREFIX}gpuprobe-${Date.now().toString().slice(-7)}`;
   const kernelId = `${acc.username}/${slug}`;
   let pushedKernelId = kernelId;
+  let pushed = false;
+  // env 提到 try 外：finally 里删远端 kernel 也要用同一份凭据
+  const env = kaggleEnv(acc.token);
 
   try {
     fs.writeFileSync(path.join(dir, 'probe.py'), PROBE_PY);
@@ -137,10 +148,7 @@ async function probeAccount(acc) {
       model_sources: [],
     }, null, 2));
 
-    const env = kaggleEnv(acc.token);
-    
     // Push kernel
-    let pushed = false;
     for (let attempt = 1; attempt <= 3 && !pushed; attempt++) {
       try {
         const pushArgs = ['kernels', 'push'];
@@ -205,6 +213,20 @@ async function probeAccount(acc) {
       rec.note = rec.note || ('拉日志失败:' + (e.message || '').slice(0, 40));
     }
   } finally {
+    // probe kernel 只是一次性探针，默认删掉远端，避免每个账号堆积 kaggle-gpuprobe-*
+    if (pushed && !KEEP_REMOTE) {
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          await execFileP(KAGGLE_BIN, ['kernels', 'delete', pushedKernelId, '-y'], { env, timeout: 60000 });
+          break;
+        } catch (e) {
+          const msg = ((e.stdout || '') + (e.stderr || '') + (e.message || '')).trim();
+          // 删除失败不改 GPU 判定，只记 note，交由人工/清理脚本兜底
+          if (attempt === 2) rec.note = (rec.note ? rec.note + '; ' : '') + '删远端kernel失败:' + (msg.split('\n')[0] || '').slice(0, 60);
+          else await new Promise((r) => setTimeout(r, 3000));
+        }
+      }
+    }
     fs.rmSync(dir, { recursive: true, force: true });
   }
   return rec;
@@ -252,10 +274,20 @@ if (usable.length) {
 }
 
 // ── 输出报告 ──────────────────────────────────────────
-// 输出到 bolierplate/other/temp/kaggle/ 而非脚本目录
-// scripts→kaggle-ops→skills→vft-kit→plugins→vft-kit→project→bolierplate = 7 层
-const repoRoot = path.resolve(__dirname, '../../../../../../..');
-const tempDir = path.join(repoRoot, 'other/temp/kaggle');
+// 输出到 <仓库根>/other/temp/kaggle/，不写脚本目录也不污染仓库根。
+// 用「向上找第一个 other/ 祖先」而不是数固定层数：本脚本在 vft-kit 插件树里的深度
+// 曾与调用方（私有层 merge 脚本）不一致，导致报告落到 project/other 而 merge 读不到。
+function resolveTempDir() {
+  let dir = __dirname;
+  for (let i = 0; i < 12; i++) {
+    if (fs.existsSync(path.join(dir, 'other'))) return path.join(dir, 'other', 'temp', 'kaggle');
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return path.join(os.tmpdir(), 'kaggle-probe');
+}
+const tempDir = resolveTempDir();
 fs.mkdirSync(tempDir, { recursive: true });
 
 const reportSuffix = ACCELERATOR ? '-' + ACCELERATOR.replace(/^NvidiaTesla/i, '').toLowerCase() : '';
