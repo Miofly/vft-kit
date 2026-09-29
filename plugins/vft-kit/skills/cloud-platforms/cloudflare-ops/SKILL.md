@@ -3,6 +3,10 @@ name: cloudflare-ops
 description: "通过 Cloudflare API 管理任意账号的 zone、DNS、缓存规则、purge、域名设置与 Ruleset。Workers/R2/KV/Zero Trust 使用官方 MCP 或 wrangler。"
 ---
 
+## 浏览器到 API 的强制演进
+
+本 skill 只要以浏览器执行远端业务动作，就必须先读并遵守 [浏览器到 API 强制演进](../../BROWSER_API_EVOLUTION.md)。登录、验证码、2FA、纯视觉验收可保留浏览器；认证后的可接口化动作仍须抓取、复现、独立回验，并在同一任务自更新本 skill 与脚本。
+
 # cloudflare-ops
 
 通用 Cloudflare API 操作封装。**可开源、不含私有信息。** 适合任何需要管理 CF zones/cache-rules/purge 的项目。
