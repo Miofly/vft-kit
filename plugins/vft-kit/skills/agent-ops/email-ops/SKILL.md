@@ -3,6 +3,10 @@ name: email-ops
 description: 通过现有邮件 MCP、Google Workspace、Microsoft Graph 或标准 IMAP/SMTP 接入并操作邮箱。用户要求配置 Gmail、Outlook、QQ、163、企业邮箱或其他邮件账号，以及查询、读取、起草、发送、回复、移动、删除邮件和处理附件时使用。
 ---
 
+## 浏览器到 API 的强制演进
+
+本 skill 只要以浏览器执行远端业务动作，就必须先读并遵守 [浏览器到 API 强制演进](../../BROWSER_API_EVOLUTION.md)。登录、验证码、2FA、纯视觉验收可保留浏览器；认证后的可接口化动作仍须抓取、复现、独立回验，并在同一任务自更新本 skill 与脚本。
+
 # 任意邮箱操作
 
 统一选择并安全调用邮件后端，不重复实现邮件协议。所谓“任意邮箱”是指服务商开放 Google/Microsoft API 或标准 IMAP/SMTP；未开放这些能力的邮箱不能保证接入。
@@ -50,4 +54,3 @@ description: 通过现有邮件 MCP、Google Workspace、Microsoft Graph 或标�
 - 查询：查询条件、命中数量、是否还有下一页。
 - 发送：后端返回的 message/thread ID、最终收件人和时间；失败时明确说明未发送。
 - 移动或删除：实际处理数量和目标文件夹；部分失败逐项列出，禁止把部分成功写成全部成功。
-

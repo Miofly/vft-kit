@@ -3,6 +3,10 @@ name: chrome-web-store-publish
 description: "通过浏览器创建、填写和发布 Chrome Web Store 扩展，支持发布资料模板、隐私权限、分发、草稿与审核；优先使用可用的 ego-lite。"
 ---
 
+## 浏览器到 API 的强制演进
+
+本 skill 只要以浏览器执行远端业务动作，就必须先读并遵守 [浏览器到 API 强制演进](../../BROWSER_API_EVOLUTION.md)。登录、验证码、2FA、纯视觉验收可保留浏览器；认证后的可接口化动作仍须抓取、复现、独立回验，并在同一任务自更新本 skill 与脚本。
+
 # Chrome Web Store Publish
 
 ## 前置规范：API 优先，自我演进
