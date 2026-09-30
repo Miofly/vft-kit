@@ -5,6 +5,8 @@ description: "核对 Codex 通用装配、权限、Hooks、MCP、插件与技能
 
 # codex-baseline
 
+> **浏览器/API 边界**：遵守 [浏览器到 API 强制演进](../../BROWSER_API_EVOLUTION.md)。本机装配、视觉、兼容性或浏览器本身的验证可保留浏览器；认证后的远端业务读写必须探索实际接口、写后独立回读，并在确认后更新本 skill，后续默认 API。
+
 核对 Codex CLI 的本机装配状态。`scripts/check.sh` 是检查项和修复命令的唯一真相来源；不要在本文复制脚本实现细节。
 
 ## 执行

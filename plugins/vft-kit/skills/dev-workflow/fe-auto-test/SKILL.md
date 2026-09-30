@@ -5,6 +5,8 @@ description: "验证前端页面、控制台、Canvas/WebGL、交互与截图，
 
 # fe-auto-test — ego-lite 优先的真实浏览器验证 / 调试
 
+> **浏览器/API 边界**：遵守 [浏览器到 API 强制演进](../../BROWSER_API_EVOLUTION.md)。本机装配、视觉、兼容性或浏览器本身的验证可保留浏览器；认证后的远端业务读写必须探索实际接口、写后独立回读，并在确认后更新本 skill，后续默认 API。
+
 用 ego-lite（`ego-browser`）或内置脚本跑**真实浏览器**，验证控制台报错、Vue 挂载、Canvas/Three.js/WebGL、UI 交互和截图。
 
 ## 浏览器选择（静默探测）
