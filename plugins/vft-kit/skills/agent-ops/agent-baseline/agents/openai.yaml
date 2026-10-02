@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agent baseline"
+  short_description: "Check and maintain Claude Code and Codex setup"
+  default_prompt: "Use $agent-baseline to check the setup for my current CLI."

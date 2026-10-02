@@ -1,0 +1,4 @@
+interface:
+  display_name: "Frontend quality"
+  short_description: "Fix frontend lint and verify pages, interactions and performance"
+  default_prompt: "Use $fe-quality-ops to run the checks relevant to my frontend change."
