@@ -72,7 +72,9 @@ description: "将结构化文字、KPI、成果或对比内容制成中文信息
 - 如果 diagram-design 未安装，且用户需求是技术图表，**先提示用户安装 diagram-design**：
   ```
   "检测到您需要画 [架构图/流程图等]，推荐使用 diagram-design 插件（27 种专业图表，自动品牌配色）。
-  是否现在安装？安装命令：bash ${CLAUDE_PLUGIN_ROOT}/skills/agent-ops/cc-baseline/scripts/install-diagram-design.sh"
+  是否现在安装？安装命令：
+  claude plugin marketplace add cathrynlavery/diagram-design
+  claude plugin install diagram-design@diagram-design"
   ```
 - 用户拒绝安装或紧急需求时，才降级到本 skill。
 

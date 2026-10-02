@@ -63,8 +63,16 @@ for (const [manifestPath, expectedSkillRoots] of [
   }
 }
 
-const trackedEntries = execFileSync('git', ['ls-files'], { cwd: repoRoot, encoding: 'utf8' })
-  .split('\n')
+// Validate unstaged migrations without modifying the Git index.
+const inventoryFiles = process.argv.includes('--working-tree')
+  ? fs.readdirSync(skillsRoot, { withFileTypes: true })
+    .filter((category) => category.isDirectory())
+    .flatMap((category) => fs.readdirSync(path.join(skillsRoot, category.name), { withFileTypes: true })
+      .filter((skill) => skill.isDirectory() && fs.existsSync(path.join(skillsRoot, category.name, skill.name, 'SKILL.md')))
+      .map((skill) => `plugins/vft-kit/skills/${category.name}/${skill.name}/SKILL.md`))
+  : execFileSync('git', ['ls-files'], { cwd: repoRoot, encoding: 'utf8' }).split('\n');
+
+const trackedEntries = inventoryFiles
   .map((file) => {
     const match = file.match(/^plugins\/vft-kit\/skills\/([^/]+)\/([^/]+)\/SKILL\.md$/);
     return match ? { file, category: match[1], skill: match[2] } : null;
