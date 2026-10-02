@@ -333,7 +333,7 @@ function healthConfig(entry, url) {
 
 function runHealth(entry, url) {
   const here = path.dirname(fileURLToPath(import.meta.url));
-  const checker = path.resolve(here, '../../../agent-ops/codex-baseline/scripts/check-mcp-health.mjs');
+  const checker = path.resolve(here, '../../../agent-ops/agent-baseline/codex/scripts/check-mcp-health.mjs');
   const result = run(process.execPath, [checker], { input: JSON.stringify(healthConfig(entry, url)), timeout: Number(process.env.MCP_HEALTH_TIMEOUT_MS || 60000) + 1000 });
   return result.status === 0;
 }

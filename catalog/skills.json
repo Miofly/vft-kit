@@ -12,14 +12,12 @@
       "name": "Agent 运维",
       "description": "Claude Code、Codex、CC Switch、插件缓存、通用通知与邮箱接入的安装、检查和维护。",
       "skills": [
+        "agent-baseline",
         "cc-backup-restore",
-        "cc-baseline",
         "cc-switch-add-provider",
-        "codex-baseline",
         "email-ops",
         "notify",
-        "ollama-local",
-        "plugin-refresh"
+        "ollama-local"
       ]
     },
     {
@@ -52,8 +50,7 @@
       "description": "数据库工具、前端质量、Git、代码托管和 PR 交付流程。",
       "skills": [
         "dbx",
-        "fe-auto-test",
-        "fe-lint-fix",
+        "fe-quality-ops",
         "git-auto-push",
         "git-ops",
         "github-ops"

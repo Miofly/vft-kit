@@ -95,10 +95,6 @@ claude plugin list 2>/dev/null | grep -q "diagram-design" && echo "diagram-desig
 ## 安装 diagram-design
 
 ```bash
-# 使用 cc-baseline 安装脚本（推荐）
-bash ${CLAUDE_PLUGIN_ROOT}/skills/agent-ops/cc-baseline/scripts/install-diagram-design.sh
-
-# 或手动安装
 claude plugin marketplace add cathrynlavery/diagram-design
 claude plugin install diagram-design@diagram-design
 ```
@@ -196,7 +192,8 @@ claude plugin install diagram-design@diagram-design
 是否现在安装？
 
 安装命令：
-bash ${CLAUDE_PLUGIN_ROOT}/skills/agent-ops/cc-baseline/scripts/install-diagram-design.sh
+claude plugin marketplace add cathrynlavery/diagram-design
+claude plugin install diagram-design@diagram-design
 
 （安装约需 10-30 秒，安装后重启会话或 /reload-plugins）
 ```

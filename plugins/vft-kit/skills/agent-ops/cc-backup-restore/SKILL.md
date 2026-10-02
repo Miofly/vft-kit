@@ -79,7 +79,7 @@ bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/a
 `cc-restore.sh` 跑完后，**紧接着自动执行 cc-baseline 的核对脚本**，把「换机 / 重装后哪些还没恢复到位」一次性亮出来。恢复只搬配置与数据、**不装软件**（见职责边界），所以换机后 CLI（codegraph / node）、全局 npm 包、MCP 注册、插件二进制这些大概率还缺——恢复完立刻核对，正好接上这道缺口，不用用户再手动想起来跑一次。
 
 ```bash
-bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/agent-ops/cc-baseline/scripts/check.sh"
+bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/agent-ops/agent-baseline/claude-code/scripts/check.sh"
 ```
 
 - 这一步**纯只读**，不改任何配置，可无条件自动跑（不需要用户点头）。

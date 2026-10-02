@@ -40,9 +40,9 @@ node scripts/audit-public.mjs
 
 | 分类 | 定位 | skills |
 |---|---|---|
-| Agent 运维 (`agent-ops`) | Claude Code、Codex、CC Switch、插件缓存与工作总结 | `cc-backup-restore` · `cc-baseline` · `cc-switch-add-provider` · `codex-baseline` · `plugin-refresh` |
+| Agent 运维 (`agent-ops`) | Claude Code、Codex、CC Switch、插件缓存与通知 | `agent-baseline` · `cc-backup-restore` · `cc-switch-add-provider` · `email-ops` · `notify` · `ollama-local` |
 | 云平台 (`cloud-platforms`) | 云服务、模型托管、部署平台和账号资源 | `aistudio` · `cloudflare-ops` · `huggingface-ops` · `kaggle-ops` · `modelscope-studio` · `vercel-ops` |
-| 开发工作流 (`dev-workflow`) | 数据库工具、前端质量、Git、代码托管和 Vue 配置 | `dbx` · `fe-auto-test` · `fe-lint-fix` · `git-auto-push` · `git-ops` · `github-ops` |
+| 开发工作流 (`dev-workflow`) | 数据库工具、前端质量、Git、代码托管和 Vue 配置 | `dbx` · `fe-quality-ops` · `git-auto-push` · `git-ops` · `github-ops` |
 | 设计与内容 (`design-content`) | 信息图、Office 文档和视觉内容 | `co-infographic-generator` · `mastergo-mcp` · `office-doc-rewrite` · `wxapkg-unpack` |
 | 工作台工具 (`workplace-tools`) | Lark/飞书文档、表格、云盘、任务和知识库 | `lark-cli` |
 | Web 与自动化 (`web-automation`) | 浏览器发布、网页抓取、Android 与 macOS 自动化 | `android-ui-automation` · `chrome-web-store-publish` · `keyboard-maestro` · `qr-login` · `web-scrape` · `wechat-mp` |
@@ -75,7 +75,7 @@ Claude Code 插件不能直接提供 `.claude/rules/`，vft-kit 用钩子实现�
 
 Codex 没有对应钩子时用 CLI：`node "$VFT_PLUGIN_ROOT/scripts/rules/check.mjs" <file...>`（有 error 退出码 1）、`node "$VFT_PLUGIN_ROOT/scripts/rules/inject.mjs" <file>`（打印适用规则）。改动后跑 `node plugins/vft-kit/scripts/rules/selftest.mjs`。
 
-### fe-auto-test 的依赖
+### fe-quality-ops 页面路线的依赖
 
 它要真实浏览器和 Lighthouse，这些不在插件里。**不用你手动装**——skill 每次跑的第一步会检查并自动补装：
 
@@ -89,7 +89,7 @@ CC 的 MCP 新注册后当前会话拿不到工具，所以 skill 不会卡住�
 想提前检查或只诊断不安装：
 
 ```bash
-bash ~/.claude/plugins/cache/vft-kit/vft-kit/*/skills/dev-workflow/fe-auto-test/scripts/check-deps.sh --no-install
+bash ~/.claude/plugins/cache/vft-kit/vft-kit/*/skills/dev-workflow/fe-quality-ops/scripts/check-deps.sh --no-install
 ```
 
 ## 许可

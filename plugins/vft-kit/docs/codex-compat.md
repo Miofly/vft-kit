@@ -64,7 +64,7 @@ const pluginRoot =
 
 ## 平台专属 skill
 
-`cc-baseline`、`cc-backup-restore` 的目标仍是 Claude Code。Codex 可以读取并执行这些流程，但它们操作的是 `~/.claude`、Claude 插件 cache 或 Claude 相关 App，不是 Codex 自身配置。反过来 `codex-baseline` 的目标是 Codex CLI（`~/.codex`），可由 Claude Code 读取辅助但操作的不是 `~/.claude`。`plugin-refresh` 已按宿主分别调用 Claude Code / Codex CLI，属于共享 skill。
+`agent-baseline` 按目标工具选择 Claude Code 或 Codex reference 与资源子目录。Claude Code 路线及 `cc-backup-restore` 操作 `~/.claude`、Claude 插件 cache 或相关 App；Codex 路线操作 `~/.codex`。执行宿主与操作目标可以不同，仍须按目标的认证、权限和配置格式执行。插件刷新由 `agent-baseline` 的插件维护路线按宿主分别调用 Claude Code / Codex CLI。
 
 ## 规则模块
 

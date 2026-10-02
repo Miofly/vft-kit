@@ -17,7 +17,6 @@
     "./skills/cloud-platforms",
     "./skills/design-content",
     "./skills/dev-workflow",
-    "./skills/requirements",
     "./skills/web-automation",
     "./skills/workplace-tools"
   ],
@@ -32,7 +31,7 @@
       "Execute"
     ],
     "defaultPrompt": [
-      "Use fe-auto-test to verify this page.",
+      "Use fe-quality-ops to verify this page.",
       "Split this oversized Vue SFC."
     ],
     "brandColor": "#0F766E"
