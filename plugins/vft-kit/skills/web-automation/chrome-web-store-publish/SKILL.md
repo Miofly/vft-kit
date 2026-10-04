@@ -17,7 +17,7 @@ description: "通过浏览器创建、填写和发布 Chrome Web Store 扩展，
 - **维护进度**：本 skill 里维护“API 化进度”：已确认接口（用途、方法路径、body 模板、验证方法）和待抓步骤。每次执行至少推进一项，回复里写一句进度；全部改成接口后，把本节改为维护说明。
 - **安全边界**：写接口只在本次任务的目标对象上验证，不拿无关数据试错；会触发写入的 GET 不预取；凭据只从环境变量或私有配置读取，不打印。
 
-先静默探测 `command -v ego-browser >/dev/null 2>&1`：有则使用 ego-lite（`ego-browser`）操作并复用同一 task space；没有则使用当前 Browser/Playwright 能力，不安装或另起 Chrome。执行浏览器动作前完整读取 `ego-browser` skill（若可用）。
+先静默探测 `command -v ego-browser >/dev/null 2>&1`：有则全程使用 ego-lite（`ego-browser`）：为本次发布开一个独立 task space，后续轮次复用同一 `spaceId`，完成后 `task.finish({ keep: [] })`，不用 Playwright；只有没装 ego-lite 的环境才使用当前 Browser/Playwright 能力，不安装或另起 Chrome。执行浏览器动作前完整读取 `ego-browser` skill（若可用）。
 
 ## 输入与模板
 

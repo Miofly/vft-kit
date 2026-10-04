@@ -52,13 +52,13 @@ Notebook is a separate product surface from Studio. Its `/api/v1/notebooks*` end
 web-login cookie; a valid `MODELSCOPE_API_KEY` alone returns `401 user not logged in`. Read
 `references/notebook-dsw.md` completely before inspecting or changing a Notebook instance.
 
-Default to the reference's fast API-first automation workflow. For website-only observation, login, captcha, screenshots, or manual confirmation, silently probe `command -v ego-browser >/dev/null 2>&1`; if present, reuse one named ego-lite (`ego-browser`) task space, otherwise use the current Browser/Playwright capability without launching another Chrome. Once task scope and resource-cost authorization are
+Default to the reference's fast API-first automation workflow. For website-only observation, login, captcha, screenshots, or manual confirmation, silently probe `command -v ego-browser >/dev/null 2>&1`; if present, do all browser work in one dedicated ego-lite (`ego-browser`) task space for this task, resume it by `spaceId`, and close it with `task.finish({ keep: [] })` when done; never use Playwright while ego-lite exists. Only environments without ego-lite fall back to the current Browser/Playwright capability, without launching another Chrome. Once task scope and resource-cost authorization are
 clear, carry the Notebook operation through file transfer, execution, verification, resource switching, and cleanup
 without pausing between ordinary reversible steps.
 
 Never omit, forge, replay, log, or persist `CaptchaVerify`. Starting a free instance requires the fresh value
 issued by ModelScope's safety-verification widget. If a slider or other verification appears, hand the same
-ego-lite task space (or the current browser session when ego-lite is unavailable) to the user and resume only after they confirm completion. Playwright is a fallback when ego-lite is unavailable or a notebook API/worker explicitly requires its programmatic context.
+ego-lite task space (or the current browser session when ego-lite is unavailable) to the user and resume only after they confirm completion. Playwright is only a fallback for environments without ego-lite.
 
 ## Personalization (optional)
 
