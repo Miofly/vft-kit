@@ -17,7 +17,7 @@ description: "Operate Baidu AI Studio repositories, files, points, courses, cont
 - **维护进度**：本 skill 里维护“API 化进度”：已确认接口（用途、方法路径、body 模板、验证方法）和待抓步骤。每次执行至少推进一项，回复里写一句进度；全部改成接口后，把本节改为维护说明。
 - **安全边界**：写接口只在本次任务的目标对象上验证，不拿无关数据试错；会触发写入的 GET 不预取；凭据只从环境变量或私有配置读取，不打印。
 
-Use the official SDK for repository operations. For website-only workflows, silently probe `command -v ego-browser >/dev/null 2>&1`; if present use ego-lite (`ego-browser`) with a named task space, otherwise use the current Browser/Playwright capability without starting another Chrome. Never treat an access token as a website login credential.
+Use the official SDK for repository operations. For website-only workflows, silently probe `command -v ego-browser >/dev/null 2>&1`; if present, do all browser work in one dedicated ego-lite (`ego-browser`) task space for this task and close it with `task.finish({ keep: [] })` when done; never use Playwright while ego-lite exists. Only environments without ego-lite fall back to the current Browser/Playwright capability, without starting another Chrome. Never treat an access token as a website login credential.
 
 ## Route the request
 

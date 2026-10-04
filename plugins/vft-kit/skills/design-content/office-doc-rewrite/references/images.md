@@ -67,7 +67,7 @@ mermaid v11 里 **`subgraph` 内嵌 `direction TB/LR` 常导致整图塌缩成�
 node "<skill-dir>/scripts/mmd_render.mjs" --check diagram.mmd
 # 打印图内所有文字节点,确认文字都在、无截断、无错字
 ```
-`mmd_render.mjs` 渲染时也会把文字节点打到 stderr。最终视觉效果**让用户在 Excel 里打开确认**,或起 `python3 -m http.server` 让用户/playwright MCP 看图。
+`mmd_render.mjs` 渲染时也会把文字节点打到 stderr。最终视觉效果**让用户在 Excel 里打开确认**,或起 `python3 -m http.server` 让用户或 ego-lite（无 ego-lite 时 playwright MCP）看图。
 
 ## drawing → 图片 → sheet 映射速查
 

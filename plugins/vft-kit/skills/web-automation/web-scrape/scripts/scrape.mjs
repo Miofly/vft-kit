@@ -193,6 +193,16 @@ function printUsage() {
 
 // ============== 工具选择算法 ==============
 
+// 本机有 ego-lite 时一律用它做浏览器后端；Playwright 只给没有 ego-lite 的环境兜底
+function hasEgo() {
+  try {
+    execSync('command -v ego-browser', { stdio: 'ignore', shell: '/bin/sh' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function selectTool(url, intent, options) {
   // 1. 强制指定
   if (options.tool) {
@@ -224,7 +234,11 @@ async function selectTool(url, intent, options) {
   }
 
   if (/资源|网络请求|接口|xhr|fetch|api.*调用/.test(intentLower)) {
-    console.log('🎯 检测到资源/网络监控需求 → Playwright');
+    if (hasEgo()) {
+      console.log('🎯 检测到资源/网络监控需求 → ego-lite');
+      return 'ego';
+    }
+    console.log('🎯 检测到资源/网络监控需求 → Playwright（未检测到 ego-lite）');
     return 'playwright';
   }
 
@@ -281,14 +295,7 @@ function checkDependencies(tool) {
     playwright: false,
   };
 
-  if (tool === 'ego') {
-    try {
-      execSync('command -v ego-browser', { stdio: 'ignore', shell: '/bin/sh' });
-      return true;
-    } catch {
-      return false;
-    }
-  }
+  if (tool === 'ego') return hasEgo();
 
   // 检查 Python
   try {
@@ -479,36 +486,43 @@ async function runEgo(url, options, outDir) {
   const taskName = `web-scrape ${new URL(url).hostname} ${process.pid}`;
   const htmlPath = join(outDir, 'index.html');
   const screenshotPath = join(outDir, 'screenshot.png');
-  const waitSeconds = Math.max(0, Number(options.wait || 0) / 1000);
-  const timeoutSeconds = Math.max(1, Math.ceil(Number(options.timeout || CONFIG.defaultTimeout) / 1000));
+  const networkPath = join(outDir, 'network.json');
+  const timeout = Math.max(1000, Number(options.timeout || CONFIG.defaultTimeout));
+  const wait = Math.max(0, Number(options.wait || 0));
   const source = `
-const { writeFileSync } = await import('node:fs')
-const task = await useOrCreateTaskSpace(${JSON.stringify(taskName)})
-await openOrReuseTab(${JSON.stringify(url)}, { wait: true, timeout: ${timeoutSeconds} })
-await waitForLoad().catch(() => {})
-${waitSeconds ? `await wait(${waitSeconds})` : ''}
-const html = await js(String.raw\`document.documentElement.outerHTML\`)
-writeFileSync(${JSON.stringify(htmlPath)}, html, 'utf8')
-${options.screenshot ? `const shot = await cdp('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true })
-writeFileSync(${JSON.stringify(screenshotPath)}, Buffer.from(shot.data, 'base64'))` : ''}
-cliLog('EGO_SCRAPE_OK task=' + task.id)
+const { writeFile } = await import('node:fs/promises')
+const task = await taskSpace(${JSON.stringify(taskName)})
+console.log('EGO_TASK_SPACE id=' + task.spaceId)
+try {
+  const page = task.page('p1')
+  await page.goto(${JSON.stringify(url)}, { timeout: ${timeout} })
+  await page.waitForLoadState('load', { timeout: ${timeout} }).catch(() => {})
+  ${wait ? `await page.waitForTimeout(${wait})` : ''}
+  await writeFile(${JSON.stringify(htmlPath)}, await page.evaluate(() => document.documentElement.outerHTML), 'utf8')
+  const network = await page.evaluate(() => performance.getEntriesByType('resource').map((e) => ({
+    url: e.name, type: e.initiatorType, duration: Math.round(e.duration), size: e.transferSize,
+  })))
+  await writeFile(${JSON.stringify(networkPath)}, JSON.stringify(network, null, 2), 'utf8')
+  ${options.screenshot ? `await page.screenshot({ path: ${JSON.stringify(screenshotPath)}, fullPage: true })` : ''}
+  console.log('EGO_SCRAPE_OK requests=' + network.length)
+} finally {
+  await task.finish({ keep: [] })
+}
 `;
 
-  try {
-    await runEgoProcess(source);
-  } finally {
-    await runEgoProcess(`await completeTaskSpace(${JSON.stringify(taskName)}, { keep: false })`).catch(() => {});
-  }
+  await runEgoProcess(source);
   return { tool: 'ego', outDir };
 }
 
 // ============== Fallback 机制 ==============
 
 async function executeWithFallback(url, options, outDir, selectedTool) {
+  const egoAvailable = hasEgo();
   const fallbackChain = selectedTool === 'ego'
     ? ['playwright', 'scrapling', 'crawl4ai']
     : CONFIG.fallbackChain;
-  const chain = [selectedTool, ...fallbackChain.filter(t => t !== selectedTool)];
+  // 有 ego-lite 时不回退 Playwright；显式 --tool playwright 才保留
+  const chain = [selectedTool, ...fallbackChain.filter(t => t !== selectedTool && !(egoAvailable && t === 'playwright'))];
   const errors = [];
 
   for (const tool of chain) {

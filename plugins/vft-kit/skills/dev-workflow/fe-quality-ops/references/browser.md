@@ -6,10 +6,12 @@
 
 ## 浏览器选择（静默探测）
 
-- 先静默执行 `command -v ego-browser >/dev/null 2>&1`；成功才使用 ego-lite，失败不提示用户、不安装，直接走现有 Playwright/脚本路径。
-- 单页观察、登录态复用、交互调试、截图、需要用户接管的验证码/2FA：ego-lite 可用时优先 `ego-browser nodejs`，复用一个命名 task space；不要另起 Chrome，也不要索要或落盘 Cookie/密码。
-- Lighthouse 评分、批量路由/容错、无人值守回归、需要 Playwright 编程式 API 或 HAR/trace：保留 bundled Playwright/Lighthouse 脚本。
-- ego-lite 不可用或能力不足时，才使用 Playwright MCP；不要为了普通单页检查自动安装或启动另一套 Chrome。
+原则：**有 ego-lite 就用 ego-lite，没有才用 Playwright。**
+
+- 先静默执行 `command -v ego-browser >/dev/null 2>&1`；成功就一律用 ego-lite（`ego-browser nodejs`），失败不提示用户、不安装，走 Playwright MCP / 脚本路径。
+- 用 ego-lite 时每次验证开一个独立 task space（`taskSpace("<任务短名>")`），打印并复用 `spaceId`，结束 `task.finish({ keep: [] })`；验证码/2FA 用 `task.handOff()` 交给用户。不要另起 Chrome，也不要索要或落盘 Cookie/密码。
+- `route-audit.mjs` 有 ego-lite 时自动在独立 space 里跑，没有才用 Playwright。
+- 例外：`resilience-audit.mjs` 要在全新、隔离的浏览器环境里清空 cookie/存储，在 ego-lite 里做会清掉用户真实浏览器的登录态，所以固定用 Playwright 隔离上下文。Lighthouse 评分用它自己的 Chrome，不受此规则影响。
 
 ## 何时用 / 何时不用
 
@@ -38,7 +40,7 @@
 
 **关键认知**：CC 的 MCP **新注册后当前会话拿不到工具，必须重启**。所以依赖缺失时**不要停下来让用户重启**——第 0 步会自动补装 npm 包并走脚本路径把活干完，同时把 MCP 注册好留给下次会话。
 
-**运行时映射**：探测到 `ego-browser` 后调用它的 `snapshotText()` / `captureScreenshot()` / `js()`；否则映射到 `browser_*` / Playwright MCP（导航、快照、控制台、执行 JS、截图、关闭）。两者都缺就走同表右侧脚本，不臆造不存在的工具名。`check-deps.sh` 只为脚本/Lighthouse 检查依赖，不自动安装 ego-lite。
+**运行时映射**：探测到 `ego-browser` 后用它的 `page.snapshot()` / `page.screenshot({ path })` / `page.evaluate()`；否则映射到 `browser_*` / Playwright MCP（导航、快照、控制台、执行 JS、截图、关闭）。两者都缺就走同表右侧脚本，不臆造不存在的工具名。`check-deps.sh` 只为脚本/Lighthouse 检查依赖，不自动安装 ego-lite。
 
 ## 标准闭环
 
@@ -76,12 +78,12 @@ bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/d
 
 ### 2. 浏览器打开页面
 
-用探测到的实际端口：若静默探测到 ego-lite，则在 task space 中打开；否则走 Playwright MCP：
+用探测到的实际端口：若静默探测到 ego-lite，则在本任务的独立 task space 中打开；否则走 Playwright MCP：
 
-- `openOrReuseTab('http://localhost:{实际端口}', { wait: true })`
-- `snapshotText()` → 确认页面渲染出来了（白屏会一眼看出来）
+- `const task = await taskSpace("fe 验证 <项目>"); const page = task.page("p1"); await page.goto('http://localhost:{实际端口}')`
+- `console.log(await page.snapshot())` → 确认页面渲染出来了（白屏会一眼看出来）
 
-若本次必须走 Playwright MCP，再使用 `browser_navigate` / `browser_snapshot`。
+没有 ego-lite 时，用 `browser_navigate` / `browser_snapshot`。
 
 ### 3. 检查控制台报错
 
@@ -156,11 +158,11 @@ python3 "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skill
 
 页面有 canvas/three、需要验证组件挂载或 UI 交互时，再选下面对应的「调试配方」（用 `browser_evaluate` 在页面里跑 JS 取真值）。
 
-**用户点名「容错 / 边界 / 全站」测试时**（登录态、刷新、清缓存、清 LocalStorage、已登录/未登录差异、CDN/缓存、每个路由都看看、Hydration）——走下方「容错 / 边界 / 全站批量测试（Node 脚本配方）」。单页先用 ego-lite 观察；几十个页面 + 反复清存储 reload 仍用 bundled Playwright 编程式脚本。
+**用户点名「容错 / 边界 / 全站」测试时**（登录态、刷新、清缓存、清 LocalStorage、已登录/未登录差异、CDN/缓存、每个路由都看看、Hydration）——走下方「容错 / 边界 / 全站批量测试（Node 脚本配方）」。单页用 ego-lite 观察；逐路由批量用 `route-audit.mjs`（有 ego-lite 自动走 ego）；反复清存储 reload 的 `resilience-audit.mjs` 固定用 Playwright 隔离上下文。
 
 ### 6. 截图调试（命名规范 + 落点）
 
-- ego-lite 用 `captureScreenshot()`；需要 Playwright MCP 时用 `browser_take_screenshot`，**filename 必须传中央目录的绝对路径**（`~` 不会被展开，要写成真实展开后的路径），文件名统一 `test-{功能描述}.png`：
+- ego-lite 用 `page.screenshot({ path })`；没有 ego-lite 时用 Playwright MCP 的 `browser_take_screenshot`，**filename 必须传中央目录的绝对路径**（`~` 不会被展开，要写成真实展开后的路径），文件名统一 `test-{功能描述}.png`：
   - ✅ `/Users/<你>/.cache/vft-kit/fe-auto-test/test-three-scene.png`
   - ❌ `~/.cache/vft-kit/fe-auto-test/test-three-scene.png`（波浪号 MCP 不展开，会创建一个名为 `~` 的目录）
   - ❌ `test-three-scene.png`（相对名）、`screenshot1.png`、`all-rendered-final.png`
@@ -179,7 +181,7 @@ bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/d
 
 ### 8. 收尾
 
-- ego-lite 任务结束用 `completeTaskSpace(name, { keep: false })`；只有 Playwright MCP 路径才用 `browser_close`。
+- ego-lite 任务结束用 `await task.finish({ keep: [] })` 关闭本任务的 space；只有 Playwright MCP 路径才用 `browser_close`。
 - 若 dev server 是**你为这次验证启动的**，关掉它：
   ```bash
   bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/dev-workflow/fe-quality-ops/scripts/close-server.sh" <端口>
@@ -325,9 +327,9 @@ bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/d
 
 ### 容错 / 边界 / 全站批量测试（Node 脚本配方）
 
-用户要「各种容错测试」「每个路由都看看」「清缓存/清 LocalStorage/登录态/CDN」时，用 MCP 一页页点太慢。改用 bundled 的 **Playwright 编程式脚本**（非 MCP），一条命令跑几十个页面 / 反复清存储 reload。三个脚本都**参数化**（传 baseURL，不硬编码站点），本地项目传 `http://127.0.0.1:{探测端口}`，线上传域名。
+用户要「各种容错测试」「每个路由都看看」「清缓存/清 LocalStorage/登录态/CDN」时，用 MCP 一页页点太慢。改用 bundled 的**编程式脚本**（非 MCP），一条命令跑几十个页面 / 反复清存储 reload。`route-audit.mjs` 有 ego-lite 时在独立 task space 里跑、跑完关闭，没有才用 Playwright；`resilience-audit.mjs` 需要隔离的全新浏览器环境，固定用 Playwright。三个脚本都**参数化**（传 baseURL，不硬编码站点），本地项目传 `http://127.0.0.1:{探测端口}`，线上传域名。
 
-> **本机前提**：项目多半没装 `playwright`，脚本靠 `_pw.mjs` 自动回退到全局安装（`npm root -g`）。首次需 `npx playwright install chromium` 装内核。这些是**编程式 API**，和上面的 `browser_*` MCP 工具是两条路，别混。
+> **Playwright 路径前提**（没有 ego-lite，或跑 `resilience-audit.mjs` 时）：项目多半没装 `playwright`，脚本靠 `_pw.mjs` 自动回退到全局安装（`npm root -g`）。首次需 `npx playwright install chromium` 装内核。这些是**编程式 API**，和上面的 `browser_*` MCP 工具是两条路，别混。
 >
 > **⚠️ 后台运行必须用脚本绝对路径**：`run_in_background` 的 bash 继承的是**上一条命令 cd 到的目录**（常是项目根，不是 scripts 目录），`node route-audit.mjs ...` 会 `MODULE_NOT_FOUND`。后台跑一律写全路径，如 `node /Users/.../skills/dev-workflow/fe-quality-ops/scripts/route-audit.mjs ...`（或先在同一条命令里 `S=<绝对路径>` 再 `node "$S"`）。
 >
@@ -362,7 +364,7 @@ node http-headers.mjs <baseURL> [--cold] [--q='?debug=true']
 node route-audit.mjs <baseURL> [sampleCount=15] [--q='?debug=true']
 ```
 
-- 从 `/sitemap.xml` 拉全部 URL，均匀抽样 N 条，逐个 Playwright 打开，一次性收集：渲染成功（`#app` children）、**去重后的业务 console 错误**（已排除广告/统计噪声）、每路由 SEO meta（title/description/canonical/og）是否齐全。
+- 从 `/sitemap.xml` 拉全部 URL，均匀抽样 N 条，逐个在浏览器打开（有 ego-lite 用 ego-lite，没有用 Playwright），一次性收集：渲染成功（`#app` children）、**去重后的业务 console 错误**（已排除广告/统计噪声）、每路由 SEO meta（title/description/canonical/og）是否齐全。
 - **广告站坑**：AdSense 等长轮询会让 `networkidle` 永不达成、连 `domcontentloaded` 都被拖到 30s 超时。脚本用 `waitUntil:'commit'` + 短超时 `domcontentloaded` 兜底，**别用 networkidle**。
 - **best-practices 低分甄别**：若逐路由「去重业务错误 = 无」但 Lighthouse best-practices 却很低（50 上下），根因基本是**第三方广告**（国内访问 Google 资源被墙 → 大量 `Failed to load resource` 控制台错误 + 第三方 cookie），不是站点自身代码。这类别算到站点头上。
 - **⚠️ 抽样会漏坏路由**：`route-audit.mjs` 默认只抽样 20 条，**抓不全** SSR 500 这类「整条路由崩」的致命 bug（实测 tools 站 10 条路由 SSR 500，抽样只命中 1 条）。用户说「每个路由都看下 / 找出所有坏页」时，**必须**再跑下面的 `ssr-status-sweep.mjs` 做全量覆盖，不能只靠抽样下结论。

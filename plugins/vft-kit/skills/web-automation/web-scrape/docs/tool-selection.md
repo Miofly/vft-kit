@@ -1,5 +1,7 @@
 # 工具选择决策树
 
+> **浏览器后端规则（以 SKILL.md 为准）**：本机有 ego-lite（`command -v ego-browser`）时，所有需要浏览器的抓取（登录态、截图、网络请求）都走 ego-lite，每次抓取开一个独立 task space、结束即关闭，自动选择和回退都不选 Playwright。下文的 Playwright 内容只适用于没有 ego-lite 的环境。
+
 web-scrape 的场景识别引擎根据以下决策树选择最佳工具：
 
 ```

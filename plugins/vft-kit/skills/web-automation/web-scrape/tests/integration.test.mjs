@@ -14,6 +14,14 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const SCRAPE_SCRIPT = join(__dirname, '../scripts/scrape.mjs');
+const HAS_EGO = (() => {
+  try {
+    execSync('command -v ego-browser', { stdio: 'pipe', shell: '/bin/sh' });
+    return true;
+  } catch {
+    return false;
+  }
+})();
 const TEST_OUT_DIR = join(__dirname, '../../../../../../../other/scrape-test');
 
 // 测试用例
@@ -42,9 +50,10 @@ const TEST_CASES = [
   {
     name: '资源抓取意图',
     url: 'https://example.com',
-    intent: '需要截图和所有静态资源',
-    expectedTool: 'playwright',
-    skipIfMissing: ['playwright'],
+    intent: '需要所有静态资源和网络请求',
+    // 有 ego-lite 时走 ego-lite，没有才用 Playwright 兜底
+    expectedTool: HAS_EGO ? 'ego' : 'playwright',
+    skipIfMissing: [HAS_EGO ? 'ego' : 'playwright'],
   },
   {
     name: '登录态单页优先 ego-lite',

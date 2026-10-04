@@ -1,6 +1,6 @@
 ---
 name: web-scrape
-description: 智能网页抓取与场景路由工具，按需求选择 Scrapling、Crawl4AI、ego-lite（ego-browser）或 Playwright。用户要求抓取网页、提取 Markdown、深度爬取、处理 Cloudflare、自适应解析、下载渲染资源、截图或分析 XHR/API 请求时使用。
+description: 智能网页抓取与场景路由工具，按需求选择 Scrapling、Crawl4AI 或 ego-lite（ego-browser），没有 ego-lite 时用 Playwright 兜底。用户要求抓取网页、提取 Markdown、深度爬取、处理 Cloudflare、自适应解析、下载渲染资源、截图或分析 XHR/API 请求时使用。
 ---
 
 ## 浏览器到 API 的强制演进
@@ -17,14 +17,14 @@ description: 智能网页抓取与场景路由工具，按需求选择 Scrapling
 - **维护进度**：本 skill 里维护“API 化进度”：已确认接口（用途、方法路径、body 模板、验证方法）和待抓步骤。每次执行至少推进一项，回复里写一句进度；全部改成接口后，把本节改为维护说明。
 - **安全边界**：写接口只在本次任务的目标对象上验证，不拿无关数据试错；会触发写入的 GET 不预取；凭据只从环境变量或私有配置读取，不打印。
 
-智能网页抓取工具，根据场景自动选择最佳抓取策略。先静默探测 `command -v ego-browser >/dev/null 2>&1`；有 ego-lite 时普通单页浏览器交互优先复用它，没有则无提示地沿用 Playwright/其他现有路径，不另起 Chrome：
+智能网页抓取工具，根据场景自动选择最佳抓取策略。先静默探测 `command -v ego-browser >/dev/null 2>&1`：有 ego-lite 时所有需要浏览器的抓取（登录态、截图、网络请求）都走 ego-lite，每次抓取开一个独立 task space、结束即关闭，自动选择和回退都不会选 Playwright；没有 ego-lite 的环境才用 Playwright 兜底，不另起 Chrome：
 
 运行环境要求 Node.js 18+ 和 Python 3.8+；Scrapling、Crawl4AI、Playwright 均为可选运行时依赖。
 
 - **Scrapling** - 自适应解析 + Cloudflare Turnstile 绕过
 - **Crawl4AI** - LLM-ready Markdown + 批量深度爬取
-- **Playwright** - 完整渲染资源 + 网络请求监控
-- **ego-lite（ego-browser）** - 已登录单页、人工接管、截图和轻量 DOM 提取
+- **ego-lite（ego-browser）** - 浏览器后端首选：已登录单页、人工接管、截图、DOM 提取、网络请求清单
+- **Playwright** - 仅在没有 ego-lite 的环境兜底：完整渲染资源下载 + 网络请求监控
 
 ## 何时用
 
@@ -42,7 +42,7 @@ description: 智能网页抓取与场景路由工具，按需求选择 Scrapling
 ### 必需
 - **Node.js** ≥ 18（运行调度脚本）
 - **Python** ≥ 3.8（Scrapling / Crawl4AI）
-- **ego-lite / Playwright** 均为可选；普通单页先探测 ego-lite，失败再走 Playwright/其他抓取器
+- **ego-lite / Playwright** 均为可选；有 ego-lite 就只用它做浏览器后端，没有 ego-lite 才需要 Playwright
 
 ### Python 依赖（自动检测并提示安装）
 ```bash
@@ -66,9 +66,8 @@ playwright install chromium  # Crawl4AI 需要
 | 检测到 Cloudflare 防护页 | **Scrapling** | 内置 Turnstile 绕过 |
 | 用户说"自适应"/"网站经常改" | **Scrapling** | 自适应解析器抗改版 |
 | 用户要"截图"/"已登录页面"/"人工接管"且 ego-lite 可用 | **ego-lite** | 复用登录态，不另起浏览器 |
-| 用户要"资源"/"网络请求"/"XHR" | **Playwright** | 完整渲染 + 资源下载 + 网络监控 |
-| 用户要"接口"/"XHR"/"API 调用" | **Playwright** | network.json 记录所有请求 |
-| 无明确意图 | **Scrapling** → **ego-lite（若可用）** → **Playwright** | 先试快速抓取；需登录/渲染时有 ego-lite 就复用，否则直接 Playwright |
+| 用户要"资源"/"网络请求"/"XHR"/"接口" | **ego-lite**（无 ego-lite 时 **Playwright**） | ego-lite 写 network.json（Resource Timing 清单）；需要下载静态资源文件且无 ego-lite 时才用 Playwright |
+| 无明确意图 | **Scrapling** → **ego-lite** → Crawl4AI | 先试快速抓取；有 ego-lite 时回退链跳过 Playwright，没有 ego-lite 时按 Scrapling → Playwright → Crawl4AI |
 
 ### 四种工具对比
 
@@ -78,7 +77,7 @@ playwright install chromium  # Crawl4AI 需要
 | **登录态** | ❌ | ❌ | ✅ 复用用户登录态 | ✅ 需 storageState |
 | **深度爬取** | ✅ Spider 框架 | ✅ BFS/DFS + 崩溃恢复 | ❌ 单页 | ❌ 单页 |
 | **输出格式** | HTML / 结构化 | **Markdown for LLM** | HTML + 截图 | HTML + 资源 |
-| **资源下载/网络监控** | ❌ | ❌ | ❌ | ✅ |
+| **资源下载/网络监控** | ❌ | ❌ | 网络请求清单（不下载资源） | ✅ |
 
 ## 用法
 
@@ -112,7 +111,7 @@ node "$SKILL_DIR/scripts/scrape.mjs" <url> [options]
 | `--headless` | 无头模式 | `true` |
 | `--wait <ms>` | 页面加载后等待时间 | `1500` |
 | `--timeout <ms>` | 单页超时 | `60000` |
-| `--no-resources` | 不下载静态资源（仅 Playwright） | `false` |
+| `--no-resources` | 不下载静态资源（仅 Playwright 兜底） | `false` |
 | `--no-screenshot` | 不生成截图 | `false` |
 
 ## 示例
@@ -188,7 +187,7 @@ node "$SKILL_DIR/scripts/scrape.mjs" https://blog.example.com/post/123 \
 │   ├── js/
 │   ├── images/
 │   └── fonts/
-├── network.json           # 网络请求日志（仅 Playwright）
+├── network.json           # 网络请求日志（ego-lite / Playwright）
 ├── screenshot.png         # 整页截图
 ├── page.pdf               # PDF 快照（Crawl4AI / Playwright chromium）
 └── deep-crawl/            # 深度爬取结果（仅 Crawl4AI / Scrapling）
@@ -277,7 +276,7 @@ node "$SKILL_DIR/scripts/scrape.mjs" <url> --tool scrapling --adaptive
 2. 启用 `--stealth`
 3. 配置代理（见 `scripts/scrape.mjs` 中的 `PROXY_LIST` 配置）
 
-### Playwright 找不到浏览器
+### Playwright 找不到浏览器（仅无 ego-lite 的环境）
 
 ```bash
 playwright install chromium
@@ -325,7 +324,8 @@ function selectTool(url, intent, options) {
   if (/批量|深度|递归|whole site/i.test(intent)) return 'crawl4ai';
   if (/cloudflare|turnstile|反爬|被拦/i.test(intent)) return 'scrapling';
   if (/自适应|网站改版|元素找不到/i.test(intent)) return 'scrapling';
-  if (/资源|截图|网络请求|接口|XHR/i.test(intent)) return 'playwright';
+  if (/资源|网络请求|接口|XHR/i.test(intent)) return hasEgo() ? 'ego' : 'playwright';
+  if (/已登录|登录态|人工接管|截图/i.test(intent)) return 'ego';
   
   // 3. URL 模式
   if (/\/(docs?|wiki|blog|article|post)\//i.test(url)) return 'crawl4ai';
@@ -334,16 +334,16 @@ function selectTool(url, intent, options) {
   if (hasCloudflareProtection(url)) return 'scrapling';
   
   // 5. 默认策略：快速抓取 -> fallback
-  return 'scrapling';  // 快速，失败后 fallback 到 playwright
+  return 'scrapling';  // 快速，失败后 fallback（有 ego-lite 时不走 playwright）
 }
 ```
 
 ### Fallback 机制
 
 ```
-Scrapling (快速) 
+Scrapling (快速)
   ↓ 失败（403/503/超时）
-Playwright (渲染)
+ego-lite (渲染，独立 task space)   ← 没有 ego-lite 时换成 Playwright
   ↓ 仍失败
 Crawl4AI (重度反检测)
 ```
