@@ -4,7 +4,8 @@
 //   node extract-wxss.mjs <unpacked-dir>
 //
 // Compiled packages keep styles as setCssToHead([...]) arrays inside
-// page-frame.html (main package) and */page-frame.html (sub packages):
+// page-frame.html (main package), */page-frame.html (sub packages), and in newer
+// base libraries also per page in pages/**/<name>.html (path: "./pages/x/x.wxss"):
 //   "."  [1]  "foo{...}"   -> [1] is the component scope prefix, dropped
 //   [0, 32]                -> 32rpx
 // The first unnamed setCssToHead([...]) that carries "./app.wxss" becomes app.wxss.
@@ -22,7 +23,7 @@ function walk(root, out = []) {
   for (const e of fs.readdirSync(root, { withFileTypes: true })) {
     const p = path.join(root, e.name);
     if (e.isDirectory()) walk(p, out);
-    else if (e.name === 'page-frame.html' || e.name === 'page-frame.js') out.push(p);
+    else if (e.name.endsWith('.html') || e.name === 'page-frame.js') out.push(p);
   }
   return out;
 }
@@ -76,7 +77,11 @@ for (const file of walk(dir)) {
     const rel = named?.[1] || pathHint?.[1];
     if (!rel) continue;
     const base = path.relative(dir, path.dirname(file));
-    const target = path.join(dir, base, rel);
+    // page-frame paths are relative to their (sub)package root; per-page html
+    // paths already start at the package root (pages/x/x.html -> pages/x/x.wxss)
+    const target = base && rel.startsWith(`${base.split(path.sep).join('/')}/`)
+      ? path.join(dir, rel)
+      : path.join(dir, base, rel);
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.writeFileSync(target, render(parts));
     console.log(path.relative(dir, target));
