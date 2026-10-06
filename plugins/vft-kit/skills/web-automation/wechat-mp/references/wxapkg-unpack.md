@@ -1,11 +1,6 @@
----
-name: wxapkg-unpack
-description: "反编译微信小程序：扫描本机微信缓存的 .wxapkg，按页面文字定位 wxid，解密解包并还原 WXSS 与页面 JS，用于样式复刻、交互参考或排查。触发词：小程序反编译、解包 wxapkg、小程序源码、抄小程序样式、1:1 复刻小程序、wux1an/wxapkg。"
----
+# 小程序反编译（wxapkg）
 
-# wxapkg-unpack：小程序反编译
-
-基于 [wux1an/wxapkg](https://github.com/wux1an/wxapkg)。上游 v2 只提供 GUI，本 skill 复用它的 `wechat` Go 包，包装成 CLI `scripts/wxapkg.sh`，并补了按文字定位和 WXSS 还原。
+基于 [wux1an/wxapkg](https://github.com/wux1an/wxapkg)。上游 v2 只提供 GUI，本 skill 复用它的 `wechat` Go 包，包装成 CLI `scripts/wxapkg/wxapkg.sh`，并补了按文字定位和 WXSS 还原。
 
 > 只用于学习研究或复刻自己有权使用的设计。不要分发解出的源码，也不要用于绕过授权。
 
@@ -13,11 +8,11 @@ description: "反编译微信小程序：扫描本机微信缓存的 .wxapkg，�
 
 - 需要 `git`、`go`（>= 1.25）和 `node`。首次运行时自动 clone 上游并编译到 `~/.cache/vft-kit/wxapkg/bin/wxapkg-cli`。
 - clone 或 `go build` 超时时，先设代理再重试：`export https_proxy=http://127.0.0.1:7890 GOPROXY=https://goproxy.cn,direct`。
-- 自检：`scripts/wxapkg.sh selftest`。这条命令会造一个最小 wxapkg，然后解包验证，输出 `selftest ok` 即可用。
+- 自检：`scripts/wxapkg/wxapkg.sh selftest`。这条命令会造一个最小 wxapkg，然后解包验证，输出 `selftest ok` 即可用。
 
 ## 流程
 
-`S` 为本 skill 目录下的 `scripts/wxapkg.sh`，`OUT` 为临时产物目录（不要放进项目源码目录）。
+`S` 为 wechat-mp skill 目录下的 `scripts/wxapkg/wxapkg.sh`，`OUT` 为临时产物目录（不要放进项目源码目录）。
 
 1. **在电脑版微信里打开目标小程序**，把目标页面都点一遍，让分包也缓存下来。
 2. **定位 wxid**。用页面上看得见的文字搜索，搜索时会自动解密包内容：
@@ -33,7 +28,7 @@ description: "反编译微信小程序：扫描本机微信缓存的 .wxapkg，�
    也可以直接传版本目录或单个 `.wxapkg` 文件。加 `-no-beautify` 跳过 JS/HTML/JSON 美化。
 4. **还原 WXSS**：
    ```bash
-   node <skill>/scripts/extract-wxss.mjs "$OUT/<wxid>"
+   node <wechat-mp>/scripts/wxapkg/extract-wxss.mjs "$OUT/<wxid>"
    ```
    脚本会生成 `app.wxss`、`pages/**/x.wxss` 和 `components/**/index.wxss`。
 
