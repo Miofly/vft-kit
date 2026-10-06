@@ -1,6 +1,6 @@
 ---
 name: wechat-mp
-description: "通过浏览器操作公众号后台与微信开发者控制台，处理登录、草稿排版、发布、素材、权限额度、IP 白名单及 40164/48001；权限以账号控制台为准。"
+description: "通过浏览器操作公众号后台与微信开发者控制台，处理登录、草稿排版、发布、素材、权限额度、IP 白名单及 40164/48001；也覆盖小程序：开发者工具 CLI、miniprogram-automator 模拟器自测（打桩请求/弹窗/插屏广告）、连本地后端测试、广告与分享规则，以及版本发布：CLI 上传开发版与体验版、查线上/审核/开发版本状态、提交审核（含隐私选项）及审核后发布；还能反编译本机微信缓存的 .wxapkg，用于样式复刻与交互参考。权限以账号控制台为准。触发词：公众号发文、草稿箱、小程序提审、小程序上传、miniprogram-ci、上传密钥、体验版、版本管理、审核进度、小程序自测、开发者工具 CLI、automator、插屏广告、小程序反编译、解包 wxapkg、小程序源码、复刻小程序、wux1an/wxapkg。"
 ---
 
 ## 浏览器到 API 的强制演进
@@ -200,14 +200,37 @@ ego/CDP 默认视口可能只有 700 多像素高，而编辑器的「保存为�
 | 点「发表」完全没反应 | 按钮走 `window.open`，被弹窗拦截 | 直接在当前标签打开 `isSend=1` 的编辑器 URL，见上文「从草稿箱走发表流程」 |
 | 点完「继续发表」文章却没发出去 | 漏了 `/safe/safeqrconnect` 的管理员验证二维码 | 找 `img.qrcode.js_qrcode`（不在 dialog 里），扫码后再查发表记录确认 |
 
+## 小程序版本发布与提审
+
+小程序后台同在 `mp.weixin.qq.com`，但路径是 `/wxamp/...`，而且是另一个账号（扫码时要选小程序账号）。上传走开发者工具 CLI，查状态和提审走后台：
+
+- 上传开发版和生成预览码首选 `scripts/mp-ci.mjs`（官方 miniprogram-ci，用上传密钥代替登录，不需要开发者工具，不碰桌面）；没有密钥时才用开发者工具 CLI
+- 查线上 / 审核中 / 开发版本：`ego-browser nodejs < scripts/wxamp-version-status.mjs`（接口已实测，只读）
+- 提交审核：首选接口版 `scripts/wxamp-submit-audit-api.mjs`（get_class 取 auto_id → 隐私声明 → submit_check → 回读，已实测）；页面点击版 `wxamp-submit-audit.mjs` 只作兜底。`audit.auditStatus=1` 才算进入审核
+- 隐私选项的后果、已抓到的接口清单（含提交审核的 `submit_check`）和踩过的坑，见 `references/miniprogram-release.md`
+- 开发阶段的自测：`cli auto` 开放端口后用 miniprogram-automator 驱动模拟器，不要用模拟鼠标点模拟器。请求、弹窗、插屏广告的打桩方法，连本地后端的构建方式，以及广告和分享的规则，见 `references/miniprogram-devtools.md`；公共函数在 `scripts/miniprogram-automator-helpers.cjs`
+
+## 小程序反编译（复刻参考）
+
+要复刻别人的小程序样式或交互时，用 `scripts/wxapkg/wxapkg.sh` 扫本机微信缓存、按页面文字定位 wxid、解密解包，再用 `scripts/wxapkg/extract-wxss.mjs` 还原 WXSS。完整流程、产物怎么读、复刻到 Taro 的要点见 `references/wxapkg-unpack.md`。只用于学习研究或复刻自己有权使用的设计，不分发解出的源码。
+
 ## 参考文件
 
 - `references/console.md` — 开发者平台控制台：tab URL 规则、AppSecret/IP 白名单位置、接口权限与额度的抓取脚本
 - `references/mp-backend.md` — 公众平台后台：页面清单、素材库/发表记录/用户管理的读取方式、编辑器 DOM 结构备忘
 - `scripts/md-to-mp-html.mjs` — Markdown → 公众号 inline-style HTML（带 `--selftest`）
+- `references/miniprogram-release.md` — 小程序：CLI 上传、体验版、提审流程、隐私选项、`/wxamp` 接口与 API 化进度
+- `scripts/wxamp-version-status.mjs` — 小程序版本状态（只读）
+- `scripts/wxamp-submit-audit-api.mjs` — 小程序提交审核（接口版，首选）
+- `scripts/wxamp-submit-audit.mjs` — 小程序提交审核（页面流程兜底，真实点击；默认拦住，接口版失败时在脚本前加 `globalThis.FORCE_PAGE = true` 才运行）
+- `references/miniprogram-devtools.md` — 小程序开发者工具 CLI、模拟器自动化、连本地后端、广告与分享规则
+- `scripts/mp-ci.mjs` — miniprogram-ci 上传 / 预览（无界面，带 `--selftest`）
+- `scripts/miniprogram-automator-helpers.cjs` — automator 测试公共函数：请求打桩、插屏计数、断言汇总（带 `--selftest`）
+- `references/wxapkg-unpack.md` — 小程序反编译：扫描缓存、定位 wxid、解包、还原 WXSS、复刻要点
+- `scripts/wxapkg/wxapkg.sh` — wxapkg 扫描 / 解包 CLI（带 `selftest`）；`scripts/wxapkg/extract-wxss.mjs` — 从 `page-frame.html` 还原 WXSS
 
 ## 边界
 
 - **凭据不进这个 skill**：AppID 由调用方传入或从页面读；AppSecret、账号密码一律不写进仓库。需要长期保存走各自的凭据管理流程。
-- **只做用户要求的那一步**：解除第三方授权、重置密钥、发表、删除文章都是不可逆或对外可见的操作，动手前先确认。
+- **只做用户要求的那一步**：解除第三方授权、重置密钥、发表、删除文章、小程序提审与发布都是不可逆或对外可见的操作，动手前先确认。
 - 涉及多个公众号时，先在页面右上角确认当前登录的是哪个账号（`.weui-desktop-account__info` 的文本），别在错的号上写东西。
