@@ -212,7 +212,7 @@ ego/CDP 默认视口可能只有 700 多像素高，而编辑器的「保存为�
 
 ## 小程序反编译（复刻参考）
 
-要复刻别人的小程序样式或交互时，用 `scripts/wxapkg/wxapkg.sh` 扫本机微信缓存、按页面文字定位 wxid、解密解包，再用 `scripts/wxapkg/extract-wxss.mjs` 还原 WXSS。完整流程、产物怎么读、复刻到 Taro 的要点见 `references/wxapkg-unpack.md`。只用于学习研究或复刻自己有权使用的设计，不分发解出的源码。
+要复刻别人的小程序样式或交互时，用 `scripts/wxapkg/wxapkg.sh` 扫本机微信缓存、按页面文字定位 wxid、解密解包，再用 `scripts/wxapkg/extract-wxss.mjs` 还原 WXSS、`scripts/wxapkg/split-service.mjs` 拆逻辑并导出数据。完整流程、换 UI 复刻的步骤、产物怎么读、复刻到 Taro 的要点见 `references/wxapkg-unpack.md`。只用于学习研究或复刻自己有权使用的设计，不分发解出的源码。
 
 ## 参考文件
 
@@ -227,7 +227,7 @@ ego/CDP 默认视口可能只有 700 多像素高，而编辑器的「保存为�
 - `scripts/mp-ci.mjs` — miniprogram-ci 上传 / 预览（无界面，带 `--selftest`）
 - `scripts/miniprogram-automator-helpers.cjs` — automator 测试公共函数：请求打桩、插屏计数、断言汇总（带 `--selftest`）
 - `references/wxapkg-unpack.md` — 小程序反编译：扫描缓存、定位 wxid、解包、还原 WXSS、复刻要点
-- `scripts/wxapkg/wxapkg.sh` — wxapkg 扫描 / 解包 CLI（带 `selftest`）；`scripts/wxapkg/extract-wxss.mjs` — 从 `page-frame.html` 还原 WXSS
+- `scripts/wxapkg/wxapkg.sh` — wxapkg 扫描 / 解包 CLI（带 `selftest`）；`scripts/wxapkg/extract-wxss.mjs` — 还原 WXSS；`scripts/wxapkg/split-service.mjs` — 拆 `app-service.js` 并导出数据 JSON（带 `--selftest`）
 
 ## 边界
 
