@@ -13,6 +13,8 @@
    - 不需要开发者工具，也不用扫码登录，完全在后台跑，不碰用户桌面。效果和开发者工具上传一样，后台多一个开发版。`MP_ROBOT`（1～30）是后台显示的上传者编号，默认 1。
    - 一次性准备：①安装依赖：`mkdir -p ~/.cache/vft-kit/miniprogram-ci && cd $_ && npm i miniprogram-ci`。②在小程序后台「开发管理 → 开发设置 → 小程序代码上传」生成并下载上传密钥（`.key`），放进私有凭据目录，只按路径读取，不打印内容。③在同一处配置 IP 白名单：填本机出口 IP，或者关闭白名单（关闭后密钥一旦泄露，任何人都能上传代码）。
    - 报 `invalid ip` 一类错误时，是出口 IP 不在白名单里。代理会改变出口 IP，上传时要注意。
+   - 报 `tunneling socket could not be established ... ETIMEDOUT` 时，是 shell 里的 `http(s)_proxy` 指向了连不上的代理，miniprogram-ci 会照用。用 `env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u all_proxy -u ALL_PROXY node scripts/mp-ci.mjs …` 直连重试（大小写都要清）。
+   - 只想验证密钥能不能用时跑 `preview`：它只生成预览码，不占开发版，也不影响线上和体验版。
    - 不能做的：没有模拟器，跑不了 automator 自测（见 `miniprogram-devtools.md`）。
    以下是开发者工具 CLI 兜底：
    ```bash
