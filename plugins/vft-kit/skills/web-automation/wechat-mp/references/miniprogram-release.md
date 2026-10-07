@@ -42,8 +42,13 @@
 | 隐私接口清单 | `POST /wxamp/cgi/version/getWxaDevPrivacyApiList`，body `openid=<开发者openid>`，返回代码里用到的隐私接口；`GET /wxamp/cgi/version/getMpPrivacyMetaMsg` | 仅抓到 |
 | **提交审核** | ①`GET route path=/wxopen/wadevelopcode?action=get_class&openid=<开发版 open_id>&user_name=<上传者昵称>`：返回 `public_key_info`（JSON 字符串，取 `auto_id`）、`class_info`（`remark`、`speedup_type`）、`online_order_path`。②`GET /wxamp/cgi/version/updatePrivacyCollectMgr?is_not_collect=1|0&version_openid=<open_id>`。③`POST route path=/wxopen/wadevelopcode?action=submit_check`，`x-www-form-urlencoded`：`ticket=qrcheckTicket`、`openid`、`auto_id`、`version_desc`、`speedup_audit=0`、`speedup_type`（空时用「修复漏洞」）、`speedup_desc`、`encrypted_username`、`encrypted_password`（无需登录时留空）、`remark`、`order_path`、`feedback_info`、`feedback_status=1`、`only_run_wxwork=0`、`argue_item`、`preview_info={"pic_id_list":[],"video_id_list":[]}`、`feedback_stuff`；成功 `ret=0`。开发版的 `open_id`、`nick_name` 在 getcodepage 的 `develop_info.info_list[].basic_info` 里，同一版本号可能有多条（开发者工具和 ci 机器人各一条） | ✅ 2026-10-06 用接口独立提交成功，回读 `audit_status=1`；脚本 `scripts/wxamp-submit-audit-api.mjs` |
 | 发布 | 待抓 | — |
+| 订阅消息：我的模板 | `GET /wxamp/cgi/newtmpl/get_pritmpllist?token=…&lang=zh_CN&random=`，返回 `list[]`：`title`、`tid`、`priTmplId`（即前端 `requestSubscribeMessage` 和后端发送用的模板 ID）、`content`（字段占位如 `{{thing5.DATA}}`）、`sceneDesc` | ✅ 2026-10-07 已实测（只读） |
+| 订阅消息：搜公共模板库 | `POST /wxamp/cgi/newtmpl/get_pubtmpllist?token=…`，`x-www-form-urlencoded` body `keyword=<urlencode>&start=0&limit=30`，返回 `pubTmplList.list[]`：`tid`、`title`、`type`（2=一次性）、`refCnt`、`keywordList.list[]`（`kid`、`name`、`rule`） | ✅ 2026-10-07 已实测（只读） |
+| 订阅消息：选用模板 | 页面 `/wxamp/newtmpl/tmplselect?tid=<tid>&token=…`：按顺序点关键词 chip（DOM `.click()`，ego 的 `page.mouse.click` 在这页会卡死）→ 场景说明输入框（placeholder 含「场景」，≤15 字，用原生 value setter + `input` 事件）→ 点「提交」，成功后跳回 `mytmpl`，用「我的模板」接口回读 `priTmplId`。提交请求因整页跳转没抓到 | 仅页面流程（2026-10-07 用它选用了 YourTools「油价调整提醒」tid 1103） |
 
-下次推进：抓「发布」接口（审核通过后版本管理里的「发布」按钮），抓到后补进上表并写脚本。
+开放平台接口（`api.weixin.qq.com/wxaapi/newtmpl/*`、`cgi-bin/stable_token`）需要调用方 IP 在小程序「API IP 白名单」里，本机直连报 `40164 invalid ip`；后台页面内的 `/wxamp/cgi/newtmpl/*` 走登录 cookie，不受白名单限制，优先用它。换 token 时用 `stable_token`（`force_refresh:false`），不要用 `cgi-bin/token`，后者会让线上后端缓存的 token 5 分钟后失效。
+
+下次推进：①抓「发布」接口（审核通过后版本管理里的「发布」按钮）；②抓订阅消息「选用」的提交接口（在 tmplselect 页提交前先 `performance.setResourceTimingBufferSize` 并挂 XHR 钩子到 `window.top` 或用 CDP `Network.requestWillBeSent`，整页跳转前把请求写进 `sessionStorage`）。
 
 ## 坑
 
