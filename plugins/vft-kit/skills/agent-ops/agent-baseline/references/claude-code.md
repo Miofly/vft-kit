@@ -41,8 +41,8 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/agent-ops/agent-baseline/claude-code/scripts/r
 | MCP | codegraph、code-review-graph、lighthouse-mcp                                                                                                  | - |
 | 插件 | superpowers、skill-creator、code-review、frontend-design、playwright、typescript-lsp、jdtls-lsp、context-mode、ponytail、caveman、gsap-skills | claude-hud、context7、grill-me、understand-anything、diagram-design、pm-skills |
 | Agent Skills | Emil 的 animate、review-animations、apple-design                                                                                               | AnySearch、Emil 其余 7 项 |
-| 系统 | RTK hook（PreToolUse Bash 自动压缩）、codegraph prompt-hook 过滤、bypassPermissions、bypass 警告已接受、`~` 目录已信任、CodeGraph 白名单、关闭自动更新、Codex 自动注入 `OPENAI_API_KEY`、全局 CLAUDE.md、项目 memory 目录 | claude-hud 状态栏、CC Switch |
-| 全局规范 | 中文回复、可点短链、压缩取舍、代理兜底、多 Agent 并行、CodeGraph 自动初始化、Code Review Graph 优先、Token 节省                                                                                         | context7 / AnySearch / context-mode 已安装时才检查对应调用规则（各 1 项） |
+| 系统 | RTK hook（PreToolUse Bash 自动压缩）、bash-prompt-guard hook（拒掉会触发内置确认框的 Bash 写法并给改写提示）、codegraph prompt-hook 过滤、bypassPermissions、bypass 警告已接受、`~` 目录已信任、CodeGraph 白名单、关闭自动更新、Codex 自动注入 `OPENAI_API_KEY`、全局 CLAUDE.md、项目 memory 目录 | claude-hud 状态栏、CC Switch |
+| 全局规范 | 中文回复、可点短链、压缩取舍、代理兜底、多 Agent 并行、CodeGraph 自动初始化、Code Review Graph 优先、Token 节省、Bash 命令避开内置确认框                                                                                         | context7 / AnySearch / context-mode 已安装时才检查对应调用规则（各 1 项） |
 
 Claude Code 2.1.59 起默认提供 auto memory，项目记忆位于 `~/.claude/projects/<project>/memory/`。不要再叠加第三方记忆插件或记忆类 MCP；只有用户明确需要外部向量检索服务时才单独评估。
 
