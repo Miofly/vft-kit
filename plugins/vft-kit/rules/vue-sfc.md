@@ -96,7 +96,7 @@ checks:
 ## 项目覆盖
 
 项目根放 `.claude/vft-rules.json` 可以关闭本规则或调整单项检查级别：
-
+  
 ```json
 {
   "disable": ["vue-sfc"],
