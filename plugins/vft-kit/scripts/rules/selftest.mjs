@@ -245,6 +245,58 @@ test('Vue 2：.vue 的 style 块与样式文件都禁用 Grid，注释不误判'
   assert.match(s.json.reason, /grid\.scss:2 \(vue2-no-grid\)/);
 });
 
+test('Vue 2：grid-* 全系属性、-ms-grid 与内联 style 都拦，变量和类名不误判', () => {
+  write('node_modules/vue/package.json', JSON.stringify({ version: '2.7.16' }));
+  const f = write(
+    'src/grid-more.vue',
+    `<template>
+  <div style="display: grid"></div>
+  <div :style="{ gridTemplateColumns: cols }"></div>
+  <div :style="{ display: 'inline-grid' }"></div>
+  <div style="display: flex"></div>
+</template>
+
+<style lang="scss">
+$grid-gap: 8px;
+.grid-item:hover { color: red; }
+.a { grid-column-gap: 8px; }
+.b { grid-auto-flow: column; }
+.c { grid: auto / 1fr 1fr; }
+.d { display: -ms-grid; }
+</style>
+`,
+  );
+  const r = run('check.mjs', { session_id: 's10b', cwd: tmp, tool_input: { file_path: f } });
+  assert.equal(r.json?.decision, 'block');
+  for (const line of [2, 3, 4, 11, 12, 13, 14])
+    assert.match(r.json.reason, new RegExp(`grid-more\\.vue:${line} \\(vue2-no-grid\\)`));
+  for (const line of [5, 9, 10])
+    assert.doesNotMatch(r.json.reason, new RegExp(`grid-more\\.vue:${line} `));
+});
+
+test('Vue 2：flex 容器写 gap 提示（warn 不阻断），非 flex 块与 Vue 3 不提示', () => {
+  write('node_modules/vue/package.json', JSON.stringify({ version: '2.7.16' }));
+  const f = write(
+    'src/flex-gap.vue',
+    `<style lang="scss">
+.row {
+  display: flex;
+  gap: 12px;
+}
+.col { column-gap: 8px; }
+</style>
+`,
+  );
+  const r = run('check.mjs', { session_id: 's10c', cwd: tmp, tool_input: { file_path: f } });
+  assert.equal(r.json?.decision, undefined);
+  const ctx = r.json.hookSpecificOutput.additionalContext;
+  assert.match(ctx, /flex-gap\.vue:4 \(vue2-flex-gap\)/);
+  assert.doesNotMatch(ctx, /flex-gap\.vue:6/);
+  write('node_modules/vue/package.json', JSON.stringify({ version: '3.5.40' }));
+  const v3 = run('check.mjs', { session_id: 's10c', cwd: tmp, tool_input: { file_path: f } });
+  assert.equal(v3.stdout.trim(), '');
+});
+
 test('Vue 3：允许 Grid', () => {
   write('node_modules/vue/package.json', JSON.stringify({ version: '3.5.40' }));
   const r = run('check.mjs', { session_id: 's11', cwd: tmp, tool_input: { file_path: gridVue } });
