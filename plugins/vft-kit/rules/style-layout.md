@@ -6,6 +6,7 @@ paths:
   - '**/*.{css,scss,sass,less,styl}'
 checks:
   - vue2-no-grid
+  - vue2-flex-gap
   - absolute-hardcoded-layout
 ---
 
@@ -54,8 +55,16 @@ checks:
 
 ## 3. Vue 2 项目
 
-- **不用 CSS Grid**（`display: grid` / `inline-grid`、`grid-template-*`、`grid-area` 等；自动检查 `vue2-no-grid`）。网格和卡片列表用 flex + `flex-wrap` + 百分比宽度实现。
-- **flex 容器慎用 `gap`**：iOS < 14.5 与 Chrome < 84 不支持 flex 的 `gap`，会导致间距消失。子元素之间用 `margin`，列表可以用 `:not(:last-child)` 或 `& + &` 加间距。
+- **不用 CSS Grid**（自动检查 `vue2-no-grid`，error 级）：`display: grid` / `inline-grid` / `-ms-grid`，以及所有 `grid-*` 属性和 `grid` 简写（`grid-template-*`、`grid-area`、`grid-row` / `grid-column`、`grid-gap`、`grid-row-gap`、`grid-column-gap`、`grid-auto-*`）。`<style>` 块、样式文件和模板里的 `style` / `:style`（含 `gridTemplateColumns` 驼峰写法）都会检查。网格和卡片列表用 flex + `flex-wrap` + 百分比宽度实现。
+- **flex 容器慎用 `gap`**（自动检查 `vue2-flex-gap`，warn 级，只查同一规则块里同时写了 `display: flex` 和 `gap` / `row-gap` / `column-gap` 的情况）：iOS < 14.5 与 Chrome < 84 不支持 flex 的 `gap`，会导致间距消失。子元素之间用 `margin`，列表可以用 `:not(:last-child)` 或 `& + &` 加间距。
+- **人工编写也要拦**：上面的自动检查只作用于 Claude 的写入。项目已接 stylelint 时，在 `.stylelintrc` 里加同样的约束，人手写的样式在 lint / 提交时也会被拦下：
+
+  ```js
+  rules: {
+    'property-disallowed-list': ['/^grid/'],
+    'declaration-property-value-disallowed-list': { display: ['/grid/'] },
+  },
+  ```
 - 这一节不适用于 Vue 3 项目；Vue 3 可以按需使用 Grid 与 `gap`。
 
 ## 4. 还原检查清单
