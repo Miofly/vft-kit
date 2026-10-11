@@ -1,6 +1,6 @@
 ---
 name: ms-studio-deploy
-description: "Deploy or repair ModelScope Studio, manage secrets and Notebook/PAI-DSW CPU/GPU runtimes and workspace transfers. Excludes Hub repositories, training and evaluation."
+description: "Deploy or repair ModelScope Studio, manage secrets and Notebook/PAI-DSW CPU/GPU runtimes and workspace transfers, and publish or re-sync ModelScope Skills from a public GitHub repository. Excludes Hub repositories, training and evaluation."
 ---
 
 ## 浏览器到 API 的强制演进
@@ -538,10 +538,59 @@ Prerequisite: you must complete Alibaba Cloud account binding and pass real-name
 
 ## Data Persistence
 
-- By default, data is lost on every restart
-- Persistence directory: `/mnt/workspace`
+- Container writable-layer data is lost on restart; `/mnt/workspace` is the persistence path to verify on the target runtime.
+- 2026-10-10 private free CPU verification: SDK-authenticated WSS carried the MySQL protocol between two Studios, including 28 simultaneous JDBC connections. This was an application-defined WebSocket relay, not a platform-provided public MySQL TCP port.
+- In that runtime, `/mnt/workspace` retained 2,000 test rows and their checksum after redeployment, but file permissions stayed `0777` after `chmod 0600`. MySQL 8.4 discarded `auto.cnf` and regenerated its UUID. Verify permission semantics, server UUID, crash recovery, and full-data readback before treating this path as a database disk; persistence alone does not establish production suitability.
 - Data is still lost when transferring/renaming a Studio
 - For high-reliability needs, use external storage (OSS, databases)
+
+## Publish Skills from a GitHub Repository
+
+ModelScope Skills (`https://modelscope.cn/skills`) can be created from any public GitHub repo that
+holds `SKILL.md` directories. The web wizard publishes one skill per run; `scripts/publish-skills.mjs`
+publishes or re-syncs a whole repository through the same internal endpoints, headlessly.
+
+Prerequisites: a public GitHub repo, and ego-lite logged in to the ModelScope account that will own
+the skills (the script verifies the session identity and aborts on a mismatch). No API token,
+cookie, or credential file is read — the calls run as `page.fetch` inside the logged-in page,
+because skill creation has no working token route. See `references/skills-publish-api.md` for the
+endpoint contract, payload fields, and the routes that are only probed.
+
+```bash
+SCRIPT=scripts/publish-skills.mjs
+
+# 1. Plan: what would be created, with which catalogue, description and file set (no writes)
+node $SCRIPT --repo https://github.com/<user>/<repo> --owner <modelscope-user> --profile <egoProfileId>
+
+# 2. Publish everything the plan listed
+node $SCRIPT --repo ... --owner ... --apply --report /tmp/publish-report.json
+
+# 3. Later: re-pull already-published skills from GitHub (the 手动同步 button, for the whole repo)
+node $SCRIPT --repo ... --owner ... --sync
+
+# Narrow a run, override the default catalogue, or check the script offline
+node $SCRIPT --repo ... --owner ... --apply --only skill-a,skill-b
+node $SCRIPT --repo ... --owner ... --category developer-tools
+node $SCRIPT --selftest
+```
+
+Behaviour worth knowing:
+
+- Default is **dry-run**; nothing is created without `--apply`.
+- Already-published skills are skipped, not duplicated (`user_repeat`); a skill published by
+  someone else is reported as `skip-exists-official` and left alone — claiming it is a web-UI flow.
+- `--config <file.json>` reads the same keys (`repo`, `owner`, `profile`, `space`, `category`,
+  `category_map`, `license`, `visibility`, `autoSync`, `exclude`, `delayMs`) from a `skill_publish`
+  object, so a private wrapper can hold the personal defaults and the command stays short.
+- `category_map` keys are skill names or any parent directory name; values must be catalogue ids
+  from `GET /api/v1/catalogues?Business=skills`. Unknown ids are flagged, not silently sent.
+- Description, display name, icon and GitHub developer come from the platform's own SKILL.md parse,
+  so frontmatter quality shows up directly on the published page.
+- Each created skill is read back through the **public** detail route (`SourceURL`, `Visibility`,
+  `AutoSyncEnabled`, `L1.CatalogID`, non-empty `ReadMeContent`) plus the synced repo tree; exit code
+  is non-zero on any create failure, readback mismatch, or warning.
+- `AutoSyncEnabled=1` keeps the published copy following GitHub. The sync only sees **pushed**
+  commits — publish after the change is on the default branch, then `--sync` to pull immediately.
 
 ## Notes
 
@@ -559,6 +608,7 @@ Consult when you run into problems or need more detail:
 
 - `references/openapi-studio-endpoints.md` — detailed Studios OpenAPI endpoint parameters (source-of-truth specification)
 - `references/notebook-dsw.md` — authenticated Notebook / PAI-DSW endpoints, start payload, states, and captcha boundary
+- `references/skills-publish-api.md` — ModelScope Skills create/sync endpoints, payload fields, and verification reads
 - `references/docker-templates.md` — Dockerfile templates for the Docker type (FastAPI, Node.js, Golang, etc.)
 - `references/troubleshooting.md` — deployment-failure troubleshooting process, common errors, and fixes
 
