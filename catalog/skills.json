@@ -64,6 +64,7 @@
         "chrome-web-store-publish",
         "keyboard-maestro",
         "qr-login",
+        "temp-mail",
         "web-scrape",
         "wechat-mp"
       ]
