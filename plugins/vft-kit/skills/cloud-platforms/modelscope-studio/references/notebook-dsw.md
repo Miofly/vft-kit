@@ -93,7 +93,30 @@ const [specs, images, instances] = await Promise.all([
 | List images | GET | `/api/v1/notebooks/image?AcceleratorType={CPU|GPU|AMD}` |
 | List current/history instances | GET | `/api/v1/notebooks?Channel=dsw` |
 | Start an instance | POST | `/api/v1/notebooks` |
-| Stop an instance | PUT | `/api/v1/notebooks/stop` |
+| Stop an instance | PUT | `/api/v1/notebooks/stop` body `{"Channel":"dsw","AcceleratorType":"CPU"}` |
+| Runtime bridge token | GET | `/api/v1/notebooks/token?InstanceId=<dsw-id>` → `Data.Result.{Token, InstanceInfo.WebIDEUrl}` |
+
+The stop body and token endpoint were read from the frontend bundles on 2026-10-13 (`p__notebookWorkspace`,
+MyNotebook store). There is no captcha-free "resume" endpoint for free instances; `/api/v1/notebooks/paid/*`
+belongs to billable personal-cloud instances and must not be used for free resources.
+
+## Scripted Runtime Access (no IDE canvas)
+
+`scripts/dsw-jupyter.mjs` reproduces the Code Workspace "connect runtime" bridge as plain page functions, so
+commands and files no longer need the visual IDE:
+
+1. On an authenticated `modelscope.cn` page, `pageBridge` calls the token endpoint and then
+   `GET <base>gateway-login?token=...` with `credentials: "include"`, where `<base>` is `WebIDEUrl` without
+   `/ide`. The token never leaves the page; it is short-lived and bound to that instance (the frontend
+   refreshes it every 10 minutes).
+2. Navigate a second page of the same browser session to `<base>api/status`; it must stay on the gateway host.
+3. From that same-origin page use Jupyter REST: `POST api/kernels`, kernel WebSocket
+   `api/kernels/<id>/channels` (`execute_request`), `DELETE api/kernels/<id>`, and `api/contents/<path>`
+   (`format=base64`, chunked `PUT` with `chunk` 1..n, last `-1`). Send `X-XSRFToken` when an `_xsrf` cookie exists.
+
+`shellToPython(cmd)` wraps a shell command in `subprocess.run` and prints `__NBAPI_EXIT__=<code>` so callers can
+check the exit status. Long jobs should still be launched detached (`nohup ... &`) and polled through a log file.
+Self-check: `node scripts/dsw-jupyter.mjs --selftest`.
 
 Do not guess mutation request bodies. Read the current frontend request or let the UI submit the operation, then
 poll `GET /api/v1/notebooks?Channel=dsw` by instance ID. Instance IDs and image versions are runtime state and must
@@ -109,6 +132,10 @@ The web application currently sends this start payload:
   "CaptchaVerify": "<fresh platform-issued verification result>"
 }
 ```
+
+Clicking **启动** on 2026-10-13 showed the Alibaba Cloud captcha before any `POST /api/v1/notebooks` was sent,
+so every start of a stopped free instance needs one human verification. Everything after `Running` (bridge,
+exec, files, stop) is scriptable.
 
 `CaptchaVerify` is a security control, not reusable configuration. Never omit, forge, replay, log, save, or
 commit it. If verification appears, hand the same browser session to the user. After they finish, resume in that
