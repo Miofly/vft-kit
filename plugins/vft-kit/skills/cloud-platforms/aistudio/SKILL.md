@@ -102,7 +102,7 @@ For daily acceptance, reload the document and reopen the points popover; a query
 
 Read `references/notebook.md` completely and use the browser login session. Before starting a runtime, inspect hardware, price/points, quota, and balance. A `免费资源` GPU still consumes points; paid resources require explicit confirmation of the displayed cost. For paid GPU work, follow the reference's phase markers and H3/V100 smoke gate; do not submit a full generation while dependency or weight restore is unverified.
 
-Create/open the requested Notebook, transfer through the authenticated Jupyter Contents API, execute through a disposable Jupyter terminal, and run `scripts/gpu_probe.py`. Stop the runtime after the task unless the user explicitly asks to keep it running. Verify the project reaches `未运行`; closing the browser does not stop billing.
+For an existing project, prefer `scripts/notebook_api.mjs` (start free CPU, status, stop, Contents transfer, detached terminal jobs) over clicking the resource dialog; see 「API lifecycle without page clicks」 in the reference. It stops and hands off on any captcha and refuses paid tiers unless the caller confirmed the cost. Create/open the requested Notebook, transfer through the authenticated Jupyter Contents API, execute through a disposable Jupyter terminal, and run `scripts/gpu_probe.py`. Stop the runtime after the task unless the user explicitly asks to keep it running. Verify the project reaches `未运行`; closing the browser does not stop billing.
 
 ## Script and background tasks
 

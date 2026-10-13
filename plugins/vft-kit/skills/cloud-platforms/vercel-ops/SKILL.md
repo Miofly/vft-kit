@@ -86,3 +86,4 @@ bash "$SKILL_DIR/scripts/test.sh"
 - [官方 CLI、Cron、部署示例](references/examples.md)：按实际操作读取。
 - [API 契约与官方来源](references/vercel-api.md)：增改 endpoint 前查阅。
 - [故障定位](references/troubleshooting.md)：认证、网络、日志和发布失败时读取。
+- [踩坑记录](references/lessons.md)：实际部署操作的问题沉淀（部署错项目、CLI 交互、代理验收等），操作前先查。

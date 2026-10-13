@@ -13,6 +13,22 @@ Verified against AI Studio BML Codelab on 2026-08-18. Notebook lifecycle uses th
 
 Project IDs, region prefixes, Codelab URLs, and runtime state are dynamic. Never store them in a skill.
 
+## API lifecycle without page clicks (preferred, verified 2026-10-13)
+
+`scripts/notebook_api.mjs` does steps 3-6 for an existing project through site APIs inside the logged-in Page (cookies and the in-page studio token never leave the browser). Offline check: `node scripts/notebook_api.mjs --self-test`. Private wrappers add a Mac CLI around it.
+
+| Step | Request (all `credentials:'include'` + headers `x-studio-token: window.aiStudio.bdToken`, `x-requested-with: XMLHttpRequest`) | Notes |
+|---|---|---|
+| Status | `POST /studio/project/detail` form `projectId` | `running`, `projectState` (300400 stopped, 300200 launching, 300202/300204 running), `runningClusterInfo.{scheduleName,costPerHour,displayName}` |
+| Captcha gate | `POST /studio/user/start/notebook/require/graphic` | `result:true` means the start needs the passport slider: hand off to the user, do not solve automatically |
+| Start | `POST /studio/project/running` form `projectId, versionId(0=draft), scheduleName, startMode=0` | `tk`/`ds` only after a solved captcha. `startMode='notebook'` or empty `tk`/`ds` returns `errorCode 500 参数错误`. Call again every 3 s while `result.code==201`; `200` = up, `result.jumpUrl` = Codelab URL. Always read `result.code/msg`: outer `errorCode 0` can wrap `{code:500,msg:'人机验证失败'}` |
+| Free tier | `scheduleName=normalSchedule` (基础版 0 点/小时). After start, require `runningClusterInfo.costPerHour == "0"` or stop at once | GPU names: `resourceCardVGpuSchedule`, `resourceCardSchedule`, `resourceCardA100Schedule`; the helper refuses them unless the caller passes `allowPaid` after explicit cost confirmation |
+| Stop | `POST /studio/project/stop` form `projectId, startMode=0`, then poll `detail` until `running:false` and `300400` | Measured 4-10 s |
+
+Measured: free CPU start took 9 s (3 calls) when the image was warm. Calling `/running` on an already running project returns `200` + `jumpUrl` again, which is how to recover the Jupyter base later. Keep API work on a neutral page such as `/my/project`: an open `project/edit/<id>` page re-calls `/running` by itself while launching.
+
+Jupyter through the AI Studio proxy (cookies only, no token needed): `GET/PUT/DELETE api/contents`, `GET files/<path>`, `POST/DELETE api/terminals` and `terminals/websocket/<name>` work. `POST api/kernels` returns 404 and `POST api/sessions` returns 490, so do not plan on creating kernels. The helper runs commands as detached terminal jobs: it writes the script to `/home/aistudio/nbapi-jobs/<id>.sh`, types one `setsid nohup ... & echo <marker>` line into a disposable terminal, deletes the terminal, then polls `<id>.rc`/`<id>.log` through the Contents API and removes the job files. The Contents API rejects hidden paths (`.foo`) with 400. Uploading through Contents is slow (about 0.25 MB/s for 26 MB in 12 MB parts); move large files through a Dataset or a model hub download inside the container instead.
+
 ## Codelab Base URL
 
 Derive the Jupyter server base from the active Codelab URL. A current example is:
