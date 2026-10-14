@@ -125,6 +125,15 @@ cliLog((await pageInfo()).url)   // URL 出现 appmsgid=<数字> 即保存成功
 
 保存成功的标志是地址栏多出 `appmsgid=`，同时草稿箱列表首条变成这篇。想二次确认就回草稿箱页读一眼列表。
 
+### 图片只走本地上传（不给编辑器外链图）
+
+正文贴外链 `<img>` 编辑器会自己转存成 mmbiz，但用户要求像人一样传本地文件（2026-10-14 实测）：
+
+- 正文插图：光标放到正文末尾 → 点工具栏 `#js_editor_insertimage` → 菜单 `li.js_img_from_local`（文字是「从图片库选择」）→ 对话框里 `.js_upload_btn_container input[type=file]` 选文件（ego 用 `waitForFileChooser` 点「上传文件」，Selenium 直接 `sendKeys` 路径）→ 上传完自动选中，计数变成 `1 / 100 项` → 点「确定」，图插在光标处。
+- 封面：先悬停再点 `.js_cover_btn_area` → 弹出菜单在 `.pop-opr__group-select-cover` 里（不在封面区内，靠 `visibility` 显隐）→ 点其中的 `.js_imagedialog` → 同一个图片库上传 → 封面对话框没有计数，上传后「下一步」由灰变可点 → 「下一步」→ 裁剪页「确认」→ `.js_cover_preview_new` 背景图含 `mmbiz` 即成功。
+- 多篇：悬停 `.preview_media_add_word`（「新建内容」）→ 点 `li.js_create_article`（「写新文章」），`.js_appmsg_item` 数加一。摘要 `#js_description`，作者 `#author`。
+- 草稿保存后历史版本来源显示「网页版 / 手动保存」。
+
 **发表（`发表` 按钮）要谨慎**：它是不可逆的对外动作，且未认证账号每天只有有限次群发。**除非用户明确说「发布/群发/直接发出去」，一律停在草稿**，把草稿链接给用户让他自己点发表。
 
 ## 封面是发表的硬前置
