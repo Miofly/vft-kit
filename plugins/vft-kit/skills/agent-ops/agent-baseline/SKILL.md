@@ -15,7 +15,7 @@ description: "核对和维护 Claude Code/CC 或 Codex 通用装配：CLI、MCP�
 | Claude Code / CC | [claude-code.md](references/claude-code.md) | [run.sh](claude-code/scripts/run.sh) |
 | Codex CLI | [codex.md](references/codex.md) | [run.sh](codex/scripts/run.sh) |
 
-每条路线的 scripts/check.sh 是检查项和修复命令的唯一来源。通过 run.sh 执行该宿主已有的常设维护，再做检查；需要验证 MCP 连接时传 --health。版本审计、缺失项回报和修复授权按对应 reference 执行。
+每条路线的 scripts/check.sh 是检查项和修复命令的唯一来源。两宿主共用的全局规范正文放在 [rules/](rules/)（如 [先找成熟方案](rules/reuse-first.md)），check.sh 只核对关键词并给出追加命令。通过 run.sh 执行该宿主已有的常设维护，再做检查；需要验证 MCP 连接时传 --health。版本审计、缺失项回报和修复授权按对应 reference 执行。
 
 公共层接受环境变量和宿主配置，不包含个人账号、仓库、数据库或凭据。私有默认值及资产核对由调用方的私有 skill 追加；调用私有入口时不要再重复运行公共 run.sh。
 

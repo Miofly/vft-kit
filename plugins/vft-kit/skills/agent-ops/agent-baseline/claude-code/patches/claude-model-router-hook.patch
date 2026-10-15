@@ -1,0 +1,150 @@
+diff --git a/plugins/claude-model-router-hook/hooks/hooks.json b/plugins/claude-model-router-hook/hooks/hooks.json
+index 7502daa..d0c3085 100644
+--- a/plugins/claude-model-router-hook/hooks/hooks.json
++++ b/plugins/claude-model-router-hook/hooks/hooks.json
+@@ -11,18 +11,6 @@
+         ]
+       }
+     ],
+-    "UserPromptSubmit": [
+-      {
+-        "matcher": "",
+-        "hooks": [
+-          {
+-            "type": "command",
+-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/user_prompt_submit.py\"",
+-            "timeout": 10
+-          }
+-        ]
+-      }
+-    ],
+     "PreToolUse": [
+       {
+         "matcher": "Agent|Task",
+diff --git a/plugins/claude-model-router-hook/hooks/pre_tool_use.py b/plugins/claude-model-router-hook/hooks/pre_tool_use.py
+index 27533aa..41aebe1 100644
+--- a/plugins/claude-model-router-hook/hooks/pre_tool_use.py
++++ b/plugins/claude-model-router-hook/hooks/pre_tool_use.py
+@@ -5,7 +5,9 @@ Thin wiring only; all logic lives in the router package. Never denies:
+ either emits permissionDecision "allow" JSON or exits 0 silently (FR-13, FR-18).
+ """
+ 
++import glob
+ import os
++import re
+ import sys
+ from pathlib import Path
+ 
+@@ -65,6 +67,22 @@ def _resolve_variant(variant, cwd):
+     return None
+ 
+ 
++def _defined_model(subagent_type, cwd):
++    """vft-kit patch: `model:` from a named agent's frontmatter, if it has one."""
++    name = subagent_type.split(":")[-1]
++    dirs = [*variants.project_agent_dirs(cwd), str(Path.home() / ".claude" / "agents")]
++    dirs += glob.glob(str(Path.home() / ".claude" / "plugins" / "cache" / "*" / "*" / "*" / "agents"))
++    for directory in dirs:
++        try:
++            head = (Path(directory) / f"{name}.md").read_text(encoding="utf-8")[:2000]
++        except OSError:
++            continue
++        match = re.search(r"^model:\s*(\S+)", head, re.M)
++        if match:
++            return match.group(1)
++    return None
++
++
+ @hookio.fail_open
+ def main():
+     if hookio.is_child():
+@@ -104,6 +122,25 @@ def main():
+         prompt, target, cfg, delegated=bool(event.get("agent_id"))
+     )
+ 
++    # vft-kit patch: a named agent keeps its own model. Leave it alone when its
++    # definition pins one (e.g. a haiku carrier) or it is `fork`, and otherwise
++    # only ever downgrade it to haiku, never inject a pricier tier.
++    if (
++        tool_input.get("model") is None
++        and isinstance(subagent_type, str)
++        and subagent_type not in GENERIC_TYPES
++        and (
++            subagent_type == "fork"
++            or decision.model != "haiku"
++            or _defined_model(subagent_type, cwd)
++        )
++    ):
++        hookio.log(
++            "SUBAGENT-SKIP-NAMED", prompt, klass=decision.klass,
++            model=decision.model, subagent_type=subagent_type,
++        )
++        sys.exit(0)
++
+     explicit = tool_input.get("model")
+     if explicit is not None:
+         # Explicit caller model: NO injection, respect it (locked decision 4).
+@@ -160,6 +197,10 @@ def main():
+         warning = _env_model_warning(decision.model)
+         if warning:
+             messages.append(warning)
++        # vft-kit patch: advisory is the shadow mode, so record what it would do.
++        hookio.log(
++            "SUBAGENT-ADVISORY", prompt, klass=decision.klass, model=decision.model
++        )
+         hookio.emit_pretooluse(system_message=" ".join(messages))
+         sys.exit(0)
+ 
+diff --git a/plugins/claude-model-router-hook/hooks/router/taxonomy.py b/plugins/claude-model-router-hook/hooks/router/taxonomy.py
+index f3dc941..dea6598 100644
+--- a/plugins/claude-model-router-hook/hooks/router/taxonomy.py
++++ b/plugins/claude-model-router-hook/hooks/router/taxonomy.py
+@@ -129,6 +129,22 @@ _KEYWORD_BAG_WORDS = frozenset(
+     "traceback tradeoff".split()
+ )
+ 
++# vft-kit patch: CJK prompts have no spaces and no English imperative prefix,
++# so has_task_intent abstained on every Chinese prompt and split() counted a
++# whole Chinese paragraph as one "word" (short-imperative bonus, no length
++# signals). A CJK task verb counts as intent; two CJK characters count as one word.
++_CJK_RE = re.compile(r"[\u3400-\u9fff]")
++_CJK_TASK_RE = re.compile(
++    r"下载|上传|校验|清理|删除|移动|搬运|归档|重命名|同步|轮询|等待|列出|统计|整理|抓取|"
++    r"实现|修复|新增|添加|编写|改写|翻译|总结|改造|重构|部署|测试|生成|运行|执行|检查|核对|"
++    r"排查|调试|定位|复现|分析|调研|研究|评审|审查|审核|设计|规划|评估|对比|迁移"
++)
++
++
++def _word_count(prompt):
++    return len(_CJK_RE.sub(" ", prompt).split()) + len(_CJK_RE.findall(prompt)) // 2
++
++
+ ScoreResult = collections.namedtuple(
+     "ScoreResult", ["scores", "top", "second", "margin", "word_count"]
+ )
+@@ -181,6 +197,7 @@ def has_task_intent(prompt):
+         or _PROBLEM_REPORT_RE.search(prompt)
+         or _HELP_RE.search(prompt)
+         or "```" in prompt
++        or bool(_CJK_TASK_RE.search(prompt))
+     )
+ 
+ 
+@@ -193,7 +210,7 @@ def score(prompt, cfg):
+ 
+     prompt = prompt if isinstance(prompt, str) else ""
+     prompt_lower = prompt.lower()
+-    word_count = len(prompt.split())
++    word_count = _word_count(prompt)
+ 
+     scores = {klass: 0.0 for klass in CLASSES}
+ 
+@@ -224,7 +241,7 @@ def score(prompt, cfg):
+         length_bonus = 2
+     elif word_count >= long_prompt_words:
+         length_bonus = 1
+-    if "?" in prompt and word_count >= question_words:
++    if ("?" in prompt or "？" in prompt) and word_count >= question_words:
+         length_bonus += 1
+     scores["architecture"] += min(length_bonus, 2)  # hard cap +2 (FR-7)
+ 

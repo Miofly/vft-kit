@@ -106,7 +106,7 @@ def main():
         if not reason:
             return
         try:
-            logd = os.path.expanduser("~/.claude/logs")
+            logd = os.path.join(os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~/.claude"), "logs")
             os.makedirs(logd, exist_ok=True)
             with open(os.path.join(logd, "bash-prompt-guard.log"), "a", encoding="utf-8") as f:
                 f.write(json.dumps({"t": time.strftime("%F %T"), "cwd": cwd, "cmd": cmd[:300], "reason": reason},

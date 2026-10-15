@@ -119,8 +119,9 @@ if [[ -z "$cache_ver_dir" ]]; then
 fi
 cache_dir="${cache_root}/${cache_ver_dir}"
 
-src_skill_count="$(find "${plugin_root}/skills" -mindepth 2 -maxdepth 3 -name SKILL.md 2>/dev/null | wc -l | tr -d ' ')"
-cache_skill_count="$(find "${cache_dir}/skills" -mindepth 2 -maxdepth 3 -name SKILL.md 2>/dev/null | wc -l | tr -d ' ')"
+# Hook-only plugins have no skills/ dir: find fails there, and under pipefail that would abort the script.
+src_skill_count="$({ find "${plugin_root}/skills" -mindepth 2 -maxdepth 3 -name SKILL.md 2>/dev/null || true; } | wc -l | tr -d ' ')"
+cache_skill_count="$({ find "${cache_dir}/skills" -mindepth 2 -maxdepth 3 -name SKILL.md 2>/dev/null || true; } | wc -l | tr -d ' ')"
 
 echo "==> SKILL.md 数量：源 ${src_skill_count} / cache ${cache_skill_count}"
 if [[ "$src_skill_count" != "$cache_skill_count" ]]; then
@@ -129,7 +130,7 @@ if [[ "$src_skill_count" != "$cache_skill_count" ]]; then
 fi
 
 # 抽样校验：取一个 skill 的 SKILL.md size 做对比，提早抓到"个数对但内容旧"的边角
-sample_skill="$(find "${plugin_root}/skills" -mindepth 2 -maxdepth 3 -name SKILL.md 2>/dev/null | head -1)"
+sample_skill="$({ find "${plugin_root}/skills" -mindepth 2 -maxdepth 3 -name SKILL.md 2>/dev/null || true; } | head -1)"
 if [[ -n "$sample_skill" ]]; then
   rel="${sample_skill#${plugin_root}/}"
   cache_sample="${cache_dir}/${rel}"

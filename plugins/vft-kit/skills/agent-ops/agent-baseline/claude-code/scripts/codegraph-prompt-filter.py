@@ -2,8 +2,10 @@
 """Gate for `codegraph prompt-hook` (UserPromptSubmit).
 
 Skips injection for background task notifications and non-code prompts, which
-otherwise receive ~15 KB of irrelevant symbols every turn. Code-looking prompts
-are passed through unchanged to `codegraph prompt-hook`.
+otherwise receive ~15 KB of irrelevant symbols every turn. URLs are stripped
+before matching: their path segments look like local paths but point at
+external pages the local index cannot answer. Code-looking prompts are passed
+through unchanged to `codegraph prompt-hook`.
 Self-test: python3 codegraph-prompt-filter.py --self-test
 """
 import json, re, subprocess, sys
@@ -16,10 +18,12 @@ CODE_HINT = re.compile(
     r"|(函数|代码|报错|异常|接口|类名|方法|组件|编译|单测|测试用例|重构|实现|修复|bug|Bug|BUG|stack|trace)"
 )
 
+URL = re.compile(r"(https?://|www\.)\S+|\b[\w-]+(\.[\w-]+)*\.(com|org|io|net|ai|cn|dev|app)(/\S*)?")
+
 def should_run(prompt: str) -> bool:
     if "<task-notification>" in prompt or "[SYSTEM NOTIFICATION" in prompt:
         return False
-    return bool(CODE_HINT.search(prompt))
+    return bool(CODE_HINT.search(URL.sub(" ", prompt)))
 
 def main():
     raw = sys.stdin.read()
@@ -39,6 +43,9 @@ def self_test():
         "修复 VideoTaskServiceImpl 的空指针": True,
         "看下 src/views/tools/index.vue 为什么报错": True,
         "lease_account_db 脚本续租": True,
+        "https://github.com/tamaratran/fast-jev-compaction\n\n这个项目对我现在的工作流有用吗": False,
+        "github.com/jaredpalmer/kev 这个呢 也看看": False,
+        "https://github.com/a/b 参考它修复 src/utils/date.ts 的报错": True,
     }
     bad = [p for p, want in cases.items() if should_run(p) != want]
     print("self-test", "FAIL " + repr(bad) if bad else "ok")
