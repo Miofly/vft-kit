@@ -1,6 +1,6 @@
 ---
 name: lark-cli
-description: "使用 lark-cli 操作 Lark/飞书的多维表格、云文档、云盘、电子表格、任务和知识库；排查认证问题或调用未封装的 OpenAPI 时使用。"
+description: "使用 lark-cli 操作 Lark/飞书的多维表格、云文档、云盘、电子表格、任务和知识库；排查认证问题或调用未封装的 OpenAPI 时使用。也用于创建飞书机器人（群 Webhook 或自建应用、一键智能体应用）、长连接收消息并接入大模型对话。触发词：飞书机器人、建机器人、自建应用、智能体应用、长连接、接 Claude/大模型。"
 ---
 
 # lark-cli 路由器
@@ -38,6 +38,11 @@ lark-cli base --help
 lark-cli docs --help
 lark-cli api --help
 ```
+
+## 机器人
+
+创建飞书机器人、选群 Webhook 还是自建应用、长连接收消息、接大模型对话时，
+读 [references/bot-setup.md](references/bot-setup.md)。
 
 ## URL 和资源 token
 

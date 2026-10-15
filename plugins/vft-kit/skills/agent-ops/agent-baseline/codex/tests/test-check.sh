@@ -195,7 +195,7 @@ write_agents() {
     printf '%s\n' \
       '- 始终使用简体中文回复。' \
       '- 引用代码位置使用 markdown 可点短链。' \
-      '- 上下文压缩时保留决策和状态。' \
+      '- 上下文压缩时保留决策和状态，丢弃可重跑恢复的噪音。' \
       '- 外网操作启用代理兜底并复用 https_proxy。'
     if [ "$include_parallel" = "yes" ]; then
       printf '%s\n' \

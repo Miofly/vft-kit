@@ -1,11 +1,18 @@
 ---
 name: git-ops
-description: Git 版本管理与协作：根据 diff 生成提交信息、检查 Commit 规范、解决 merge/rebase 冲突、辅助分支管理、Code Review、生成 PR/MR 描述及交付。用户说“生成 commit”“检查提交规范”“提交一下”“解决冲突”“整理分支”“review 改动”“写 PR 描述”“提 PR”，或需要同步、stash、回退、tag 时使用。GitHub/GitLab/Gitee 均适用；平台设置和 CI 运维用 github-ops。
+description: Git 版本管理与协作：根据 diff 生成提交信息、检查 Commit 规范、解决 merge/rebase 冲突、辅助分支管理、Code Review、生成 PR/MR 描述及交付；Gitee Code MR 智能评审（拉取 MR diff、按清单评审、写入行内评论）。用户说”生成 commit””检查提交规范””提交一下””解决冲突””整理分支””review 改动””写 PR 描述””提 PR””评审这个 MR””CR 一下”，或需要同步、stash、回退、tag 时使用。GitHub/GitLab/Gitee 均适用；平台设置和 CI 运维用 github-ops。
 ---
 
 # Git Ops
 
-围绕实际改动完成版本管理与协作。先判断用户要的是文字、检查还是执行；“生成提交信息 / PR 描述”只生成内容，“Review”只报告发现，不隐含提交、推送、发布评论或合并授权。
+围绕实际改动完成版本管理与协作。先判断用户要的是文字、检查还是执行；”生成提交信息 / PR 描述”只生成内容，”Review”只报告发现，不隐含提交、推送、发布评论或合并授权。
+
+## 功能范围
+
+- **本地 Git 操作**：提交信息生成、规范检查、分支管理、冲突解决、stash/回退/tag
+- **代码评审**：本地 diff 评审、PR/MR 描述生成
+- **远端协作**：PR/MR 创建与交付（GitHub/GitLab/Gitee）
+- **Gitee Code MR 智能评审**：拉取内网 MR diff、按清单自动评审、写入行内评论和汇总（详见 MR 评审专节）
 
 ## 入口与预检
 
@@ -71,6 +78,89 @@ bash <git-ops目录>/scripts/git-pr.sh --base main \
 按本次范围简报：改动/审查对象、验证结果、当前分支与提交 SHA、剩余修改；PR 另核对仓库身份、URL、base/head、远端 head SHA，新建时核对标题、正文和草稿状态。未执行的检查明确标注，不编造通过状态。
 
 平台账号、仓库设置、Actions、Secrets 用 `github-ops`；不把这些能力嵌入本 skill。
+
+## Gitee Code MR 智能评审
+
+针对讯飞内网 Gitee Code（code.iflytek.com）的 MR/PR，提供智能评审能力：拉取 diff、按评审清单分析、生成行内评论和汇总评论。
+
+### 使用场景
+
+用户提到以下任一情况时使用本功能：
+- 给出 code.iflytek.com 的 pull_requests 链接
+- 说「帮我 review 这个 MR」「评审一下这个 PR」
+- 说「给同事的合并请求提意见」「代码审查后把评论贴到 MR 上」
+- 说「CR 一下 !123」（!123 为 MR 编号）
+
+**不使用的情况**：只想在本地看 diff、不涉及内网 MR 时，使用本 skill 的本地 Review 功能即可。
+
+### 评审流程
+
+把一次 MR 评审拆成三步：脚本拉 diff 并标好行号 → AI 按清单评审、写出结构化结论 → 脚本把结论定位到 diff 行，写成行内评论和汇总评论。脚本只做确定性的部分（取数、定位、去重、写回），判断交给 AI。
+
+**脚本**：`scripts/mr-review.mjs`（Node 18+，零依赖）
+
+**评审清单**：`references/mr-review-checklist.md`（缺陷、安全、性能、可维护性）
+
+### 命令与工作流
+
+#### 1. 校验 token 和识别仓库
+
+```bash
+node "$SKILL_DIR/scripts/mr-review.mjs" check
+```
+
+输出：平台、仓库路径、默认分支、token 有效性。检查失败时给出配置说明。
+
+#### 2. 拉取 MR diff
+
+```bash
+node "$SKILL_DIR/scripts/mr-review.mjs" fetch "<MR 链接或编号>"
+```
+
+输出：MR 基本信息、带行号的 diff（每个文件标注 old/new 行号），跳过锁文件、构建产物和二进制。
+
+#### 3. AI 评审
+
+基于 diff 和 `references/mr-review-checklist.md` 评审清单，找出问题并生成结构化结论。每条问题必须包含：
+- severity: blocker/major/minor/nit
+- file: 文件路径
+- old_line/new_line: diff 行号（至少一个非空）
+- message: 问题描述
+
+#### 4. 写回 MR
+
+```bash
+node "$SKILL_DIR/scripts/mr-review.mjs" post "<MR 链接>" "<结论 JSON 文件>"
+```
+
+脚本会：
+- 定位每条问题到具体 diff 行，写成行内评论
+- 生成汇总评论（结论、问题统计、未定位意见）
+- 去重（已有相同行内评论不重复发）
+
+#### 5. 核对评论
+
+```bash
+node "$SKILL_DIR/scripts/mr-review.mjs" notes "<MR 链接>"
+```
+
+输出 MR 上的评论总数和其中 AI 评审的条数。
+
+### 限制
+
+- 私人令牌只能读 diff、发评论。不能「审核通过」，不能删除评论（DELETE 返回 404）
+- 删除评论只能在网页上操作，或用已登录的浏览器调网页接口
+- 合并、设置评审人不在本功能范围内，使用其他 git 运维 skill
+
+### 配置
+
+token 配置方式（优先级从高到低）：
+1. 环境变量 `GITEE_CODE_TOKEN`
+2. 环境变量 `GITEE_CODE_TOKEN_FILE` 指定的文件
+3. 环境变量 `VFT_AI_SECRETS_DIR` 下的配置文件
+4. 当前仓库 `.secrets` 目录
+
+平台配置默认为 code.iflytek.com，可通过环境变量 `GITEE_CODE_HOST` 和 `GITEE_CODE_API_PREFIX` 覆盖。
 
 ## 工具集成
 

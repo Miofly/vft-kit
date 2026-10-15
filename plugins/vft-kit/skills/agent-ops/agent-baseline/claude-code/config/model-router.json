@@ -1,0 +1,127 @@
+{
+  "version": 2,
+  "apply_mode": "warn",
+  "subagent_enforcement": "advisory",
+  "classifier": {
+    "cli_fallback": false
+  },
+  "classes": {
+    "mechanical": {
+      "keywords": [
+        "下载",
+        "上传",
+        "轮询",
+        "校验",
+        "sha256",
+        "清理",
+        "搬运",
+        "归档",
+        "重命名",
+        "格式化",
+        "批量替换",
+        "列出",
+        "统计",
+        "整理文件",
+        "移动文件",
+        "删除临时"
+      ],
+      "target": {
+        "model": "haiku"
+      }
+    },
+    "implementation": {
+      "keywords": [
+        "实现",
+        "修复",
+        "新增",
+        "添加",
+        "编写",
+        "改造",
+        "重构",
+        "接口",
+        "组件",
+        "页面",
+        "单测",
+        "测试用例",
+        "部署",
+        "脚本"
+      ],
+      "target": {
+        "model": "opus",
+        "effort": "high"
+      }
+    },
+    "debugging": {
+      "keywords": [
+        "排查",
+        "报错",
+        "异常",
+        "根因",
+        "定位",
+        "复现",
+        "调试",
+        "失败原因",
+        "卡住",
+        "不生效",
+        "diagnos",
+        "root cause"
+      ],
+      "target": {
+        "model": "opus",
+        "effort": "high"
+      }
+    },
+    "architecture": {
+      "keywords": [
+        "架构",
+        "设计",
+        "方案",
+        "取舍",
+        "评估",
+        "对比",
+        "调研",
+        "研究",
+        "评审",
+        "审查",
+        "迁移",
+        "结论",
+        "judge",
+        "research",
+        "conclusion",
+        "study",
+        "audit",
+        "summar",
+        "analy",
+        "investigat",
+        "评判",
+        "盲评",
+        "打分",
+        "总结",
+        "学习"
+      ],
+      "target": {
+        "model": "opus",
+        "effort": "high"
+      }
+    },
+    "extreme": {
+      "keywords": [
+        "整体迁移",
+        "全量重写",
+        "平台级"
+      ],
+      "target": {
+        "model": "opus",
+        "effort": "high"
+      }
+    }
+  },
+  "effort_floors": {
+    "patterns": [
+      "生产库",
+      "线上",
+      "删库",
+      "\\bprod\\b"
+    ]
+  }
+}
