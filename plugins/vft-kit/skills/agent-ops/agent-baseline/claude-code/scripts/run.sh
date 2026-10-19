@@ -8,6 +8,7 @@ CHECK_SCRIPT="${CHECK_SCRIPT:-$SCRIPT_DIR/check.sh}"
 CG_FILTER_SCRIPT="${CG_FILTER_SCRIPT:-$SCRIPT_DIR/install-codegraph-prompt-filter.sh}"
 MR_SCRIPT="${MR_SCRIPT:-$SCRIPT_DIR/install-model-router.sh}"
 HN_SCRIPT="${HN_SCRIPT:-$SCRIPT_DIR/install-handoff-nudge.sh}"
+RL_SCRIPT="${RL_SCRIPT:-$SCRIPT_DIR/install-reply-lang-pin.sh}"
 
 if ! bash "$RTK_SCRIPT"; then
   printf '  ○ RTK 自动安装异常；继续执行基线检查\n' >&2
@@ -30,6 +31,12 @@ fi
 # 建标记文件 ~/.cache/vft-kit/handoff-nudge.LIVE 才真正注入提示。
 if ! bash "$HN_SCRIPT" >/dev/null; then
   printf '  ○ handoff-nudge 安装异常；继续执行基线检查\n' >&2
+fi
+
+# reply-lang-pin：提问不是中文时补一句「用简体中文回复」，压过 caveman「跟随用户语言」的默认；
+# 关闭：touch ~/.cache/vft-kit/reply-lang.OFF；目标语言：VFT_REPLY_LANG。
+if ! bash "$RL_SCRIPT" >/dev/null; then
+  printf '  ○ reply-lang-pin 安装异常；继续执行基线检查\n' >&2
 fi
 
 # 参数白名单：只认 check.sh 支持的 --health，其余忽略并提示，避免盲转发。
