@@ -161,11 +161,11 @@ claudemd_has_shortlink(){
   [ -f "$f" ] || return 1
   grep -Eq '可点短链|短链|markdown 可点|Cannot open file' "$f"
 }
-# 全局 ~/.claude/CLAUDE.md 是否含「上下文压缩取舍」规范（规则正文在 rules/compaction.md，两宿主共用）
+# 全局 ~/.claude/CLAUDE.md 是否含「上下文压缩取舍」规范（规则正文在 rules/compaction.md，两宿主共用；含「阶段切换表」，关键词「实施中途」）
 # 逐个工具调用问两件事：调用还要记得吗、输出还要原样留吗；能重跑恢复的只留一行结论，有副作用的操作原样留。
 claudemd_has_compact(){
   local f="$HOME/.claude/CLAUDE.md"
-  [ -f "$f" ] && grep -Eq '上下文压缩' "$f" && grep -Eq '重跑' "$f" && grep -Eq '副作用' "$f"
+  [ -f "$f" ] && grep -Eq '上下文压缩' "$f" && grep -Eq '重跑' "$f" && grep -Eq '副作用' "$f" && grep -Eq '实施中途' "$f"
 }
 # 全局 ~/.claude/CLAUDE.md 是否含「外网操作代理兜底」规范
 # 见 SKILL.md：境外访问连不上/被 RST/超时/慢得反常时，先探到可用本地代理走代理重试，别在直连路径反复重试。
@@ -222,15 +222,22 @@ claudemd_has_rm_literal(){
   local f="$HOME/.claude/CLAUDE.md"
   [ -f "$f" ] && grep -Eq '避开内置确认框' "$f" && grep -Eq 'git -C' "$f" && grep -Eq '会话当前目录' "$f"
 }
-# 全局规范是否含「先找成熟方案，再自己造」：动手前先查本机/平台公开资源/社区现成方案，同类失败 2 次止损换路（规则正文在 rules/reuse-first.md，两宿主共用）。
+# 全局规范是否含「先找成熟方案，再自己造」：动手前先查本机/平台公开资源/社区现成方案，同类失败 2 次止损换路并按排查顺序走，外部 skill 先审再用（规则正文在 rules/reuse-first.md，两宿主共用）。
 claudemd_has_reuse_first(){
   local f="$HOME/.claude/CLAUDE.md"
-  [ -f "$f" ] && grep -Eq '先找成熟方案' "$f" && grep -Eq '连续失败 2 次' "$f"
+  [ -f "$f" ] && grep -Eq '先找成熟方案' "$f" && grep -Eq '连续失败 2 次' "$f" \
+    && grep -Eq '排查顺序' "$f" && grep -Eq '外部 skill' "$f"
 }
 # bash-prompt-guard 是否已注册为 PreToolUse(Bash) hook：把会触发 CC 内置确认框的写法提前拒掉并给改写提示，用户不被打断。
 bash_prompt_guard_installed(){
   local f="$HOME/.claude/settings.json"
   [ -f "$f" ] && grep -q 'bash-prompt-guard.py' "$f"
+}
+# handoff-nudge 是否已注册为 PostToolUse hook：读 transcript 最后一条 usage，主会话上下文过 40% 提醒写交接文档。
+# 默认影子运行（只写 ~/.cache/vft-kit/handoff-nudge.jsonl），~/.cache/vft-kit/handoff-nudge.LIVE 存在才注入提示。
+handoff_nudge_installed(){
+  local f="$HOME/.claude/settings.json"
+  [ -f "$f" ] && grep -q 'handoff-nudge.py' "$f"
 }
 # model-router 是否已装：tzachbon/claude-model-router-hook 固定版本 + vft-kit 补丁（中文任务识别、不覆盖具名 agent、去掉会拦消息的主会话路由），
 # 配置关掉 CLI 二次判断。只把机械子 agent 路由到 haiku，其余保持 opus/high。见 install-model-router.sh。
@@ -404,6 +411,16 @@ claudemd_has_token_budget          && ok "全局规范含「Token 节省」"    
 claudemd_has_reuse_first           && ok "全局规范含「先找成熟方案，再自己造」" || bad "先找成熟方案规范" "先删掉 ~/.claude/CLAUDE.md 里旧的「## 先找成熟方案」节（如有），再执行：cat \"$SCRIPT_DIR/../../rules/reuse-first.md\" >> ~/.claude/CLAUDE.md"
 claudemd_has_rm_literal            && ok "全局规范含「Bash 命令避开内置确认框」" || bad "避开内置确认框规范" "先删掉 ~/.claude/CLAUDE.md 里旧的「## Bash 命令避开内置确认框」节（如有），再执行：cat \"$SCRIPT_DIR/../rules/bash-no-prompt.md\" >> ~/.claude/CLAUDE.md"
 bash_prompt_guard_installed        && ok "bash-prompt-guard hook 已注册（避开内置确认框）" || bad "bash-prompt-guard hook" "bash \"$SCRIPT_DIR/install-bash-prompt-guard.sh\""
+if handoff_nudge_installed; then
+  if [ -f "$HOME/.cache/vft-kit/handoff-nudge.LIVE" ]; then ok "handoff-nudge hook 已注册（上下文过 40% 提醒交接，已生效）"
+  else ok "handoff-nudge hook 已注册（影子运行，记录见 ~/.cache/vft-kit/handoff-nudge.jsonl）"; fi
+else
+  bad "handoff-nudge hook" "bash \"$SCRIPT_DIR/install-handoff-nudge.sh\""
+fi
+# 供应链（只读，只报不计失败）：MCP 是否钉版本；用户级 skills 有无 high 级风险。plugins/cache 全量扫描噪声大、约 10 秒，留给装新插件前对单个目录手动跑。
+mcp_pin_sum="$(node "$SCRIPT_DIR/mcp-pin-check.mjs" 2>/dev/null | grep '^mcp-pin-check:' || true)"
+node "$SCRIPT_DIR/mcp-pin-check.mjs" --fail-on high >/dev/null 2>&1 && ok "MCP 依赖已钉版本" || opt "MCP 钉版本" "node \"$SCRIPT_DIR/mcp-pin-check.mjs\" 看详情（${mcp_pin_sum#mcp-pin-check: }）"
+node "$SCRIPT_DIR/skill-supply-scan.mjs" "$HOME/.claude/skills" --fail-on high >/dev/null 2>&1 && ok "用户级 skills 供应链扫描无 high" || opt "skills 供应链" "node \"$SCRIPT_DIR/skill-supply-scan.mjs\" ~/.claude/skills"
 model_router_installed             && ok "model-router 已装（补丁版，子 agent 选模型）" || bad "model-router" "bash \"$SCRIPT_DIR/install-model-router.sh\""
 claudemd_has_agent_model           && ok "全局规范含「Agent 显式写 model」"     || bad "Agent 显式写 model 规范" "cat \"$SCRIPT_DIR/../../rules/agent-model.md\" >> ~/.claude/CLAUDE.md"
 if has_cmd codegraph; then
