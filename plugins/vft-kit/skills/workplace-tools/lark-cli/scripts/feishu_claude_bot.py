@@ -17,6 +17,9 @@ api 后端以 base64 图片块发给模型；claude-code 把路径写进提示�
   BOT_BACKEND                         可选，api（默认）/ claude-code / codex
   BOT_MODEL                           可选，模型名；api 默认 claude-sonnet-5，claude-code/codex 默认用各自配置里的模型
   BOT_MEDIA_DIR                       可选，图片下载目录，默认 ~/.feishu-bot-media
+  BOT_HTTP_PORT / BOT_VERIFICATION_TOKEN 可选，改用 HTTP /events 回调，必须配置 Verification Token
+  BOT_ENCRYPT_KEY                     HTTP 回调的 Encrypt Key（平台启用时必填）
+  BOT_SHADOW                          设为 1 时只记录消息元信息，不调用模型或回复
 api 后端：
   ANTHROPIC_API_KEY / ANTHROPIC_BASE_URL（可选，中转网关，不含 /v1）
   CLAUDE_SYSTEM / BOT_MAX_TURNS（默认 20）/ BOT_MAX_TOKENS（默认 4096）
@@ -108,6 +111,43 @@ def card_content(markdown: str) -> str:
 
 def parse_owners(raw: str) -> set:
     return {x.strip() for x in raw.split(",") if x.strip()}
+
+
+def webhook_server(handler, request_factory, port: int):
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    class RequestHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200 if self.path == "/health" else 404)
+            self.end_headers()
+            self.wfile.write(b"ok")
+
+        def do_POST(self):
+            if self.path != "/events":
+                self.send_error(404)
+                return
+            try:
+                size = int(self.headers.get("Content-Length", "0"))
+            except ValueError:
+                self.send_error(400)
+                return
+            if not 0 < size <= 1024 * 1024:
+                self.send_error(413)
+                return
+            request = request_factory()
+            request.uri = self.path
+            request.headers = {k.lower(): v for k, v in self.headers.items()}
+            request.body = self.rfile.read(size)
+            response = handler.do(request)
+            self.send_response(response.status_code)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(response.content)
+
+        def log_message(self, format, *args):
+            pass  # 回调正文及凭据不进入访问日志。
+
+    return ThreadingHTTPServer(("127.0.0.1", port), RequestHandler)
 
 
 def build_claude_cmd(text: str, session_id, model: str, permission_mode: str, allowed_tools: str) -> list:
@@ -217,6 +257,29 @@ def selftest() -> None:
     assert json.loads(card_content("**a**"))["body"]["elements"][0]["content"] == "**a**"
     assert "已截断" in card_content("x" * (MAX_REPLY_CHARS + 1))
     assert parse_owners(" ou_a, ,ou_b") == {"ou_a", "ou_b"}
+    from types import SimpleNamespace
+    from urllib.request import Request, urlopen
+    from urllib.error import HTTPError
+    received = []
+    dispatcher = SimpleNamespace(do=lambda req: (
+        received.append(req) or SimpleNamespace(status_code=200, content=b'{"challenge":"ok"}')))
+    server = webhook_server(dispatcher, SimpleNamespace, 0)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        url = f"http://127.0.0.1:{server.server_port}"
+        with urlopen(Request(url + "/events", data=b'{}', headers={"X-Test": "yes"})) as resp:
+            assert json.load(resp) == {"challenge": "ok"}
+        assert received[0].body == b'{}' and received[0].headers["x-test"] == "yes"
+        for path, body, expected in [("/other", b'{}', 404), ("/events", b'', 413)]:
+            try:
+                urlopen(Request(url + path, data=body))
+                raise AssertionError("invalid callback accepted")
+            except HTTPError as error:
+                assert error.code == expected
+    finally:
+        server.shutdown()
+        server.server_close()
     cmd = build_claude_cmd("hi", "s1", "m", "bypassPermissions", "")
     assert cmd[-2:] == ["--resume", "s1"] and "--allowedTools" not in cmd and cmd[cmd.index("--model") + 1] == "m"
     assert "--model" not in build_claude_cmd("hi", None, "", "default", "")
@@ -399,6 +462,9 @@ def main() -> None:
     def on_message(data) -> None:
         msg = data.event.message
         sender = data.event.sender.sender_id.open_id
+        if os.environ.get("BOT_SHADOW") == "1":
+            lark.logger.info(f"shadow message type={msg.message_type} chat_type={msg.chat_type}")
+            return
         with seen_lock:
             if msg.message_id in seen:
                 return
@@ -413,9 +479,17 @@ def main() -> None:
             # 事件回调要尽快返回，下载和模型调用放到线程池
             pool.submit(handle, msg, sender, text, image_keys)
 
-    handler = lark.EventDispatcherHandler.builder("", "") \
+    handler = lark.EventDispatcherHandler.builder(
+        os.environ.get("BOT_ENCRYPT_KEY", ""), os.environ.get("BOT_VERIFICATION_TOKEN", ""), lark.LogLevel.INFO) \
         .register_p2_im_message_receive_v1(on_message) \
         .build()
+    if os.environ.get("BOT_HTTP_PORT"):
+        if not os.environ.get("BOT_VERIFICATION_TOKEN"):
+            raise ValueError("HTTP callbacks require BOT_VERIFICATION_TOKEN")
+        server = webhook_server(handler, lark.RawRequest, int(os.environ["BOT_HTTP_PORT"]))
+        lark.logger.info(f"HTTP bot listening on 127.0.0.1:{server.server_port}; shadow={os.environ.get('BOT_SHADOW', '0')}")
+        server.serve_forever()
+        return
     ws = lark.ws.Client(app_id, app_secret, event_handler=handler, domain=domain, log_level=lark.LogLevel.INFO)
     lark.logger.info(f"feishu bot starting, backend={backend}, model={model or 'default'}")
     ws.start()
