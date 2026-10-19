@@ -10,11 +10,12 @@ printf '%s\n' '#!/usr/bin/env bash' 'printf "rtk\n" >> "$TEST_LOG"' > "$tmp/rtk.
 printf '%s\n' '#!/usr/bin/env bash' 'printf "cgfilter\n" >> "$TEST_LOG"' > "$tmp/cgfilter.sh"
 printf '%s\n' '#!/usr/bin/env bash' 'printf "mr\n" >> "$TEST_LOG"' > "$tmp/mr.sh"
 printf '%s\n' '#!/usr/bin/env bash' 'printf "hn\n" >> "$TEST_LOG"' > "$tmp/hn.sh"
+printf '%s\n' '#!/usr/bin/env bash' 'printf "rl\n" >> "$TEST_LOG"' > "$tmp/rl.sh"
 printf '%s\n' '#!/usr/bin/env bash' 'printf "check:%s\n" "$*" >> "$TEST_LOG"' 'exit 7' > "$tmp/check.sh"
-chmod +x "$tmp/rtk.sh" "$tmp/caveman.sh" "$tmp/cgfilter.sh" "$tmp/mr.sh" "$tmp/hn.sh" "$tmp/check.sh"
+chmod +x "$tmp/rtk.sh" "$tmp/caveman.sh" "$tmp/cgfilter.sh" "$tmp/mr.sh" "$tmp/hn.sh" "$tmp/rl.sh" "$tmp/check.sh"
 
 set +e
-TEST_LOG="$tmp/log" RTK_SCRIPT="$tmp/rtk.sh" CAVEMAN_SCRIPT="$tmp/caveman.sh" CHECK_SCRIPT="$tmp/check.sh" CG_FILTER_SCRIPT="$tmp/cgfilter.sh" MR_SCRIPT="$tmp/mr.sh" HN_SCRIPT="$tmp/hn.sh" bash "$DIR/run.sh" --health
+TEST_LOG="$tmp/log" RTK_SCRIPT="$tmp/rtk.sh" CAVEMAN_SCRIPT="$tmp/caveman.sh" CHECK_SCRIPT="$tmp/check.sh" CG_FILTER_SCRIPT="$tmp/cgfilter.sh" MR_SCRIPT="$tmp/mr.sh" HN_SCRIPT="$tmp/hn.sh" RL_SCRIPT="$tmp/rl.sh" bash "$DIR/run.sh" --health
 status=$?
 set -e
 
@@ -24,6 +25,7 @@ set -e
 [ "$(sed -n '3p' "$tmp/log")" = 'cgfilter' ] || { printf 'FAIL: codegraph prompt filter installer did not run third\n' >&2; exit 1; }
 [ "$(sed -n '4p' "$tmp/log")" = 'mr' ] || { printf 'FAIL: model-router installer did not run fourth\n' >&2; exit 1; }
 [ "$(sed -n '5p' "$tmp/log")" = 'hn' ] || { printf 'FAIL: handoff-nudge installer did not run fifth\n' >&2; exit 1; }
-[ "$(sed -n '6p' "$tmp/log")" = 'check:--health' ] || { printf 'FAIL: checker args not forwarded\n' >&2; exit 1; }
+[ "$(sed -n '6p' "$tmp/log")" = 'rl' ] || { printf 'FAIL: reply-lang-pin installer did not run sixth\n' >&2; exit 1; }
+[ "$(sed -n '7p' "$tmp/log")" = 'check:--health' ] || { printf 'FAIL: checker args not forwarded\n' >&2; exit 1; }
 
 printf 'PASS: CC baseline run installs RTK and enables Caveman before checking\n'

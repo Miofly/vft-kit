@@ -126,7 +126,7 @@ test('configure vibe 使用官方包和官方默认端口，只修改点名宿�
     const result = f.run(['configure', '--mode', 'vibe', '--target', 'codex']);
     assert.equal(result.status, 0, result.stderr);
     const add = f.calls().find((call) => call.host === 'codex' && call.args[1] === 'add');
-    assert.deepEqual(add.args, ['mcp', 'add', 'mastergo', '--', 'npx', '-y', '@mastergo/vibe-mcp@latest', '--url=http://localhost:50678']);
+    assert.deepEqual(add.args, ['mcp', 'add', 'mastergo', '--', 'npx', '-y', '@mastergo/vibe-mcp@1.0.31', '--url=http://localhost:50678']);
     assert.equal(f.calls().some((call) => call.host === 'claude'), false);
   } finally { f.cleanup(); }
 });
@@ -187,7 +187,7 @@ test('Magic 只从环境变量取 Token，并对输出脱敏', () => {
     for (const call of adds) {
       assert.ok(call.args.includes(`MG_MCP_TOKEN=${secret}`));
       assert.ok(call.args.includes('API_BASE_URL=https://mastergo.com'));
-      assert.ok(call.args.includes('@mastergo/magic-mcp@latest'));
+      assert.ok(call.args.includes('@mastergo/magic-mcp@0.2.10'));
     }
   } finally { configured.cleanup(); }
 });

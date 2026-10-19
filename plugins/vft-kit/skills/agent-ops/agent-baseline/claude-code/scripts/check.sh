@@ -235,6 +235,11 @@ bash_prompt_guard_installed(){
 }
 # handoff-nudge 是否已注册为 PostToolUse hook：读 transcript 最后一条 usage，主会话上下文过 40% 提醒写交接文档。
 # 默认影子运行（只写 ~/.cache/vft-kit/handoff-nudge.jsonl），~/.cache/vft-kit/handoff-nudge.LIVE 存在才注入提示。
+# reply-lang-pin 是否已注册为 UserPromptSubmit hook：非中文提问时钉住回复语言（caveman 默认跟随用户语言）。
+reply_lang_pin_installed(){
+  local f="$HOME/.claude/settings.json"
+  [ -f "$f" ] && grep -q 'reply-lang-pin.py' "$f"
+}
 handoff_nudge_installed(){
   local f="$HOME/.claude/settings.json"
   [ -f "$f" ] && grep -q 'handoff-nudge.py' "$f"
@@ -421,6 +426,7 @@ fi
 mcp_pin_sum="$(node "$SCRIPT_DIR/mcp-pin-check.mjs" 2>/dev/null | grep '^mcp-pin-check:' || true)"
 node "$SCRIPT_DIR/mcp-pin-check.mjs" --fail-on high >/dev/null 2>&1 && ok "MCP 依赖已钉版本" || opt "MCP 钉版本" "node \"$SCRIPT_DIR/mcp-pin-check.mjs\" 看详情（${mcp_pin_sum#mcp-pin-check: }）"
 node "$SCRIPT_DIR/skill-supply-scan.mjs" "$HOME/.claude/skills" --fail-on high >/dev/null 2>&1 && ok "用户级 skills 供应链扫描无 high" || opt "skills 供应链" "node \"$SCRIPT_DIR/skill-supply-scan.mjs\" ~/.claude/skills"
+reply_lang_pin_installed           && ok "reply-lang-pin hook 已注册（英文提问也用中文回复）" || bad "reply-lang-pin hook" "bash \"$SCRIPT_DIR/install-reply-lang-pin.sh\""
 model_router_installed             && ok "model-router 已装（补丁版，子 agent 选模型）" || bad "model-router" "bash \"$SCRIPT_DIR/install-model-router.sh\""
 claudemd_has_agent_model           && ok "全局规范含「Agent 显式写 model」"     || bad "Agent 显式写 model 规范" "cat \"$SCRIPT_DIR/../../rules/agent-model.md\" >> ~/.claude/CLAUDE.md"
 if has_cmd codegraph; then

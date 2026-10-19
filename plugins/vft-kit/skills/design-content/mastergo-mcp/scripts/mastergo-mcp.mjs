@@ -9,15 +9,18 @@ import { fileURLToPath } from 'node:url';
 const MODES = {
   vibe: {
     name: 'mastergo',
-    package: '@mastergo/vibe-mcp@latest',
+    package: '@mastergo/vibe-mcp@1.0.31',
     url: 'http://localhost:50678',
   },
   magic: {
     name: 'mastergo-magic-mcp',
-    package: '@mastergo/magic-mcp@latest',
+    package: '@mastergo/magic-mcp@0.2.10',
     url: 'https://mastergo.com',
   },
 };
+// Pinned on purpose: an @latest npx spec runs whatever was published last (supply-chain risk).
+// Bump after reviewing a new release; `doctor` reports drift against the registry.
+const pkgBase = (spec) => spec.replace(/(.)@[^/@]+$/, '$1');
 const HOSTS = ['claude', 'codex'];
 const secrets = [process.env.MG_MCP_TOKEN, process.env.MASTERGO_API_TOKEN].filter(Boolean);
 
@@ -172,14 +175,14 @@ function credentialValue(entry) {
 function officialPackage(entry) {
   const transport = transportOf(entry);
   if (transport.type !== 'stdio' || path.basename(String(transport.command || '')).replace(/\.cmd$/i, '') !== 'npx') return undefined;
-  const expected = MODES[entry.mode].package.replace(/@latest$/, '');
+  const expected = pkgBase(MODES[entry.mode].package);
   return (transport.args || []).find((arg) => String(arg) === expected || String(arg).startsWith(`${expected}@`));
 }
 
 function configuredVersion(entry) {
   const value = officialPackage(entry);
   if (!value) return undefined;
-  const base = MODES[entry.mode].package.replace(/@latest$/, '');
+  const base = pkgBase(MODES[entry.mode].package);
   return value === base ? 'latest' : value.slice(base.length + 1);
 }
 
@@ -204,7 +207,7 @@ function isEquivalent(entry, url, token) {
 }
 
 function cacheVersion(packageName) {
-  const scopeAndName = packageName.replace(/@latest$/, '').split('/');
+  const scopeAndName = pkgBase(packageName).split('/');
   const cache = path.join(os.homedir(), '.npm/_npx');
   if (!fs.existsSync(cache)) return undefined;
   const versions = [];
@@ -363,7 +366,7 @@ async function main() {
   if (options.command === 'doctor') {
     const latestByMode = {};
     for (const [mode, spec] of Object.entries(MODES)) {
-      const latest = run('npm', ['view', spec.package.replace(/@latest$/, ''), 'version', '--json']);
+      const latest = run('npm', ['view', pkgBase(spec.package), 'version', '--json']);
       if (latest.status === 0) {
         latestByMode[mode] = latest.stdout.trim().replaceAll('"', '');
         process.stdout.write(`${mode} registry latest=${redact(latestByMode[mode])}\n`);

@@ -70,8 +70,8 @@ MG_MCP_TOKEN='从安全来源注入' node "$SKILL_DIR/scripts/mastergo-mcp.mjs" 
 - 实际任务开始前先检查当前宿主；Magic 或 Vibe 任一缺失时，分别运行对应的 `configure --mode ... --target <当前宿主>` 补齐两套，不得只安装当前任务直接用到的一套。
 - Magic 从环境变量或现有安全配置取得 Token 和实际 URL；缺少 Token 时仍先补齐 Vibe，再请用户从安全来源配置 Magic，不要让用户把 Token 发到聊天。
 - Vibe 优先使用客户端实际端口；客户端未启动、无法探测时按官方默认 `http://localhost:50678` 安装，并明确报告连接仍待客户端启用。
-- Vibe 使用 `@mastergo/vibe-mcp@latest`；端口变化时传 `--url http://localhost:<实际端口>`。
-- Magic 使用 `@mastergo/magic-mcp@latest`；公网默认 API 是 `https://mastergo.com`，私有部署必须由用户或现有配置给出 `--url`。
+- Vibe 使用钉死的 `@mastergo/vibe-mcp@1.0.31`（版本写在 `scripts/mastergo-mcp.mjs` 的 `MODES`，不用 `@latest`：未审查的新发布会直接执行；`doctor` 会报告与 registry 的版本漂移，审过再升）；端口变化时传 `--url http://localhost:<实际端口>`。
+- Magic 使用钉死的 `@mastergo/magic-mcp@0.2.10`；公网默认 API 是 `https://mastergo.com`，私有部署必须由用户或现有配置给出 `--url`。
 - Magic Token 只能从环境变量读取。不要让用户把 Token 发到聊天，不接受 `--token`，不输出明文，不写仓库。
 - **Token 必须和域匹配。** 内网 token 打公网 `mastergo.com` 返回 `401 {"code":"10002"}`，反之亦然。一套 token 只能读它自己那个实例的稿。
 - **需要出网代理的机器要把代理写进 MCP 配置。** MCP server 是 `npx` 拉起的独立进程，**不继承 shell 的 `https_proxy`**；缺了就报 `Client network socket disconnected before secure TLS connection was established` 或 `ECONNRESET`，看起来像 Token 或权限问题。在宿主配置的 `env` 里补 `HTTPS_PROXY` / `https_proxy` / `NO_PROXY=localhost,127.0.0.1`，**新开会话才生效**。
