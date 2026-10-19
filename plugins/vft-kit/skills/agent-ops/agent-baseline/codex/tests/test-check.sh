@@ -195,7 +195,8 @@ write_agents() {
     printf '%s\n' \
       '- 始终使用简体中文回复。' \
       '- 引用代码位置使用 markdown 可点短链。' \
-      '- 上下文压缩时保留决策和状态，丢弃可重跑恢复的噪音。' \
+      '- 上下文压缩时保留决策和状态，丢弃可重跑恢复的噪音；实施中途不交接。' \
+      '- 先找成熟方案：同类问题连续失败 2 次就止损，按排查顺序走；外部 skill 先审再用。' \
       '- 外网操作启用代理兜底并复用 https_proxy。'
     if [ "$include_parallel" = "yes" ]; then
       printf '%s\n' \
@@ -247,7 +248,7 @@ set +e
 output="$(run_check 2>&1)"
 status=$?
 set -e
-[ "$status" -eq 0 ] || { printf 'FAIL: complete baseline fixture should pass\n' >&2; exit 1; }
+[ "$status" -eq 0 ] || { printf "%s\n" "$output" | grep "✗" >&2; printf 'FAIL: complete baseline fixture should pass\n' >&2; exit 1; }
 grep -Fq '@danielsogl/lighthouse-mcp' <<< "$output" || { printf 'FAIL: npm package check missing\n' >&2; exit 1; }
 grep -Fq 'CodeGraph 自动初始化' <<< "$output" || { printf 'FAIL: CodeGraph AGENTS check missing\n' >&2; exit 1; }
 grep -Fq 'code-review-graph CLI' <<< "$output" || { printf 'FAIL: code-review-graph CLI check missing\n' >&2; exit 1; }

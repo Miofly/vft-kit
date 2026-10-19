@@ -31,6 +31,8 @@ node scripts/validate-skill-catalog.mjs
 node scripts/audit-public.mjs
 ```
 
+`audit-public.mjs` 扫描 git 会发布的文件，检查私有标识符、密钥、PII、危险文件和二进制文件。未知二进制或读不了的文件直接判失败。误报可以用行内注释 `audit-public: allow` 或根目录的 `.audit-public-allow` 放行；`--selftest <dir>` 跑自检。
+
 ## 使用边界
 
 每个 Skill 的完整用法在对应目录的 `SKILL.md`，脚本和参考资料跟随 Skill 发布。需要账号或外部服务时，先阅读该文件中的配置表；不要把 token、Cookie、密码或真实业务数据写入仓库。带有上传、发布、删除、部署等副作用的流程会先要求确认目标，完成后应回读外部状态。
