@@ -6,6 +6,9 @@
 # UserPromptSubmit hook exits 2 in warn mode (blocks the prompt until /model is run); and it
 # injects a model into named agents, overriding e.g. a haiku carrier with opus. The patch
 # fixes those three and logs advisory decisions. Chinese keywords live in config, not code.
+# It also points SessionStart at hooks/session_brief.py: one line about the routing instead
+# of upstream's ~1.4k-char "Model Tier Rules ... (MANDATORY)" table, which contradicts this
+# config (only mechanical work is lowered). PreToolUse routing is unchanged.
 #
 # Config (config/model-router.json -> ~/.claude/model-router.json, never overwritten):
 # only mechanical work goes to haiku, every other class stays opus/high, so routing can
@@ -29,6 +32,7 @@ changed=0
 if [ "$(git -C "$DEST" rev-parse HEAD)" != "$REV" ] || ! git -C "$DEST" apply --reverse --check "$PATCH" 2>/dev/null; then
   git -C "$DEST" cat-file -e "$REV^{commit}" 2>/dev/null || git -C "$DEST" fetch -q origin
   git -C "$DEST" checkout -q -f "$REV"
+  git -C "$DEST" clean -qfd -- plugins   # drop files an older patch added, so apply is clean
   git -C "$DEST" apply "$PATCH"
   changed=1
 fi

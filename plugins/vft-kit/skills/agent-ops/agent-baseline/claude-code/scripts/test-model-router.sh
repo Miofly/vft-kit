@@ -3,7 +3,8 @@
 # patch applies cleanly; upstream's own suites (tests/test-hook.sh, unittest) still pass;
 # Chinese mechanical work routes to haiku, reasoning stays opus; named agents with a pinned
 # model are left alone, other named agents are only ever downgraded to haiku; the
-# prompt-blocking UserPromptSubmit hook is gone.
+# prompt-blocking UserPromptSubmit hook is gone; SessionStart injects one short line
+# (session_brief.py), not the "Model Tier Rules ... (MANDATORY)" table.
 # Needs the source cache from install-model-router.sh; prints SKIP when it is missing.
 set -euo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -15,6 +16,12 @@ git -C "$SRC" archive "$REV" | tar -x -C "$tmp"
 git -C "$tmp" init -q && git -C "$tmp" apply "$DIR/../patches/claude-model-router-hook.patch"
 H="$tmp/plugins/claude-model-router-hook/hooks"
 ! grep -q UserPromptSubmit "$H/hooks.json"
+grep -q 'hooks/session_brief.py' "$H/hooks.json" && ! grep -q 'hooks/session_init.py' "$H/hooks.json"
+mkdir -p "$tmp/home/.claude"; cp "$DIR/../config/model-router.json" "$tmp/home/.claude/model-router.json"
+ctx="$(echo '{"cwd":"/x"}' | HOME="$tmp/home" CLAUDE_PLUGIN_ROOT="$tmp/plugins/claude-model-router-hook" python3 "$H/session_brief.py" \
+  | python3 -c 'import json,sys; print(json.load(sys.stdin)["hookSpecificOutput"]["additionalContext"])')"
+[ "$(printf '%s\n' "$ctx" | wc -l | tr -d ' ')" = 1 ] && [ "${#ctx}" -lt 200 ]
+printf '%s' "$ctx" | grep -q haiku && ! printf '%s' "$ctx" | grep -Eq 'Model Tier|MANDATORY|缺少'
 python3 - "$H" "$DIR/../config/model-router.json" <<'PY'
 import sys
 sys.path.insert(0, sys.argv[1])
@@ -39,7 +46,6 @@ bash "$tmp/tests/test-hook.sh" >/dev/null
 ( cd "$tmp" && python3 -m unittest discover -s tests -q 2>/dev/null )
 pre(){ printf '%s' "{\"tool_input\":{\"subagent_type\":\"$1\",\"prompt\":\"$2\"},\"cwd\":\"/x\"}" | HOME="$tmp/home" python3 "$H/pre_tool_use.py"; }
 mkdir -p "$tmp/home/.claude/agents"
-cp "$DIR/../config/model-router.json" "$tmp/home/.claude/model-router.json"
 sed -i.bak 's/"advisory"/"on"/' "$tmp/home/.claude/model-router.json"
 printf -- '---\nname: carrier\nmodel: haiku\n---\n' > "$tmp/home/.claude/agents/carrier.md"
 [ -z "$(pre carrier '下载 LoRA 并校验 sha256')" ]          # pinned model: untouched
