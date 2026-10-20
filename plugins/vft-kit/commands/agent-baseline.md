@@ -1,5 +1,5 @@
 ---
-description: "核对和维护 Claude Code/Codex 装配：MCP、插件、技能、权限、Hooks、全局规范与插件缓存"
+description: "维护 CC/Codex 装配、插件缓存、CC 备份恢复与 CC Switch 供应商"
 disable-model-invocation: true
 ---
 

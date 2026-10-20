@@ -57,7 +57,7 @@ node scripts/validate-skill-catalog.mjs
 
 校验器保证每个已跟踪 skill 恰好属于一个分类，并具有有效的 frontmatter `name`。插件 skill 的调用名允许与目录名不同。未跟踪的开发中 skill 只提示，不阻塞验证。
 
-`agent-baseline` 按需加载装配核对、插件刷新、CC 备份恢复 / 清理与 CC Switch 供应商路线。备份与恢复用法见[配置备份恢复](https://wflynn.cn/pages/2607131003)；恢复或供应商配置不会顺带运行完整装配维护。清理保留交互确认，供应商写库前备份且默认不切换当前供应商。
+`agent-baseline` 按需加载装配核对、插件刷新、[CC 备份恢复 / 清理](plugins/vft-kit/skills/agent-ops/agent-baseline/references/backup.md)与 [CC Switch 供应商配置](plugins/vft-kit/skills/agent-ops/agent-baseline/references/cc-switch.md)。恢复或供应商配置不会顺带运行完整装配维护。清理保留交互确认，供应商写库前备份且默认不切换当前供应商。
 
 ## 规则模块（rules + hooks）
 
