@@ -1,0 +1,5 @@
+interface:
+  display_name: "modelscope-studio"
+  short_description: "ModelScope Studio 部署与 Notebook"
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,6 @@
+interface:
+  display_name: "ZH Humanizer"
+  short_description: "仅在显式调用时为中文文字去 AI 味"
+  default_prompt: "Use $zh-humanizer to remove AI tone from this Chinese text."
+policy:
+  allow_implicit_invocation: false

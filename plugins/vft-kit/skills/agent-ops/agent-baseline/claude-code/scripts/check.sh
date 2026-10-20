@@ -76,15 +76,14 @@ plugin_installed(){
   done
   return 1
 }
-# Caveman 必须由插件的 SessionStart hook 自动注入，并显式固定用户默认档为 full。
+# Caveman 风格模式由用户级 hook 提供（vendor-plugin-hooks.mjs，不装插件本体），并显式固定用户默认档为 full。
+# 判定：defaultMode=full、vendor 版本在位且自检通过、settings 里的 hook 与 vendor 一致、caveman 插件已不在（否则规则注入两次）。
 caveman_default_full(){
-  local config="$HOME/.config/caveman/config.json" plugin_path
+  local config="$HOME/.config/caveman/config.json"
   [ -f "$config" ] || return 1
   node -e "const j=require(process.argv[1]);process.exit(j.defaultMode==='full'?0:1)" "$config" 2>/dev/null || return 1
-  node -e "const j=require(process.argv[1]);process.exit(j.enabledPlugins&&j.enabledPlugins['caveman@caveman']===true?0:1)" "$SETTINGS" 2>/dev/null || return 1
-  plugin_path="$(node -e "const j=require(process.argv[1]).plugins||{};const v=Object.entries(j).find(([k])=>k.split('@')[0]==='caveman');const x=v&&Array.isArray(v[1])?v[1][0]:null;process.stdout.write(x&&x.installPath||'')" "$INSTALLED_PLUGINS" 2>/dev/null)"
-  [ -n "$plugin_path" ] || return 1
-  node -e "const j=require(process.argv[1]);const s=JSON.stringify(j.hooks&&j.hooks.SessionStart||[]);process.exit(/caveman-activate/.test(s)?0:1)" "$plugin_path/.claude-plugin/plugin.json" 2>/dev/null
+  node -e "const j=require(process.argv[1]).plugins||{};process.exit(Object.keys(j).some(k=>k.split('@')[0]==='caveman')?1:0)" "$INSTALLED_PLUGINS" 2>/dev/null || [ ! -f "$INSTALLED_PLUGINS" ] || return 1
+  node "$SCRIPT_DIR/vendor-plugin-hooks.mjs" --config "${CAVEMAN_VENDOR_CONFIG:-$SCRIPT_DIR/../config/caveman-hooks.json}" --check >/dev/null 2>&1
 }
 # 全局 npm 包是否装（查 node_modules 目录，比 npm ls 快）
 npm_g_installed(){ [ -n "$NPM_ROOT" ] && [ -d "$NPM_ROOT/$1" ]; }
@@ -326,12 +325,11 @@ sec "插件（默认必备集）"
 # 精简后的默认必备插件清单（用户指定）：核心工作流 + 自研 + 反过度工程
 for p in superpowers skill-creator code-review frontend-design playwright \
          typescript-lsp jdtls-lsp \
-         context-mode ponytail caveman gsap-skills; do
+         context-mode ponytail gsap-skills; do
   if plugin_installed "$p"; then ok "$p"; else
     case "$p" in
       context-mode)                   bad "$p" "claude plugin marketplace add mksglu/claude-context-mode && claude plugin install context-mode@context-mode";;
       ponytail)                       bad "$p" "claude plugin marketplace add DietrichGebert/ponytail && claude plugin install ponytail@ponytail（两条要分开发）";;
-      caveman)                        bad "$p" "claude plugin marketplace add JuliusBrussee/caveman && claude plugin install caveman@caveman（两条要分开发，省 65% 输出 token）";;
       gsap-skills)                    bad "$p" "claude plugin marketplace add greensock/gsap-skills && claude plugin install gsap-skills@gsap-skills（GSAP 官方，两条要分开发）";;
       *)                              bad "$p" "claude plugin install $p@claude-plugins-official";;
     esac
@@ -339,7 +337,7 @@ for p in superpowers skill-creator code-review frontend-design playwright \
 done
 # claude-hud 可选，可能与用户已有 statusLine 冲突。
 plugin_installed claude-hud && ok "claude-hud（可选状态栏）" || opt "claude-hud" "claude plugin marketplace add jarrodwatts/claude-hud && claude plugin install claude-hud@claude-hud"
-caveman_default_full && ok "Caveman 默认 full 自动启用" || bad "Caveman 默认 full 自动启用" "bash \"$SCRIPT_DIR/install-caveman-default.sh\""
+caveman_default_full && ok "Caveman 风格模式 hook（默认 full）" || bad "Caveman 风格模式 hook（默认 full）" "bash \"$SCRIPT_DIR/install-caveman-default.sh\""
 # 可选插件（装了更好，不装不算故障）
 for p in context7; do
   if plugin_installed "$p"; then ok "$p"; else opt "$p" "claude plugin install $p@claude-plugins-official"; fi

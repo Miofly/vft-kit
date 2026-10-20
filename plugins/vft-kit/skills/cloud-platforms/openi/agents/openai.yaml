@@ -1,0 +1,5 @@
+interface:
+  display_name: "openi"
+  short_description: "启智 OpenI 仓库、积分与算力任务"
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,5 @@
+interface:
+  display_name: "git-ops"
+  short_description: "Git 与代码托管通用操作"
+policy:
+  allow_implicit_invocation: false

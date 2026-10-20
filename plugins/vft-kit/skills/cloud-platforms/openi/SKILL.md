@@ -1,6 +1,6 @@
 ---
 name: openi
-description: "Operate OpenI (openi.pcl.ac.cn, 鹏城实验室启智社区): Gitea-style repos/issues/commits via REST API, points (积分) economy for free NVIDIA/Ascend compute, dataset upload via official SDK, model migration and cloudbrain debug tasks via browser. Use when creating repos, earning daily points, or running free GPU/NPU jobs on OpenI."
+description: "Operate OpenI (openi.pcl.ac.cn, 启智): repos/issues via REST API, daily points (积分) for free GPU/NPU compute, dataset upload, cloudbrain debug tasks."
 ---
 
 ## 浏览器到 API 的强制演进

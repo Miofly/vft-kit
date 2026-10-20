@@ -42,10 +42,10 @@ node scripts/audit-public.mjs
 
 | 分类 | 定位 | skills |
 |---|---|---|
-| Agent 运维 (`agent-ops`) | Claude Code、Codex、CC Switch、插件缓存与通知 | `agent-baseline` · `cc-backup-restore` · `cc-switch-add-provider` · `email-ops` · `notify` · `ollama-local` |
+| Agent 运维 (`agent-ops`) | Claude Code、Codex、CC Switch、插件缓存与通知 | `agent-baseline` · `email-ops` · `notify` · `ollama-local` |
 | 云平台 (`cloud-platforms`) | 云服务、模型托管、部署平台和账号资源 | `aistudio` · `cloudflare-ops` · `huggingface-ops` · `kaggle-ops` · `modelscope-studio` · `vercel-ops` |
 | 开发工作流 (`dev-workflow`) | 数据库工具、前端质量、Git、代码托管和 Vue 配置 | `dbx` · `fe-quality-ops` · `git-auto-push` · `git-ops` · `github-ops` |
-| 设计与内容 (`design-content`) | 信息图、Office 文档和视觉内容 | `co-infographic-generator` · `mastergo-mcp` · `office-doc-rewrite` |
+| 设计与内容 (`design-content`) | 信息图、Office 文档、视觉内容和中文去 AI 味 | `co-infographic-generator` · `mastergo-mcp` · `office-doc-rewrite` · `zh-humanizer` |
 | 工作台工具 (`workplace-tools`) | Lark/飞书文档、表格、云盘、任务和知识库 | `lark-cli` |
 | Web 与自动化 (`web-automation`) | 浏览器发布、网页抓取、Android 与 macOS 自动化 | `android-ui-automation` · `chrome-web-store-publish` · `keyboard-maestro` · `qr-login` · `temp-mail` · `web-scrape` · `wechat-mp` |
 
@@ -56,6 +56,8 @@ node scripts/validate-skill-catalog.mjs
 ```
 
 校验器保证每个已跟踪 skill 恰好属于一个分类，并具有有效的 frontmatter `name`。插件 skill 的调用名允许与目录名不同。未跟踪的开发中 skill 只提示，不阻塞验证。
+
+`agent-baseline` 按需加载装配核对、插件刷新、CC 备份恢复 / 清理与 CC Switch 供应商路线。备份与恢复用法见[配置备份恢复](https://wflynn.cn/pages/2607131003)；恢复或供应商配置不会顺带运行完整装配维护。清理保留交互确认，供应商写库前备份且默认不切换当前供应商。
 
 ## 规则模块（rules + hooks）
 

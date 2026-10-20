@@ -1,0 +1,5 @@
+interface:
+  display_name: "email-ops"
+  short_description: "邮箱接入与收发邮件"
+policy:
+  allow_implicit_invocation: false

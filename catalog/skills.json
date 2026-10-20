@@ -3,7 +3,27 @@
   "invocationPolicy": {
     "default": "auto",
     "explicitOnly": [
-      "git-auto-push"
+      "agent-baseline",
+      "aistudio",
+      "chrome-web-store-publish",
+      "cloudflare-ops",
+      "dbx",
+      "email-ops",
+      "git-auto-push",
+      "git-ops",
+      "github-ops",
+      "huggingface-ops",
+      "kaggle-ops",
+      "keyboard-maestro",
+      "lark-cli",
+      "mastergo-mcp",
+      "modelscope-studio",
+      "ollama-local",
+      "openi",
+      "qr-login",
+      "temp-mail",
+      "web-scrape",
+      "zh-humanizer"
     ]
   },
   "categories": [
@@ -13,8 +33,6 @@
       "description": "Claude Code、Codex、CC Switch、插件缓存、通用通知与邮箱接入的安装、检查和维护。",
       "skills": [
         "agent-baseline",
-        "cc-backup-restore",
-        "cc-switch-add-provider",
         "email-ops",
         "notify",
         "ollama-local"
@@ -30,6 +48,7 @@
         "huggingface-ops",
         "kaggle-ops",
         "modelscope-studio",
+        "openi",
         "vercel-ops"
       ]
     },
@@ -40,7 +59,8 @@
       "skills": [
         "co-infographic-generator",
         "mastergo-mcp",
-        "office-doc-rewrite"
+        "office-doc-rewrite",
+        "zh-humanizer"
       ]
     },
     {

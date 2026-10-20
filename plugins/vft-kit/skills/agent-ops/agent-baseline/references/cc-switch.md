@@ -1,11 +1,6 @@
----
-name: cc-switch-add-provider
-description: "添加或修正 macOS CC Switch 的 Claude Code 供应商，支持 Messages、Chat Completions 和 Responses 协议；备份并保留当前供应商。"
----
-
 # CC Switch 添加供应商
 
-使用 `scripts/upsert_provider.py` 修改 `~/.cc-switch/cc-switch.db`。只处理 Claude Code 供应商；Codex/Gemini 的配置结构不同，不要复用本脚本。
+资源目录：`../cc-switch/`。使用 [upsert_provider.py](../cc-switch/scripts/upsert_provider.py) 修改 `~/.cc-switch/cc-switch.db`。只处理 Claude Code 供应商；Codex/Gemini 的配置结构不同，不要复用本脚本。不运行装配维护。
 
 ## 流程
 
@@ -23,7 +18,7 @@ description: "添加或修正 macOS CC Switch 的 Claude Code 供应商，支持
 
 ```bash
 export CC_SWITCH_API_KEY='<api-key>'
-python3 "<skill-dir>/scripts/upsert_provider.py" \
+python3 "<agent-baseline-dir>/cc-switch/scripts/upsert_provider.py" \
   --name 'Qwen 3.8 Max' \
   --base-url 'https://dashscope.aliyuncs.com/compatible-mode/v1' \
   --model 'qwen3.8-max' \
@@ -36,7 +31,7 @@ unset CC_SWITCH_API_KEY
 若脚本报告相同地址 + 模型的疑似重复项，核对后显式复用：
 
 ```bash
-python3 "<skill-dir>/scripts/upsert_provider.py" \
+python3 "<agent-baseline-dir>/cc-switch/scripts/upsert_provider.py" \
   --name 'Qwen 3.8 Max' \
   --base-url 'https://dashscope.aliyuncs.com/compatible-mode/v1' \
   --model 'qwen3.8-max' \
@@ -48,6 +43,8 @@ python3 "<skill-dir>/scripts/upsert_provider.py" \
 
 - `--auth-field ANTHROPIC_AUTH_TOKEN|ANTHROPIC_API_KEY`：第三方 OpenAI 兼容接口默认使用 `ANTHROPIC_AUTH_TOKEN`。
 - `--db <path>`：覆盖默认数据库路径，用于其他安装位置或隔离验证。
+- `--settings-model <model>`：设置 Claude Code 客户端模型名（默认 `opus`），与 `--model` 的实际上游模型分开。
+- `--common-config`：启用该供应商的 CC Switch 公共配置；写入 `meta.commonConfigEnabled=true`，不改公共配置文件本身。
 - `--dry-run`：只显示 create/update 计划，不备份、不写库。
 - `--self-test`：在临时数据库执行创建、更新、去重和备份自检。
 

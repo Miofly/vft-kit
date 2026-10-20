@@ -1,0 +1,5 @@
+interface:
+  display_name: "dbx"
+  short_description: "操作 DBX 数据库客户端：连接、查询与数据导入导出"
+policy:
+  allow_implicit_invocation: false
