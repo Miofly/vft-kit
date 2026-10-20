@@ -3,243 +3,60 @@ name: wechat-mp
 description: "公众号后台与微信开发者控制台：登录、草稿排版、发布、素材、IP 白名单、40164/48001；小程序：开发者工具 CLI、automator 自测、miniprogram-ci 上传体验版、提审与发布、版本状态、广告分享规则、反编译 wxapkg 复刻样式。"
 ---
 
+# 微信公众号 / 开发者平台自动化
+
+用 ego-lite 复用登录态操作公众平台（草稿、素材、发表）与开发者平台（密钥、白名单、接口权限），并用 CLI/接口完成小程序上传、提审、版本查询和反编译复刻。
+
+## 何时用
+
+- 公众号：Markdown 转草稿、配图与封面、发表、素材/发表记录/用户管理读取。
+- 开发者平台：AppID/AppSecret、IP 白名单、接口权限与额度，排查 `40164`/`48001`。
+- 小程序：开发者工具 CLI、automator 自测、miniprogram-ci 上传体验版、提审与发布、版本状态、广告分享规则、wxapkg 反编译复刻。
+
 ## 浏览器到 API 的强制演进
 
 本 skill 只要以浏览器执行远端业务动作，就必须先读并遵守 [浏览器到 API 强制演进](../../BROWSER_API_EVOLUTION.md)。登录、验证码、2FA、纯视觉验收可保留浏览器；认证后的可接口化动作仍须抓取、复现、独立回验，并在同一任务自更新本 skill 与脚本。
 
-# 微信公众号 / 开发者平台自动化
+## 核心流程（发文到草稿箱）
 
-## 前置规范：API 优先，自我演进
+1. 读 [policies.md](references/policies.md)；`useOrCreateTaskSpace('wechat mp <做什么>')` 复用登录态，见 [login.md](references/login.md)。
+2. 从当前页面 URL 现取 `token`，确认右上角账号名。
+3. `node scripts/md-to-mp-html.mjs article.md --json` 转 inline-style HTML。
+4. 开 `isNew=1` 新编辑器页，等编辑器初始化；标题 `insertText`，正文合成 paste。
+5. 关弹窗后点「保存为草稿」，URL 出现 `appmsgid=` 即成功。
+6. 用户明确要求发表时才走发表流程，以发表记录精确命中标题为准。
 
-执行本 skill 前先读本节，本节优先于下文的浏览器步骤。
-- **有接口先用接口**：已确认的接口或脚本（本 skill 的 scripts、下文或“API 化进度”里记录的）优先调用。浏览器只用于四种情况：登录、扫码/验证码/2FA 交给用户、接口未知的步骤、最终页面核验。
-- **没有接口就边做边研究**：某一步仍只能点页面时，先开 `Network.enable`，再用 `page.events()` 抓写请求，只记 URL、方法和 body，不记 Cookie、Token 或密码，存到任务临时目录。做完后自己分析出能复现的接口，用只读接口或回读页面验证，再写进脚本或本 skill；浏览器路径保留作兜底。
-- **维护进度**：本 skill 里维护“API 化进度”：已确认接口（用途、方法路径、body 模板、验证方法）和待抓步骤。每次执行至少推进一项，回复里写一句进度；全部改成接口后，把本节改为维护说明。
-- **安全边界**：写接口只在本次任务的目标对象上验证，不拿无关数据试错；会触发写入的 GET 不预取；凭据只从环境变量或私有配置读取，不打印。
+逐步代码见 [publish-article.md](references/publish-article.md)。
 
-两个后台，职责不同，别搞混：
+## 硬规则
 
-| 站点 | 管什么 | 入口 |
+- 改密钥、白名单、看接口权限一律去开发者平台；公众平台那页只剩迁移通知。
+- 不去 `.secrets` 找密码；只有实际出现扫码/确认步骤才 `handOffTaskSpace`。
+- `token` 每次登录都变，永远从当前页面 URL 现取，不复用旧 token。
+- 每篇文章开 `isNew=1` 新编辑器；不在已有内容页重复 paste。
+- 正文用合成 paste 写入，不直接写 `innerHTML`；成功看 `chars`/`h2` 数。
+- 图片只走本地上传；封面是发表硬前置，判据是 `.js_cover_preview_new` 背景图含 `mmbiz`。
+- 动手前把视口调到 1100 高，或用 `elementFromPoint` 确认命中。
+- 除非用户明确说发布/群发，一律停在草稿。
+- 发表成功只认发表记录 `publish_list` 按完整标题命中并拿到 `content_url`。
+- 管理员验证二维码 `img.qrcode.js_qrcode` 不在 dialog 内，别漏掉。
+- 接口能不能调只看开发者平台「接口权限与额度」，不靠记忆。
+- AppSecret 重置后旧值立即失效，先确认能同步配置。
+- 解除授权、重置密钥、发表、删文、提审与发布动手前先确认。
+- 凭据不写进本 skill 或仓库；多账号先核对 `.weui-desktop-account__info`。
+- 反编译只用于学习研究或有权使用的设计，不分发解出的源码。
+
+## 路由表
+
+| 任务 | references | 执行脚本 |
 |---|---|---|
-| 微信公众平台 `mp.weixin.qq.com` | 内容侧：草稿箱、图文编辑器、素材库、发表记录、用户管理、数据 | `/cgi-bin/home?t=home/index&token=<token>&lang=zh_CN` |
-| 微信开发者平台 `developers.weixin.qq.com` | 开发侧：AppID/AppSecret、IP 白名单、接口权限与额度、域名与消息推送 | `/console/product/mp/<AppID>?tab1=<tab1>&tab2=<tab2>` |
-
-2025-12-01 起公众平台的「设置与开发 → 开发接口管理」已迁到开发者平台，公众平台那页只剩一条迁移通知。要改密钥、白名单、看接口权限，一律去开发者平台。
-
-## 前置：ego-lite 登录态
-
-两个站都优先靠 ego-lite 复用用户已登录的浏览器态，**不要去 `.secrets` 找密码**。开工第一步固定是复用同一个 task space：
-
-```bash
-ego-browser nodejs <<'EOF'
-const task = await useOrCreateTaskSpace('wechat mp <做什么>')
-cliLog('task id: ' + task.id)   // 后续 heredoc 用 useOrCreateTaskSpace(<id>) 续用
-EOF
-```
-
-如果打开后落在登录页，先由 agent 自动点击「登录」/「微信快捷登录」，等待页面推进到二维码、微信客户端确认或账号选择等真人步骤；**只有实际出现这些步骤时**才调用 `handOffTaskSpace(id)` 交还控制权，并明确告诉用户操作内容。用户完成后回复继续，再用同一个 id 调 `takeOverTaskSpace(id)`，核对右上角公众号名称和当前 URL token。若点击后已自动恢复登录，则直接继续，不要提前 handoff，也不要反复重试。
-
-### 远程扫码时的二维码交付
-
-用户无法看到本机页面时，优先把**只含二维码的截图**作为当前对话附件发送；不要上传公网、写入仓库或放进群聊。保持原 task space 和登录页不关闭，二维码过期后重新生成，登录成功或过期后删除 `other/temp/wechat-mp/login-qr.png`。
-
-若必须发到微信或 QQ，这是桌面客户端 GUI 转发，不是公众号 API：
-
-- 微信：Mac 微信必须已登录，目标优先选「文件传输助手」或用户指定的私聊；QQ：QQ 客户端必须已登录，目标优先选「我的电脑」或用户指定的私聊。
-- macOS 需要给实际执行自动化的终端/脚本授予“辅助功能”权限，并预先明确收件目标；不读取或索要客户端密码。
-- 用户在手机端打开图片，保存后用“扫一扫/从相册识别”，或用另一块屏幕直接扫码。二维码是短时登录凭证，发送后立即扫码。
-- 如果桌面客户端本身未登录，先停下让用户完成客户端登录；不要试图用公众号登录二维码反向引导桌面客户端登录。
-
-## token：每次登录都变，绝不能硬编码
-
-公众平台所有 `/cgi-bin/*` 页面都带 `?token=<9-10位数字>`，这是会话 token，重新登录就换一个。**永远从当前页面 URL 现取**，不要复用用户消息里贴的旧 token（那个多半已经失效）：
-
-```js
-const tk = (await pageInfo()).url.match(/token=(\d+)/)[1]
-```
-
-常用页面（把 `<tk>` 换成现取的值）：
-
-| 页面 | 路径 |
-|---|---|
-| 草稿箱 | `/cgi-bin/appmsg?begin=0&count=10&type=77&action=list_card&token=<tk>&lang=zh_CN` |
-| 新建图文 | `/cgi-bin/appmsg?t=media/appmsg_edit_v2&action=edit&isNew=1&type=77&createType=0&token=<tk>&lang=zh_CN` |
-| 素材库 | `/cgi-bin/filepage?type=2&begin=0&count=12&token=<tk>&lang=zh_CN` |
-| 发表记录 | `/cgi-bin/appmsgpublish?sub=list&begin=0&count=10&token=<tk>&lang=zh_CN` |
-| 用户管理 | `/cgi-bin/contactmanage?t=user/index&pageidx=0&type=0&token=<tk>&lang=zh_CN` |
-| 账号设置 | `/cgi-bin/settingpage?t=setting/index&action=index&token=<tk>&lang=zh_CN` |
-
-开发者平台控制台不用 token，用 AppID + tab 参数直达，详见 `references/console.md`。
-
-## 发一篇文章（Markdown → 草稿箱）
-
-这是最常见的任务，四步，全部验证过：
-
-**1. Markdown 转公众号 HTML** — 编辑器不认外部 CSS 也会丢 class，排版必须是 inline style：
-
-```bash
-node scripts/md-to-mp-html.mjs article.md --json > /tmp/mp.json   # {title, html}
-```
-
-一级标题 `#` 会被提成文章标题、不进正文；非微信域名的链接会降级成「文字（URL）」，因为公众号会剥掉这类 `<a href>`，留着就是死链。脚本自检：`node scripts/md-to-mp-html.mjs --selftest`。
-
-**2. 打开一个全新的编辑器页**。编辑器是 ProseMirror，粘贴是追加而不是替换，在已有内容的页面上重复粘会叠成两三份。与其想办法清空，不如每次都 `isNew=1` 开一张干净的：
-
-```js
-await gotoAndWait('https://mp.weixin.qq.com/cgi-bin/appmsg?t=media/appmsg_edit_v2&action=edit&isNew=1&type=77&createType=0&token=' + tk + '&lang=zh_CN', { timeout: 40 })
-await wait(7)   // 编辑器初始化慢，等不够会拿不到 .ProseMirror
-```
-
-**3. 写标题和正文**。页面上有两个 `.ProseMirror`，靠父元素 class 区分：`title-editor__input` 是标题，`rich_media_content` 是正文。标题用 `insertText`（纯文本），正文用**合成 paste 事件**——ProseMirror 会自己解析 `text/html` 并转成公众号的 `<span leaf>` 结构，h2/strong/列表/表格都保得住；直接写 `innerHTML` 则会被 PM 的 state 覆盖掉：
-
-```js
-const res = await js(`(() => {
-  const pm = [...document.querySelectorAll('.ProseMirror')]
-  const body = pm.find(e => e.parentElement.className.includes('rich_media_content'))
-  const titleEl = pm.find(e => e.parentElement.className.includes('title-editor__input'))
-  titleEl.focus(); document.execCommand('insertText', false, ${JSON.stringify(title)})
-  const dt = new DataTransfer(); dt.setData('text/html', ${JSON.stringify(html)}); dt.setData('text/plain', '')
-  body.focus()
-  body.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }))
-  const author = document.querySelector('#author')
-  if (author) { author.value = ${JSON.stringify(author)}; author.dispatchEvent(new Event('input', { bubbles: true })) }
-  return { title: titleEl.textContent, chars: body.innerText.length, h2: body.querySelectorAll('h2').length }
-})()`)
-```
-
-`dispatchEvent` 返回 `false` 是正常的——说明 PM 调了 `preventDefault` 接管了粘贴。判断成功要看返回的 `chars` / `h2` 数，不是看返回值。
-
-**4. 存草稿**。点之前先关掉可能盖住按钮的新功能弹窗：
-
-```js
-await js(`(() => {
-  document.querySelectorAll('.weui-desktop-dialog__close-btn').forEach(b => b.click())
-  const know = [...document.querySelectorAll('button, a')].find(b => /我知道了/.test(b.textContent) && b.offsetParent)
-  if (know) know.click()
-})()`)
-await wait(2)
-await js(`(() => [...document.querySelectorAll('button, .weui-desktop-btn, a')].find(b => b.textContent.replace(/\\s+/g,'').trim() === '保存为草稿').click())()`)
-await wait(5)
-cliLog((await pageInfo()).url)   // URL 出现 appmsgid=<数字> 即保存成功
-```
-
-保存成功的标志是地址栏多出 `appmsgid=`，同时草稿箱列表首条变成这篇。想二次确认就回草稿箱页读一眼列表。
-
-### 图片只走本地上传（不给编辑器外链图）
-
-正文贴外链 `<img>` 编辑器会自己转存成 mmbiz，但用户要求像人一样传本地文件（2026-10-14 实测）：
-
-- 正文插图：光标放到正文末尾 → 点工具栏 `#js_editor_insertimage` → 菜单 `li.js_img_from_local`（文字是「从图片库选择」）→ 对话框里 `.js_upload_btn_container input[type=file]` 选文件（ego 用 `waitForFileChooser` 点「上传文件」，Selenium 直接 `sendKeys` 路径）→ 上传完自动选中，计数变成 `1 / 100 项` → 点「确定」，图插在光标处。
-- 封面：先悬停再点 `.js_cover_btn_area` → 弹出菜单在 `.pop-opr__group-select-cover` 里（不在封面区内，靠 `visibility` 显隐）→ 点其中的 `.js_imagedialog` → 同一个图片库上传 → 封面对话框没有计数，上传后「下一步」由灰变可点 → 「下一步」→ 裁剪页「确认」→ `.js_cover_preview_new` 背景图含 `mmbiz` 即成功。
-- 多篇：悬停 `.preview_media_add_word`（「新建内容」）→ 点 `li.js_create_article`（「写新文章」），`.js_appmsg_item` 数加一。摘要 `#js_description`，作者 `#author`。
-- 草稿保存后历史版本来源显示「网页版 / 手动保存」。
-
-**发表（`发表` 按钮）要谨慎**：它是不可逆的对外动作，且未认证账号每天只有有限次群发。**除非用户明确说「发布/群发/直接发出去」，一律停在草稿**，把草稿链接给用户让他自己点发表。
-
-## 封面是发表的硬前置
-
-没有封面时点「发表」**不会弹确认框**，微信只在页面上挂一条内联 tips：`必须插入一张图片`。自动化里表现为"点了发表什么都没发生"，很容易误判成点击失败或弹窗识别有问题。发表前先确认封面已设。
-
-**读封面状态不能数 `<img>`** —— 编辑器用 CSS 背景图显示封面，节点是 `.js_cover_preview_new`，判据是它的 `background-image` 含 `mmbiz`；外层容器 class 也会变成 `has_first_cover`。草稿数据侧看 `multi_item[0].cover` 或 `item.img_url` 非空。
-
-可靠的设封面路径（每一步都用真实鼠标点击，并先把视口调到 1100 高）：
-
-1. 点 `.js_cover_btn_area` 展开菜单（**不是** hover——hover 触发不稳定）
-2. 点「从图片库选择」
-3. 素材库右侧的缩略图是 `.weui-desktop-img-picker__img-thumb`，点第一张（最近上传的排在最前）。左侧 `.weui-desktop-grid__item` 是分类菜单，点它没用
-4. 「下一步」→ 裁剪页「确认」
-
-正文首图有时会被自动取作封面，但**不保证**：同一套流程下有的草稿自动带上了、有的没有，别依赖它。
-
-## 封面：别跟悬停菜单较劲
-
-封面区 `.js_cover_btn_area` 的选项菜单（`从图片库选择` / `微信扫码上传` / `AI配图` / `.js_selectCoverFromContent`）默认是 `visibility: hidden`，靠 hover 显形。**用 `offsetParent` 判可见会误判**——这些节点 `offsetParent` 非空、`getBoundingClientRect()` 有尺寸，但 `document.elementFromPoint()` 命中的是它们背后的元素，点击全部落空。判可见必须同时看 `getComputedStyle(el).visibility`。
-
-更省事的办法是**不碰封面控件**：往正文顶部粘一张图，编辑器会自动把 data URI 上传成 `mmbiz.qpic.cn` 素材，保存草稿后微信会把正文首图取作封面（草稿数据里 `cover` / `img_url` 非空即成功）。
-
-```js
-const dt = new DataTransfer()
-dt.setData('text/html', '<img src="data:image/jpeg;base64,...' + '" width="900">')
-body.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }))
-```
-
-一次 paste 常会插入**两张**相同图片，粘完数一下 `img[width>10]`，多的选中后按 Backspace 删掉。
-
-## 视口高度会吃掉点击
-
-ego/CDP 默认视口可能只有 700 多像素高，而编辑器的「保存为草稿」「发表」和弹窗按钮经常在 y > 750 的位置——真实鼠标点击直接落到屏幕外，静默失败。动手前先 `Emulation.setDeviceMetricsOverride({ width: 1512, height: 1100, deviceScaleFactor: 1, mobile: false })`，或每次点击前用 `document.elementFromPoint(cx, cy)` 确认命中目标本身。
-
-## 从草稿箱走发表流程
-
-草稿卡片上的「发表」按钮是 `<a href="javascript:;">`，处理函数走 `window.open`，**会被弹窗拦截**：真实鼠标点击和 DOM `.click()` 都表现为完全没反应——不跳转、不弹窗、不开新标签。无头/自动化环境尤其容易踩，且没有任何报错。
-
-绕过办法是在当前标签直接打开它要开的编辑器发表态 URL：
-
-```
-/cgi-bin/appmsg?t=media/appmsg_edit&action=edit&type=77&appmsgid=<app_id>&isMul=1&replaceScene=0&isSend=1&isFreePublish=0&token=<tk>&lang=zh_CN
-```
-
-`<app_id>` 从草稿列表取：草稿页的 `window.wx.cgiData` 键是 **`item`**（不是 `app_msg_list`），`item[].app_id` 是 appmsgid，`item[].multi_item[].title` 是各子图文标题。
-
-进去后按钮链是：`button.mass_send`（发表）→ 弹窗内 primary「发表」→ 二次弹窗「继续发表」。第一个弹窗会显示**今天还有几次群发通知次数**，这是决定开不开群发通知的唯一权威来源。
-
-### 最终发表要管理员扫码验证
-
-点完「继续发表」后请求链：`/cgi-bin/masssend` → `/misc/safeassistant`（拿 ticket）→ `/safe/safeqrconnect`（拿 uuid）→ 轮询 `/safe/safeuuid`。`errcode: 401` = 等待扫码。
-
-二维码是 `img.qrcode.js_qrcode`（300×300），外层容器 `.safe_check` / `.qrcode_scan`，**不在 `.weui-desktop-dialog` 内**——只查 dialog 会完全漏掉它，然后无人扫码、二维码超时、文章静默地没发出去。
-
-**成功判据只有一个**：发表记录 `/cgi-bin/appmsgpublish?sub=list` 的 `window.wx.cgiData.publish_list[].appmsg_info[]` 里按完整标题精确命中，并拿到 `content_url`。二维码消失、弹窗关闭、页面跳回 `/cgi-bin/home` 都不能算成功。
-
-## 判断某个接口能不能调（别靠记忆）
-
-开发者平台「接口管理 → 接口权限与额度」按分类列出每个接口的**有权限 / 无权限 + 每日额度 + 当日已用**，是唯一权威来源。个人主体未认证账号的典型结论：基础接口（access_token 等）有权限，**发布能力（发布草稿、发布状态查询、获取已发布列表…）全部无权限**，提示「完成账号主体认证后，可获得权限」。
-
-具体抓取步骤、分类清单、以及切分类时那个「表格内容滞后一拍」的坑，见 `references/console.md`。
-
-## 常见报错对照
-
-| 现象 | 真实原因 | 怎么办 |
-|---|---|---|
-| `errcode 40164 invalid ip x.x.x.x not in whitelist` | 调用方公网 IP 不在白名单 | 报错信息里就带着那个 IP，去开发者平台「基础信息 → API IP白名单 → 设置名单」加进去。注意家宽 IP 会变，服务器和本机是两个 IP |
-| `errcode 48001 api unauthorized` | 该接口当前账号没权限 | 查「接口权限与额度」确认；未认证个人号的发布类接口属于这一类，加白名单也没用 |
-| AppSecret 忘了 | 明文只在重置那一刻显示一次 | 只能重置，**重置后旧 secret 立即失效**，线上服务会挂，先确认能同步更新配置再点 |
-| 编辑器里粘出来两三份内容 | 在旧页面上重复 paste | 重开 `isNew=1` 的编辑器页，别试图清空 |
-| 拿不到 `.ProseMirror` | 编辑器还没初始化完 | `await wait(7)` 之后再取，必要时轮询直到出现两个 PM 节点 |
-| 点「发表」完全没反应 | 按钮走 `window.open`，被弹窗拦截 | 直接在当前标签打开 `isSend=1` 的编辑器 URL，见上文「从草稿箱走发表流程」 |
-| 点完「继续发表」文章却没发出去 | 漏了 `/safe/safeqrconnect` 的管理员验证二维码 | 找 `img.qrcode.js_qrcode`（不在 dialog 里），扫码后再查发表记录确认 |
-
-## 小程序版本发布与提审
-
-小程序后台同在 `mp.weixin.qq.com`，但路径是 `/wxamp/...`，而且是另一个账号（扫码时要选小程序账号）。上传走开发者工具 CLI，查状态和提审走后台：
-
-- 上传开发版和生成预览码首选 `scripts/mp-ci.mjs`（官方 miniprogram-ci，用上传密钥代替登录，不需要开发者工具，不碰桌面）；没有密钥时才用开发者工具 CLI
-- 查线上 / 审核中 / 开发版本：`ego-browser nodejs < scripts/wxamp-version-status.mjs`（接口已实测，只读）
-- 提交审核：首选接口版 `scripts/wxamp-submit-audit-api.mjs`（get_class 取 auto_id → 隐私声明 → submit_check → 回读，已实测）；页面点击版 `wxamp-submit-audit.mjs` 只作兜底。`audit.auditStatus=1` 才算进入审核
-- 隐私选项的后果、已抓到的接口清单（含提交审核的 `submit_check`）和踩过的坑，见 `references/miniprogram-release.md`
-- 开发阶段的自测：`cli auto` 开放端口后用 miniprogram-automator 驱动模拟器，不要用模拟鼠标点模拟器。请求、弹窗、插屏广告的打桩方法，连本地后端的构建方式，以及广告和分享的规则，见 `references/miniprogram-devtools.md`；公共函数在 `scripts/miniprogram-automator-helpers.cjs`
-
-## 小程序反编译（复刻参考）
-
-要复刻别人的小程序样式或交互时，用 `scripts/wxapkg/wxapkg.sh` 扫本机微信缓存、按页面文字定位 wxid、解密解包，再用 `scripts/wxapkg/extract-wxss.mjs` 还原 WXSS、`scripts/wxapkg/split-service.mjs` 拆逻辑并导出数据。完整流程、换 UI 复刻的步骤、产物怎么读、复刻到 Taro 的要点见 `references/wxapkg-unpack.md`。只用于学习研究或复刻自己有权使用的设计，不分发解出的源码。
-
-## 参考文件
-
-- `references/console.md` — 开发者平台控制台：tab URL 规则、AppSecret/IP 白名单位置、接口权限与额度的抓取脚本
-- `references/mp-backend.md` — 公众平台后台：页面清单、素材库/发表记录/用户管理的读取方式、编辑器 DOM 结构备忘
-- `scripts/md-to-mp-html.mjs` — Markdown → 公众号 inline-style HTML（带 `--selftest`）
-- `references/miniprogram-release.md` — 小程序：CLI 上传、体验版、提审流程、隐私选项、`/wxamp` 接口与 API 化进度
-- `scripts/wxamp-version-status.mjs` — 小程序版本状态（只读）
-- `scripts/wxamp-submit-audit-api.mjs` — 小程序提交审核（接口版，首选）
-- `scripts/wxamp-submit-audit.mjs` — 小程序提交审核（页面流程兜底，真实点击；默认拦住，接口版失败时在脚本前加 `globalThis.FORCE_PAGE = true` 才运行）
-- `references/miniprogram-devtools.md` — 小程序开发者工具 CLI、模拟器自动化、连本地后端、广告与分享规则
-- `scripts/mp-ci.mjs` — miniprogram-ci 上传 / 预览（无界面，带 `--selftest`）
-- `scripts/miniprogram-automator-helpers.cjs` — automator 测试公共函数：请求打桩、插屏计数、断言汇总（带 `--selftest`）
-- `references/wxapkg-unpack.md` — 小程序反编译：扫描缓存、定位 wxid、解包、还原 WXSS、复刻要点
-- `scripts/wxapkg/wxapkg.sh` — wxapkg 扫描 / 解包 CLI（带 `selftest`）；`scripts/wxapkg/extract-wxss.mjs` — 还原 WXSS；`scripts/wxapkg/split-service.mjs` — 拆 `app-service.js` 并导出数据 JSON（带 `--selftest`）
-
-## 边界
-
-- **凭据不进这个 skill**：AppID 由调用方传入或从页面读；AppSecret、账号密码一律不写进仓库。需要长期保存走各自的凭据管理流程。
-- **只做用户要求的那一步**：解除第三方授权、重置密钥、发表、删除文章、小程序提审与发布都是不可逆或对外可见的操作，动手前先确认。
-- 涉及多个公众号时，先在页面右上角确认当前登录的是哪个账号（`.weui-desktop-account__info` 的文本），别在错的号上写东西。
+| API 优先、安全边界、确认规则 | [policies.md](references/policies.md) | — |
+| 登录、handoff、远程扫码二维码交付 | [login.md](references/login.md) | `ego-browser nodejs` |
+| 两个后台分工、token、公众平台页面清单、编辑器 DOM | [mp-backend.md](references/mp-backend.md) | — |
+| Markdown 发草稿、插图、封面、视口、草稿箱发表、管理员扫码 | [publish-article.md](references/publish-article.md) | `scripts/md-to-mp-html.mjs`（`--selftest`） |
+| 开发者平台 tab、AppSecret、白名单、接口权限与额度 | [console.md](references/console.md) | `ego-browser nodejs` |
+| `40164`、`48001`、粘贴重复、发表无反应等报错 | [troubleshooting.md](references/troubleshooting.md) | — |
+| 小程序上传、预览、版本状态、提审 | [miniprogram-release.md](references/miniprogram-release.md) | `scripts/mp-ci.mjs`、`scripts/wxamp-version-status.mjs`、`scripts/wxamp-submit-audit-api.mjs`（兜底 `scripts/wxamp-submit-audit.mjs`） |
+| 小程序开发者工具 CLI、automator 自测、本地后端、广告与分享 | [miniprogram-devtools.md](references/miniprogram-devtools.md) | `scripts/miniprogram-automator-helpers.cjs` |
+| 反编译 wxapkg、还原 WXSS、复刻到 Taro | [wxapkg-unpack.md](references/wxapkg-unpack.md) | `scripts/wxapkg/wxapkg.sh`、`scripts/wxapkg/extract-wxss.mjs`、`scripts/wxapkg/split-service.mjs` |
+| 全部文件说明 | [file-index.md](references/file-index.md) | — |

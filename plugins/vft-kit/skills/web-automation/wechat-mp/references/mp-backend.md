@@ -59,3 +59,33 @@
 - `发表` 是不可逆的对外动作，且未认证账号群发次数有限。**没有用户明确指令就停在草稿**，把草稿链接交给用户。
 - 通过 API 发文章（`draft/add` → `freepublish/submit`）需要账号已认证，未认证个人号在开发者平台的「发布能力」分类里全部显示无权限——这时候后台编辑器写草稿是唯一可行路径。
 - 素材上传（封面图）在编辑器内完成，或走素材库页；文章要正式发表必须有封面。
+
+两个后台，职责不同，别搞混：
+
+| 站点 | 管什么 | 入口 |
+|---|---|---|
+| 微信公众平台 `mp.weixin.qq.com` | 内容侧：草稿箱、图文编辑器、素材库、发表记录、用户管理、数据 | `/cgi-bin/home?t=home/index&token=<token>&lang=zh_CN` |
+| 微信开发者平台 `developers.weixin.qq.com` | 开发侧：AppID/AppSecret、IP 白名单、接口权限与额度、域名与消息推送 | `/console/product/mp/<AppID>?tab1=<tab1>&tab2=<tab2>` |
+
+2025-12-01 起公众平台的「设置与开发 → 开发接口管理」已迁到开发者平台，公众平台那页只剩一条迁移通知。要改密钥、白名单、看接口权限，一律去开发者平台。
+
+## token：每次登录都变，绝不能硬编码
+
+公众平台所有 `/cgi-bin/*` 页面都带 `?token=<9-10位数字>`，这是会话 token，重新登录就换一个。**永远从当前页面 URL 现取**，不要复用用户消息里贴的旧 token（那个多半已经失效）：
+
+```js
+const tk = (await pageInfo()).url.match(/token=(\d+)/)[1]
+```
+
+常用页面（把 `<tk>` 换成现取的值）：
+
+| 页面 | 路径 |
+|---|---|
+| 草稿箱 | `/cgi-bin/appmsg?begin=0&count=10&type=77&action=list_card&token=<tk>&lang=zh_CN` |
+| 新建图文 | `/cgi-bin/appmsg?t=media/appmsg_edit_v2&action=edit&isNew=1&type=77&createType=0&token=<tk>&lang=zh_CN` |
+| 素材库 | `/cgi-bin/filepage?type=2&begin=0&count=12&token=<tk>&lang=zh_CN` |
+| 发表记录 | `/cgi-bin/appmsgpublish?sub=list&begin=0&count=10&token=<tk>&lang=zh_CN` |
+| 用户管理 | `/cgi-bin/contactmanage?t=user/index&pageidx=0&type=0&token=<tk>&lang=zh_CN` |
+| 账号设置 | `/cgi-bin/settingpage?t=setting/index&action=index&token=<tk>&lang=zh_CN` |
+
+开发者平台控制台不用 token，用 AppID + tab 参数直达，详见 `references/console.md`。
