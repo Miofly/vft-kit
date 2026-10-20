@@ -175,21 +175,17 @@ claudemd_has_proxy(){
   grep -Eiq '代理兜底|走代理重试|外网.*代理|127\.0\.0\.1:78|http\.proxy|https_proxy' "$f"
 }
 # 全局 ~/.claude/CLAUDE.md 是否含「多 Agent 并行执行」规范
-# 见 SKILL.md：任务含多个互相独立的子项时主动起多个 subagent 并行执行、别串行干等。
+# 规则正文在 rules/parallel-tasks.md：任务含多个互相独立的子项时必须拆成多个后台子 agent 同时做，按写入文件切分、主控合入。
 # 关键字用通用语义词、中英兼容（subagent / 并行 agent / 扇出 / fan-out / 并行执行）。
 claudemd_has_parallel_agents(){
   local f="$HOME/.claude/CLAUDE.md"
   [ -f "$f" ] || return 1
   grep -Eiq '并行.*[Aa]gent|多.*[Aa]gent|多个 subagent|subagent 并行|扇出|fan-?out|并行执行|默认并行|能加速就上' "$f"
 }
-# 全局 ~/.claude/CLAUDE.md 是否含「HTTP 请求走 ctx_execute、别用裸 Bash curl」规范
-# 仅在 context-mode 已装时才核对：它的 PreToolUse hook 会拦下「响应体打到 stdout」的 curl/wget，
-# 回一条红色 Error 让改用 ctx_execute。不预先写规范的话，每次发 HTTP 都白费一轮工具调用 + 一屏噪音。
+# 全局 ~/.claude/CLAUDE.md 是否含「HTTP 请求走 ctx_execute」规范
+# 已由 context-mode 的 PreToolUse hook 提供：无需在 CLAUDE.md 手写
 claudemd_has_http_routing(){
-  local f="$HOME/.claude/CLAUDE.md"
-  [ -f "$f" ] || return 1
-  grep -Eq 'ctx_execute|ctx_fetch_and_index' "$f" &&
-    grep -Eiq 'curl' "$f"
+  return 1  # 检查已由 context-mode 注入，不再从 CLAUDE.md 读
 }
 # skill 是否已安装（~/.claude/skills/<name> 目录存在，或作为同名插件装了）
 # anysearch 主要走手动装到 ~/.claude/skills/anysearch，marketplace 装则落为插件，两种都认。
@@ -211,7 +207,7 @@ claudemd_has_anysearch(){
   [ -f "$f" ] || return 1
   grep -Eiq 'anysearch' "$f"
 }
-# 全局规范是否含「Token 节省」：长等待交给脚本、并行 Agent 上限、小模型干杂活、阶段切换清上下文。
+# 全局规范是否含「Token 节省」：长等待交给不调 LLM 的脚本轮询、大输出脚本内汇总、阶段切换先交接再 /clear（子 agent 选模型见 rules/agent-model.md）。
 claudemd_has_token_budget(){
   local f="$HOME/.claude/CLAUDE.md"
   [ -f "$f" ] && grep -Eq 'Token 节省' "$f" && grep -Eq '轮询' "$f" && grep -Eq '/clear' "$f"
@@ -221,11 +217,12 @@ claudemd_has_rm_literal(){
   local f="$HOME/.claude/CLAUDE.md"
   [ -f "$f" ] && grep -Eq '避开内置确认框' "$f" && grep -Eq 'git -C' "$f" && grep -Eq '会话当前目录' "$f"
 }
-# 全局规范是否含「先找成熟方案，再自己造」：动手前先查本机/平台公开资源/社区现成方案，同类失败 2 次止损换路并按排查顺序走，外部 skill 先审再用（规则正文在 rules/reuse-first.md，两宿主共用）。
+# 全局规范是否含「先找成熟方案，再自己造」：动手前先查本机/平台公开资源/社区现成方案，同类失败 2 次止损换路并按排查顺序走（规则正文在 rules/reuse-first.md，两宿主共用）。
+# 「外部 skill 先审再用」已归 skill-validator，不再要求全局规范含该词。
 claudemd_has_reuse_first(){
   local f="$HOME/.claude/CLAUDE.md"
   [ -f "$f" ] && grep -Eq '先找成熟方案' "$f" && grep -Eq '连续失败 2 次' "$f" \
-    && grep -Eq '排查顺序' "$f" && grep -Eq '外部 skill' "$f"
+    && grep -Eq '排查顺序' "$f"
 }
 # bash-prompt-guard 是否已注册为 PreToolUse(Bash) hook：把会触发 CC 内置确认框的写法提前拒掉并给改写提示，用户不被打断。
 bash_prompt_guard_installed(){
@@ -253,6 +250,8 @@ model_router_installed(){
 }
 # 全局规范是否要求 Agent 调用显式写 model（机械活 haiku/sonnet，推理类继承；规则正文在 rules/agent-model.md）。
 claudemd_has_agent_model(){
+  # 装了 model-router 时由它在 PreToolUse 自动给子 agent 选模型，全局规范不必再写细则。
+  model_router_installed && return 0
   local f="$HOME/.claude/CLAUDE.md"
   [ -f "$f" ] && grep -q '显式写 `model`' "$f"
 }
@@ -405,12 +404,12 @@ else
   ok "Codex API key 启动注入（auth.json 无 key，无需配置）"
 fi
 [ -f "$HOME/.claude/CLAUDE.md" ]   && ok "全局 ~/.claude/CLAUDE.md"          || bad "全局 CLAUDE.md" "创建 ~/.claude/CLAUDE.md（全局规范）"
-claudemd_has_chinese               && ok "全局规范含「始终中文回复」"          || bad "中文回复规范" $'printf \'\\n- **始终使用中文回复**（简体中文）。无论用户用什么语言提问、上下文/工具输出是什么语言，回复正文一律中文。\\n\' >> ~/.claude/CLAUDE.md'
-claudemd_has_shortlink             && ok "全局规范含「代码位置用可点短链」"    || bad "代码短链规范" $'printf \'\\n- **引用代码位置一律用 markdown 可点短链**：IDEA 插件里裸文件名点不动会报 Cannot open file，须写成 [短名:行](绝对路径:行)。\\n\' >> ~/.claude/CLAUDE.md'
+claudemd_has_chinese               && ok "全局规范含「始终中文回复」"          || bad "中文回复规范" $'printf \'\\n- 始终用简体中文回复（用户用英文、只贴代码或报错也一样）；代码、命令、路径、API 名、报错原文保持原样。\\n\' >> ~/.claude/CLAUDE.md'
+claudemd_has_shortlink             && ok "全局规范含「代码位置用可点短链」"    || bad "代码短链规范" $'printf \'\\n- 引用代码位置用 markdown 可点短链：`[短名:行](绝对路径:行)`。\\n\' >> ~/.claude/CLAUDE.md'
 claudemd_has_compact               && ok "全局规范含「压缩取舍规则」"          || bad "压缩取舍规范" "先删掉 ~/.claude/CLAUDE.md 里旧的「## 上下文压缩」节（如有），再执行：cat \"$SCRIPT_DIR/../../rules/compaction.md\" >> ~/.claude/CLAUDE.md"
-claudemd_has_proxy                 && ok "全局规范含「外网操作代理兜底」"      || bad "代理兜底规范" $'printf \'\\n## 外网操作走代理兜底（连不通或慢得反常就切代理）\\n**触发信号**：任何境外资源访问（GitHub/raw.githubusercontent/googleapis 等域、brew bottle、npm/pip/cargo 下载、kaggle 上传下载、curl 探测、WebFetch）出现①TLS 握手后被 RST／连接超时／SSL 报错，或②下载速率慢得反常（几 KB/s、卡住不动）——两者任一都视作被墙干扰，别归因于「网络就是慢」在直连路径反复重试。\\n**先探到可用代理，端口和协议都别写死**（因代理软件/机器而异）：优先复用已设的 $https_proxy/$http_proxy/$all_proxy；没有则依次探常见本地端口、每个端口 http 与 socks5h 都试，取第一个通的（含 scheme）——`for p in 7890 7897 10809 1087 7891 10808 1080; do for s in http socks5h; do curl -fsm2 -x $s://127.0.0.1:$p https://www.gstatic.com/generate_204 >/dev/null 2>&1 && { echo $s://127.0.0.1:$p; break 2; }; done; done`（7890=clash/mihomo 混合口、7897=clash verge rev、10809/10808=v2rayN http/socks、7891=clash socks、1080/1087=ss 等；http 混合口优先命中，socks 口兜底）。都不通说明没开代理，如实告知用户别硬试。\\n**切法按工具选**（下文 $PROXY=探到的地址，形如 http://127.0.0.1:7890 或 socks5h://127.0.0.1:7891，curl/git/环境变量三种都认这两种 scheme）：`curl` 加 `-x $PROXY`；`git` 加 `-c http.proxy=$PROXY`；`brew`/`npm`/`pip`/`kaggle`/`gh` 等吃环境变量的用 `https_proxy=$PROXY http_proxy=$PROXY <命令>`；`WebFetch`/`ctx_fetch`/`Playwright` 无法传代理就直接弃用、改用 `curl -x` 或 `git -c http.proxy` 完成同样抓取。\\n**为什么**：Node 的 fetch/undici（WebFetch 等工具底层）默认不认系统代理与 HTTP_PROXY 环境变量，所以「系统装了代理」不等于「工具会走代理」，必须显式把代理传给每条命令；国内裸直连 GitHub 等域常被 GFW 干扰、成功率很低，走本地代理才稳。**优先命令级/环境变量级代理、不强依赖 TUN 或系统全局代理**——命令级更精准、零系统改动、可随时回退，也不影响其它进程。\\n\' >> ~/.claude/CLAUDE.md'
-claudemd_has_parallel_agents       && ok "全局规范含「多 Agent 并行执行」"      || bad "多 Agent 并行规范" $'printf \'\\n## 多 Agent 并行执行（默认并行，能加速就上）\\n\\n### 🚨 铁律：收到任务立即判断能否并行，能并行就立即启动多 Agent，别等用户提醒\\n\\n**自动触发检查（每个任务的第一步）：**\\n\\n1. **数量信号** — 任务涉及 ≥2 个独立对象（文件/模块/功能/站点/问题）？\\n   - ✅ 是 → 继续检查\\n   - ❌ 否 → 串行执行\\n\\n2. **依赖检查** — 这些对象之间有先后依赖吗？\\n   - ✅ 无依赖或部分无依赖 → 并行执行（有依赖的串起来）\\n   - ❌ 强依赖链条 → 串行执行\\n\\n3. **关键词触发（自动识别）** — 任务描述出现这些词立即并行：\\n   - **数量词**：「每个」「所有」「批量」「一批」「分别」「逐个」「多个」\\n   - **具体数字**：「9 个功能」「5 个模块」「3 个文件」\\n   - **重复动作**：「同一套」「相同的」「类似的」「重复」\\n   - **范围词**：「全部」「整个」「所有的」\\n\\n**判定结果：满足 1+2 或出现任一关键词 → 立即启动多 Agent 并行，不问用户**\\n\\n---\\n\\n### 典型并行场景（见到就上）\\n\\n1. **批量 CRUD** — N 个功能/模块的 VO + Controller + Service + Vue（每个一个 Agent）\\n2. **多文件读/改** — 要读/改一批文件、跑一批测试、查一批独立问题（每个文件一个 Agent）\\n3. **大范围调研** — 跨多个子系统/模块摸底（每个子系统一个 Agent）\\n4. **多视角分析** — 多方案对比、交叉验证、对抗式复核（每个视角一个 Agent）\\n5. **迁移/审计** — 批量整改、每个站点/每个组件（每个对象一个 Agent）\\n\\n**核心原则：凡是「同一动作重复施加到 N 个独立对象」就立即扇出，N≥2 就值得并行**\\n\\n---\\n\\n### 怎么做\\n\\n- **立即启动** — 一条消息里同时发多个 Agent 调用（独立任务并发跑，别一个个等）\\n- **任务模板** — 给每个 Agent 相同的任务模板（如「实现 XX 功能的 VO+Controller+Service+Vue」）\\n- **结论汇总** — 主线程只收集各 Agent 的结论，不吞原始文件内容\\n\\n---\\n\\n### 为什么这样做\\n\\n- **速度** — 串行 3 小时 vs 并行 30 分钟，加速比可达 5-10x\\n- **上下文** — 子代理各自独立上下文，主线程不会被大量文件内容挤爆\\n- **用户体验** — 用户等 30 分钟比等 3 小时爽得多\\n\\n---\\n\\n### 唯一例外（才串行）\\n\\n- **单个小任务** — 改一个函数、查一个已知文件、写一个脚本 → 直接自己干\\n- **强依赖链** — A 必须先完成才能开始 B，B 必须完成才能开始 C → 串行或部分并行\\n\\n**记住：默认并行，能加速就上，别等用户提醒！**\\n\' >> ~/.claude/CLAUDE.md'
-claudemd_has_token_budget          && ok "全局规范含「Token 节省」"            || bad "Token 节省规范" $'printf \'\\n## Token 节省（长任务与多 Agent）\\n\\n- 并行 Agent 默认不超过 3–4 个，只开价值最高的方向；新开 Agent 时一次写全规则，避免中途广播消息反复唤醒 Agent。\\n- 长等待（云端训练、CI、部署、远端队列）交给不调用 LLM 的脚本负责轮询、下载、验收和清理；Agent 提交后退出，结果齐了再开一个新的短 Agent 分析。\\n- 下载、校验、同步、清理这类机械工作用较小模型（sonnet 或 haiku），规划和结论分析才用大模型。\\n- 大输出在脚本里汇总，只把结论打印进上下文；轮询间隔不短于 10 分钟。\\n- 阶段切换或主会话上下文超过约 40% 时，先写交接文档，再 `/clear` 或新开会话。交接文档基于完整对话写（不只看最近一段），分「在做什么/状态/决策/指针/下一步」五节，不超过 1,200 字；末尾逐字附原会话 transcript 路径和 2–5 个检索关键词，新会话缺细节时先回查原会话。\\n\' >> ~/.claude/CLAUDE.md'
+claudemd_has_proxy                 && ok "全局规范含「外网操作代理兜底」"      || bad "代理兜底规范" $'printf \'\\n## 外网代理兜底\\n\\n境外资源连接超时、TLS 失败或速度异常时，先探测可用本地代理，再通过 `https_proxy` 或 `git -c http.proxy=...` 重试；不要在直连路径反复重试。\\n\' >> ~/.claude/CLAUDE.md'
+claudemd_has_parallel_agents       && ok "全局规范含「多任务并行」"            || bad "多 Agent 并行规范" "先删掉 ~/.claude/CLAUDE.md 里旧的「## 多 Agent 并行执行」节（如有），再执行：cat \"$SCRIPT_DIR/../../rules/parallel-tasks.md\" >> ~/.claude/CLAUDE.md"
+claudemd_has_token_budget          && ok "全局规范含「Token 节省」"            || bad "Token 节省规范" $'printf \'\\n## Token 节省\\n\\n- 长等待（云端训练、CI、部署、远端队列）交给不调用 LLM 的脚本轮询、下载、验收和清理，轮询间隔不短于 10 分钟；Agent 提交后退出，结果齐了再开短 Agent 分析。大输出在脚本里汇总，只把结论打印进上下文。\\n- 阶段切换或主会话上下文超过约 40%% 时，先写交接，再 `/clear` 或新开会话。\\n\' >> ~/.claude/CLAUDE.md'
 claudemd_has_reuse_first           && ok "全局规范含「先找成熟方案，再自己造」" || bad "先找成熟方案规范" "先删掉 ~/.claude/CLAUDE.md 里旧的「## 先找成熟方案」节（如有），再执行：cat \"$SCRIPT_DIR/../../rules/reuse-first.md\" >> ~/.claude/CLAUDE.md"
 claudemd_has_rm_literal            && ok "全局规范含「Bash 命令避开内置确认框」" || bad "避开内置确认框规范" "先删掉 ~/.claude/CLAUDE.md 里旧的「## Bash 命令避开内置确认框」节（如有），再执行：cat \"$SCRIPT_DIR/../rules/bash-no-prompt.md\" >> ~/.claude/CLAUDE.md"
 bash_prompt_guard_installed        && ok "bash-prompt-guard hook 已注册（避开内置确认框）" || bad "bash-prompt-guard hook" "bash \"$SCRIPT_DIR/install-bash-prompt-guard.sh\""
@@ -426,33 +425,32 @@ node "$SCRIPT_DIR/mcp-pin-check.mjs" --fail-on high >/dev/null 2>&1 && ok "MCP �
 node "$SCRIPT_DIR/skill-supply-scan.mjs" "$HOME/.claude/skills" --fail-on high >/dev/null 2>&1 && ok "用户级 skills 供应链扫描无 high" || opt "skills 供应链" "node \"$SCRIPT_DIR/skill-supply-scan.mjs\" ~/.claude/skills"
 reply_lang_pin_installed           && ok "reply-lang-pin hook 已注册（英文提问也用中文回复）" || bad "reply-lang-pin hook" "bash \"$SCRIPT_DIR/install-reply-lang-pin.sh\""
 model_router_installed             && ok "model-router 已装（补丁版，子 agent 选模型）" || bad "model-router" "bash \"$SCRIPT_DIR/install-model-router.sh\""
-claudemd_has_agent_model           && ok "全局规范含「Agent 显式写 model」"     || bad "Agent 显式写 model 规范" "cat \"$SCRIPT_DIR/../../rules/agent-model.md\" >> ~/.claude/CLAUDE.md"
+claudemd_has_agent_model           && ok "全局规范含「Agent 显式写 model」"     || bad "Agent 显式写 model 规范" "先删掉 ~/.claude/CLAUDE.md 里旧的「## 子 agent 选模型」节（如有），再执行：cat \"$SCRIPT_DIR/../../rules/agent-model.md\" >> ~/.claude/CLAUDE.md"
 if has_cmd codegraph; then
   codegraph_prompt_hook_filtered && ok "codegraph prompt-hook 已加过滤（后台通知/非代码问题不注入）" || bad "codegraph prompt-hook 过滤" "bash \"$SCRIPT_DIR/install-codegraph-prompt-filter.sh\""
 fi
 # CodeGraph 自动初始化规范：条件必需——仅当 codegraph CLI 已装时才要求（装了却不自动初始化 = 退回慢速搜索）。
 if has_cmd codegraph; then
-  claudemd_has_codegraph_auto_init && ok "全局规范含「CodeGraph 自动初始化」" || bad "CodeGraph 自动初始化规范" $'sed -i.bak -e \'s/codegraph update/codegraph sync/g\' -e \'s/codegraph init --force/codegraph index -f/g\' ~/.claude/CLAUDE.md && printf \'\\n## CodeGraph 自动初始化\\n\\n进入代码项目时，先确认位于项目根目录；若没有 `.codegraph/`，自动执行 `codegraph init`，非代码项目跳过。已有索引需要手动刷新时用 `codegraph sync` 增量同步；需要从头重建时用 `codegraph index -f`。\\n\' >> ~/.claude/CLAUDE.md'
+  claudemd_has_codegraph_auto_init && ok "全局规范含「CodeGraph 自动初始化」" || bad "CodeGraph 自动初始化规范" $'sed -i.bak -e \'s/codegraph update/codegraph sync/g\' -e \'s/codegraph init --force/codegraph index -f/g\' ~/.claude/CLAUDE.md && printf \'\\n## CodeGraph 自动初始化\\n\\n进入代码项目时先确认项目根。没有 `.codegraph/` 时自动运行 `codegraph init`；已有索引用 `codegraph sync` 增量同步，需要完整重建时用 `codegraph index -f`。\\n\' >> ~/.claude/CLAUDE.md'
 else
   ok "CodeGraph 自动初始化规范（codegraph 未装，无需配置）"
 fi
-claudemd_has_code_review_graph      && ok "Code Review Graph 优先规范" || bad "Code Review Graph 优先规范" $'printf \'\\n## Code Review Graph 优先\\n所有代码审查（code review）优先用 code-review-graph MCP 获取最小上下文、影响半径和相关测试，再按结果读取源码。首次建立或完整重建图谱用 `code-review-graph build`，日常增量刷新用 `code-review-graph update`，检查图谱状态用 `code-review-graph status`。\\n\' >> ~/.claude/CLAUDE.md'
+claudemd_has_code_review_graph      && ok "Code Review Graph 优先规范" || bad "Code Review Graph 优先规范" $'printf \'\\n## Code Review Graph 优先\\n\\n所有代码审查优先用 code-review-graph 获取最小上下文、影响半径和相关测试，再读取源码；首次 `code-review-graph build`，日常 `code-review-graph update`，检查 `code-review-graph status`。\\n\' >> ~/.claude/CLAUDE.md'
 # context7 调用场景规范：条件必需——仅当 context7 插件已装时才要求（装了不告诉 CC 何时查文档 = 仍可能凭旧记忆回答）。
 if plugin_installed context7; then
-  claudemd_has_context7           && ok "全局规范含「context7 官方文档优先」" || bad "context7 调用规范" $'printf \'\\n## 库/框架/SDK/API 用法优先查 context7\\n涉及库、框架、SDK、API、CLI 或云服务的用法、配置、版本迁移、报错排查、接入步骤时，优先用 context7 查询当前官方文档与示例；没有匹配文档或 context7 不可用时再回退内置知识或网页搜索。\\n\' >> ~/.claude/CLAUDE.md'
+  claudemd_has_context7           && ok "全局规范含「context7 官方文档优先」" || bad "context7 调用规范" $'printf \'\\n## 库/框架/SDK/API 用法优先查 context7\\n\\n库、框架、SDK、API、CLI、云服务的用法、配置、迁移、报错、接入，先用 context7 查官方文档；查不到或不可用再回退内置知识或网页搜索。\\n\' >> ~/.claude/CLAUDE.md'
 else
   ok "context7 调用规范（插件未装，无需配置）"
 fi
 # anysearch 调用场景规范：条件必需——仅当 anysearch skill 已装时才要求（装了不告诉 CC 何时调 = 白装）；未装则无需配置。
 if skill_installed anysearch; then
-  claudemd_has_anysearch           && ok "全局规范含「anysearch 联网搜索优先」" || bad "anysearch 调用规范" $'printf \'\\n## 联网搜索优先走 anysearch\\n需要联网检索时优先用 anysearch skill（已装于 ~/.claude/skills/anysearch），覆盖：①查信息/新闻/文档/当前数据 ②事实核查 ③读网页正文（超出摘要）④垂直领域查询（股票 Stock:/漏洞 CVE:/论文 DOI: 等带标识符）⑤多意图并行搜索。anysearch 不可用（无 key/超配额/服务错误/断网）时告知用户并可回退内置 WebSearch/WebFetch。\\n\' >> ~/.claude/CLAUDE.md'
+  claudemd_has_anysearch           && ok "全局规范含「anysearch 联网搜索优先」" || bad "anysearch 调用规范" $'printf \'\\n## 联网搜索优先走 anysearch\\n\\n需要联网检索（信息/新闻/当前数据/事实核查）优先用 anysearch skill，不可用时回退 WebSearch/WebFetch。\\n\' >> ~/.claude/CLAUDE.md'
 else
   ok "anysearch 调用规范（skill 未装，无需配置）"
 fi
-# HTTP 请求路由规范：条件必需——仅当 context-mode 插件已装时才要求。
-# 它拦 curl 是特性不是故障，但被拦一次就浪费一轮调用，规范让 CC 一开始就走 ctx_execute。
+# HTTP 请求路由规范：context-mode 已在 PreToolUse hook 里提供，无需 CLAUDE.md 声明。
 if plugin_installed context-mode; then
-  claudemd_has_http_routing        && ok "全局规范含「HTTP 走 ctx_execute 不用裸 curl」" || bad "HTTP 请求路由规范" $'printf \'\\n## HTTP 请求别走裸 Bash curl（避免 context-mode 拦截红字）\\n\\ncontext-mode 的 PreToolUse hook 会拦下「响应体打到 stdout」的 curl/wget，回一条红色 Error 让改用 `ctx_execute`——不是故障，但每次都多一轮工具调用 + 一屏噪音。**别等被拦再改**：\\n\\n- 需要 HTTP 且要处理响应 → 一开始就用 `ctx_execute(language, code)`；要留着后续检索用 `ctx_fetch_and_index`。\\n- 非要用 Bash curl → 写成 hook 放行的形态：**`-s`（wget 用 `-q`）+ 输出落文件**（`-o /tmp/x.json` 或 `> file`），且不能是 `-o -` / `/dev/stdout`，不能带 `-v`，然后再读文件。\\n- 判定逻辑在 `~/.claude/plugins/marketplaces/context-mode/hooks/core/routing.mjs`；插件无静默开关，红字渲染改不掉，只能不去触发。\\n\' >> ~/.claude/CLAUDE.md'
+  ok "HTTP 请求路由（由 context-mode 注入）"
 else
   ok "HTTP 请求路由规范（context-mode 未装，无需配置）"
 fi

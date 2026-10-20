@@ -1,8 +1,15 @@
 diff --git a/plugins/claude-model-router-hook/hooks/hooks.json b/plugins/claude-model-router-hook/hooks/hooks.json
-index 7502daa..d0c3085 100644
+index 7502daa..0a33c97 100644
 --- a/plugins/claude-model-router-hook/hooks/hooks.json
 +++ b/plugins/claude-model-router-hook/hooks/hooks.json
-@@ -11,18 +11,6 @@
+@@ -5,24 +5,12 @@
+         "hooks": [
+           {
+             "type": "command",
+-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/session_init.py\"",
++            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/session_brief.py\"",
+             "timeout": 5
+           }
          ]
        }
      ],
@@ -148,3 +155,66 @@ index f3dc941..dea6598 100644
          length_bonus += 1
      scores["architecture"] += min(length_bonus, 2)  # hard cap +2 (FR-7)
  
+diff --git a/plugins/claude-model-router-hook/hooks/session_brief.py b/plugins/claude-model-router-hook/hooks/session_brief.py
+new file mode 100755
+index 0000000..6cb052a
+--- /dev/null
++++ b/plugins/claude-model-router-hook/hooks/session_brief.py
+@@ -0,0 +1,57 @@
++#!/usr/bin/env python3
++"""vft-kit patch: one-line SessionStart context instead of the Model Tier table.
++
++Upstream session_init.py injects a ~1.4k-char "Model Tier Rules" table that tells
++the main model to pick per-class models (implementation -> opus, MANDATORY). The
++vft-kit config only lowers mechanical spawns to haiku, so that table is noise
++and contradicts the real behavior. hooks.json points SessionStart here instead;
++PreToolUse routing is unchanged. A config whose routed variants are missing is
++still reported, so model-only fallback never goes silent.
++"""
++
++import json
++import os
++import sys
++from pathlib import Path
++
++sys.path.insert(0, str(Path(__file__).resolve().parent))
++
++import session_init  # noqa: E402
++from router import hookio  # noqa: E402
++
++LINE = (
++    "子 agent 模型由 model-router hook 自动补：机械活（下载、校验、清理、搬运等）"
++    "注入 haiku，其余用 opus；显式 model 参数、fork 和自带 model 的命名 agent 不改。"
++)
++
++
++@hookio.fail_open
++def main():
++    if hookio.is_child():
++        sys.exit(0)
++
++    event = hookio.read_event()
++    cwd = event.get("cwd") if isinstance(event.get("cwd"), str) else os.getcwd()
++    context = LINE
++    missing = session_init._missing_variants(session_init._load_config(cwd), cwd)
++    if missing:
++        context += (
++            " 缺少 routed 变体 agent：" + ", ".join(sorted(missing))
++            + "，重跑 install-model-router.sh。"
++        )
++    print(
++        json.dumps(
++            {
++                "hookSpecificOutput": {
++                    "hookEventName": "SessionStart",
++                    "additionalContext": context,
++                }
++            },
++            ensure_ascii=False,
++        )
++    )
++    sys.exit(0)
++
++
++if __name__ == "__main__":
++    main()
