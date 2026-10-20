@@ -3,8 +3,8 @@
 # patch applies cleanly; upstream's own suites (tests/test-hook.sh, unittest) still pass;
 # Chinese mechanical work routes to haiku, reasoning stays opus; named agents with a pinned
 # model are left alone, other named agents are only ever downgraded to haiku; the
-# prompt-blocking UserPromptSubmit hook is gone; SessionStart injects one short line
-# (session_brief.py), not the "Model Tier Rules ... (MANDATORY)" table.
+# prompt-blocking UserPromptSubmit hook is gone; SessionStart injects nothing when
+# healthy (rules live in global CLAUDE.md) and only reports missing routed variants.
 # Needs the source cache from install-model-router.sh; prints SKIP when it is missing.
 set -euo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -17,11 +17,20 @@ git -C "$tmp" init -q && git -C "$tmp" apply "$DIR/../patches/claude-model-route
 H="$tmp/plugins/claude-model-router-hook/hooks"
 ! grep -q UserPromptSubmit "$H/hooks.json"
 grep -q 'hooks/session_brief.py' "$H/hooks.json" && ! grep -q 'hooks/session_init.py' "$H/hooks.json"
+# routed-* agents show up in every session's agent list: one short line each, still generated.
+[ "$(grep -h '^description:' "$tmp"/plugins/claude-model-router-hook/agents/routed-*.md | sort -u)" = 'description: Router-internal; do not use.' ]
+( cd "$tmp" && python3 scripts/generate_variants.py --check >/dev/null )
 mkdir -p "$tmp/home/.claude"; cp "$DIR/../config/model-router.json" "$tmp/home/.claude/model-router.json"
-ctx="$(echo '{"cwd":"/x"}' | HOME="$tmp/home" CLAUDE_PLUGIN_ROOT="$tmp/plugins/claude-model-router-hook" python3 "$H/session_brief.py" \
+# healthy config: SessionStart injects nothing (rules live in global CLAUDE.md);
+# a broken config still reports the missing routed variants in one short line.
+out="$(echo '{"cwd":"/x"}' | HOME="$tmp/home" CLAUDE_PLUGIN_ROOT="$tmp/plugins/claude-model-router-hook" python3 "$H/session_brief.py")"
+[ -z "$out" ]
+rm -f "$tmp/plugins/claude-model-router-hook/agents/routed-haiku.md"
+out="$(echo '{"cwd":"/x"}' | HOME="$tmp/home" CLAUDE_PLUGIN_ROOT="$tmp/plugins/claude-model-router-hook" python3 "$H/session_brief.py" \
   | python3 -c 'import json,sys; print(json.load(sys.stdin)["hookSpecificOutput"]["additionalContext"])')"
-[ "$(printf '%s\n' "$ctx" | wc -l | tr -d ' ')" = 1 ] && [ "${#ctx}" -lt 200 ]
-printf '%s' "$ctx" | grep -q haiku && ! printf '%s' "$ctx" | grep -Eq 'Model Tier|MANDATORY|缺少'
+[ "$(printf '%s\n' "$out" | wc -l | tr -d ' ')" = 1 ] && [ "${#out}" -lt 200 ]
+printf '%s' "$out" | grep -q '缺少 routed' && ! printf '%s' "$out" | grep -Eq 'Model Tier|MANDATORY'
+( cd "$tmp" && python3 scripts/generate_variants.py >/dev/null )   # restore routed-haiku.md for the upstream suites
 python3 - "$H" "$DIR/../config/model-router.json" <<'PY'
 import sys
 sys.path.insert(0, sys.argv[1])

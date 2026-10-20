@@ -1,3 +1,63 @@
+diff --git a/plugins/claude-model-router-hook/agents/routed-haiku.md b/plugins/claude-model-router-hook/agents/routed-haiku.md
+index b606062..9f0c2eb 100644
+--- a/plugins/claude-model-router-hook/agents/routed-haiku.md
++++ b/plugins/claude-model-router-hook/agents/routed-haiku.md
+@@ -1,6 +1,6 @@
+ ---
+ name: routed-haiku
+-description: Router-managed variant for mechanical tasks. Spawned by the model router hook; do not invoke directly.
++description: Router-internal; do not use.
+ model: haiku
+ disallowedTools: Agent
+ router-generated: true
+diff --git a/plugins/claude-model-router-hook/agents/routed-opus-high.md b/plugins/claude-model-router-hook/agents/routed-opus-high.md
+index 21cb8eb..fc8a37c 100644
+--- a/plugins/claude-model-router-hook/agents/routed-opus-high.md
++++ b/plugins/claude-model-router-hook/agents/routed-opus-high.md
+@@ -1,6 +1,6 @@
+ ---
+ name: routed-opus-high
+-description: Router-managed variant for debugging tasks. Spawned by the model router hook; do not invoke directly.
++description: Router-internal; do not use.
+ model: opus
+ effort: high
+ router-generated: true
+diff --git a/plugins/claude-model-router-hook/agents/routed-opus-max.md b/plugins/claude-model-router-hook/agents/routed-opus-max.md
+index 7f98458..a689beb 100644
+--- a/plugins/claude-model-router-hook/agents/routed-opus-max.md
++++ b/plugins/claude-model-router-hook/agents/routed-opus-max.md
+@@ -1,6 +1,6 @@
+ ---
+ name: routed-opus-max
+-description: Router-managed variant for extreme tasks. Spawned by the model router hook; do not invoke directly.
++description: Router-internal; do not use.
+ model: opus
+ effort: max
+ router-generated: true
+diff --git a/plugins/claude-model-router-hook/agents/routed-opus-medium.md b/plugins/claude-model-router-hook/agents/routed-opus-medium.md
+index fc92816..a10de9f 100644
+--- a/plugins/claude-model-router-hook/agents/routed-opus-medium.md
++++ b/plugins/claude-model-router-hook/agents/routed-opus-medium.md
+@@ -1,6 +1,6 @@
+ ---
+ name: routed-opus-medium
+-description: Router-managed variant for implementation tasks. Spawned by the model router hook; do not invoke directly.
++description: Router-internal; do not use.
+ model: opus
+ effort: medium
+ router-generated: true
+diff --git a/plugins/claude-model-router-hook/agents/routed-opus-xhigh.md b/plugins/claude-model-router-hook/agents/routed-opus-xhigh.md
+index b94160d..f4cd340 100644
+--- a/plugins/claude-model-router-hook/agents/routed-opus-xhigh.md
++++ b/plugins/claude-model-router-hook/agents/routed-opus-xhigh.md
+@@ -1,6 +1,6 @@
+ ---
+ name: routed-opus-xhigh
+-description: Router-managed variant for architecture tasks. Spawned by the model router hook; do not invoke directly.
++description: Router-internal; do not use.
+ model: opus
+ effort: xhigh
+ router-generated: true
 diff --git a/plugins/claude-model-router-hook/hooks/hooks.json b/plugins/claude-model-router-hook/hooks/hooks.json
 index 7502daa..0a33c97 100644
 --- a/plugins/claude-model-router-hook/hooks/hooks.json
@@ -155,21 +215,53 @@ index f3dc941..dea6598 100644
          length_bonus += 1
      scores["architecture"] += min(length_bonus, 2)  # hard cap +2 (FR-7)
  
+diff --git a/plugins/claude-model-router-hook/hooks/router/variants.py b/plugins/claude-model-router-hook/hooks/router/variants.py
+index ae7a053..7249bf7 100644
+--- a/plugins/claude-model-router-hook/hooks/router/variants.py
++++ b/plugins/claude-model-router-hook/hooks/router/variants.py
+@@ -40,6 +40,8 @@ AGENT_DESCRIPTION_ESCALATED = (
+     "Spawned by the model router hook; do not invoke directly."
+ )
+ 
++SHORT_DESCRIPTION = "Router-internal; do not use."
++
+ LEGACY_AGENT_BODY = "Complete the delegated task exactly as prompted; return a concise report."
+ 
+ AGENT_BODY = (
+@@ -110,14 +112,12 @@ def variant_map(cfg):
+ 
+ def agent_markdown(name, model, effort, classes):
+     """Full agent file content for one variant."""
+-    if classes:
+-        description = AGENT_DESCRIPTION.format(classes=_join(list(classes)))
+-    else:
+-        description = AGENT_DESCRIPTION_ESCALATED
++    # vft-kit patch: every session lists these agents; keep the line minimal.
++    # Ownership rides on OWNERSHIP_KEY, so the description carries no meaning.
+     lines = [
+         "---",
+         "name: " + name,
+-        "description: " + description,
++        "description: " + SHORT_DESCRIPTION,
+         "model: " + model,
+     ]
+     if effort is not None:
 diff --git a/plugins/claude-model-router-hook/hooks/session_brief.py b/plugins/claude-model-router-hook/hooks/session_brief.py
 new file mode 100755
-index 0000000..6cb052a
+index 0000000..983a0a5
 --- /dev/null
 +++ b/plugins/claude-model-router-hook/hooks/session_brief.py
-@@ -0,0 +1,57 @@
+@@ -0,0 +1,53 @@
 +#!/usr/bin/env python3
-+"""vft-kit patch: one-line SessionStart context instead of the Model Tier table.
++"""vft-kit patch: silent-on-healthy SessionStart instead of the Model Tier table.
 +
 +Upstream session_init.py injects a ~1.4k-char "Model Tier Rules" table that tells
 +the main model to pick per-class models (implementation -> opus, MANDATORY). The
 +vft-kit config only lowers mechanical spawns to haiku, so that table is noise
 +and contradicts the real behavior. hooks.json points SessionStart here instead;
-+PreToolUse routing is unchanged. A config whose routed variants are missing is
-+still reported, so model-only fallback never goes silent.
++PreToolUse routing is unchanged. The routing rules live in the global CLAUDE.md
++(parallel-policy), so a healthy config injects nothing; a config whose routed
++variants are missing is still reported, so model-only fallback never goes silent.
 +"""
 +
 +import json
@@ -182,11 +274,6 @@ index 0000000..6cb052a
 +import session_init  # noqa: E402
 +from router import hookio  # noqa: E402
 +
-+LINE = (
-+    "子 agent 模型由 model-router hook 自动补：机械活（下载、校验、清理、搬运等）"
-+    "注入 haiku，其余用 opus；显式 model 参数、fork 和自带 model 的命名 agent 不改。"
-+)
-+
 +
 +@hookio.fail_open
 +def main():
@@ -195,13 +282,13 @@ index 0000000..6cb052a
 +
 +    event = hookio.read_event()
 +    cwd = event.get("cwd") if isinstance(event.get("cwd"), str) else os.getcwd()
-+    context = LINE
 +    missing = session_init._missing_variants(session_init._load_config(cwd), cwd)
-+    if missing:
-+        context += (
-+            " 缺少 routed 变体 agent：" + ", ".join(sorted(missing))
-+            + "，重跑 install-model-router.sh。"
-+        )
++    if not missing:
++        sys.exit(0)
++    context = (
++        "model-router 缺少 routed 变体 agent：" + ", ".join(sorted(missing))
++        + "，重跑 install-model-router.sh。"
++    )
 +    print(
 +        json.dumps(
 +            {
@@ -218,3 +305,25 @@ index 0000000..6cb052a
 +
 +if __name__ == "__main__":
 +    main()
+diff --git a/tests/test_variants.py b/tests/test_variants.py
+index b82473b..8478f34 100644
+--- a/tests/test_variants.py
++++ b/tests/test_variants.py
+@@ -452,7 +452,7 @@ class TestVariantClosure(unittest.TestCase):
+                     in variants.target_variants(cfg)}
+         self.assertEqual(declared["routed-opus-high"], ())
+         markdown = variants.agent_markdown("routed-opus-high", "opus", "high", ())
+-        self.assertIn("gate-escalated tasks", markdown)
++        self.assertIn("description: Router-internal; do not use.\n", markdown)  # vft-kit patch
+ 
+ 
+ class TestAgentMarkdown(unittest.TestCase):
+@@ -478,7 +478,7 @@ class TestAgentMarkdown(unittest.TestCase):
+         md = variants.agent_markdown(
+             "routed-opus-high", "opus", "high", ("debugging", "architecture")
+         )
+-        self.assertIn("for debugging and architecture tasks", md)
++        self.assertIn("description: Router-internal; do not use.\n", md)  # vft-kit patch
+ 
+     def test_carries_the_ownership_key(self):
+         md = variants.agent_markdown("routed-haiku", "haiku", None, ("mechanical",))

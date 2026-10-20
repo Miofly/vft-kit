@@ -24,13 +24,15 @@ new     1. Trigger only on explicit identifiers: CamelCase/camelCase names,
 
 Mode switch (env var wins over marker files):
   CODEGRAPH_FILTER_MODE=shadow|live|legacy
-  touch ~/.cache/vft-kit/codegraph-prompt-filter.LIVE    -> live
+  touch ~/.cache/vft-kit/codegraph-prompt-filter.SHADOW  -> shadow
   touch ~/.cache/vft-kit/codegraph-prompt-filter.LEGACY  -> legacy (no log)
-  neither                                                -> shadow (default)
+  neither                                                -> live (default)
 shadow: behave exactly like legacy (output unchanged), and append what the new
         logic would have done to the decision log.
 live:   use the new logic; still append the decision to the log.
-Back to shadow: rm ~/.cache/vft-kit/codegraph-prompt-filter.LIVE
+Live became the default on 2026-10-20 after shadow data (224 prompts): legacy
+injected 105 KB over 49 prompts (5 of 6 large ones irrelevant, 11 timeouts),
+new gate 975 B over 1 relevant prompt.
 
 Decision log: CODEGRAPH_FILTER_SHADOW_LOG (default
 ~/.cache/vft-kit/codegraph-prompt-filter.jsonl). One JSON line per prompt; only
@@ -46,7 +48,7 @@ import json, os, re, subprocess, sys, time
 
 HOME = os.path.expanduser("~")
 FLAG_DIR = os.path.join(HOME, ".cache", "vft-kit")
-LIVE_FLAG = os.path.join(FLAG_DIR, "codegraph-prompt-filter.LIVE")
+SHADOW_FLAG = os.path.join(FLAG_DIR, "codegraph-prompt-filter.SHADOW")
 LEGACY_FLAG = os.path.join(FLAG_DIR, "codegraph-prompt-filter.LEGACY")
 DEFAULT_LOG = os.path.join(FLAG_DIR, "codegraph-prompt-filter.jsonl")
 NEW_TIMEOUT = float(os.environ.get("CODEGRAPH_FILTER_TIMEOUT", "8"))
@@ -219,11 +221,11 @@ def mode():
     env = os.environ.get("CODEGRAPH_FILTER_MODE", "").strip().lower()
     if env in ("shadow", "live", "legacy"):
         return env
-    if os.path.exists(LIVE_FLAG):
-        return "live"
+    if os.path.exists(SHADOW_FLAG):
+        return "shadow"
     if os.path.exists(LEGACY_FLAG):
         return "legacy"
-    return "shadow"
+    return "live"
 
 
 def index_db(cwd):

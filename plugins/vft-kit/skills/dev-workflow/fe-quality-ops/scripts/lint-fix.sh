@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# fe-lint-fix —— 任意前端项目的 ESLint / Stylelint / Prettier / TypeScript 一键修复 + 校验
+# lint-fix.sh（fe-quality-ops 静态路线）—— 任意前端项目的 ESLint / Stylelint / Prettier / TypeScript 一键修复 + 校验
 #
 # 通用设计（不绑定任何具体仓库）：
 #   - 目标默认是「当前工作目录」，也可传路径（相对当前目录或绝对）。

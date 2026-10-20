@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Wrap `codegraph prompt-hook` (UserPromptSubmit) with codegraph-prompt-filter.py so that
 # background task notifications and non-code prompts get no ~15 KB symbol injection.
-# Sets the hook timeout to 10 s. The filter starts in shadow mode (legacy output + decision log);
-# `touch ~/.cache/vft-kit/codegraph-prompt-filter.LIVE` switches to the new gate. Idempotent. No-op when codegraph is not installed or its prompt hook is not configured.
+# Sets the hook timeout to 10 s. The filter defaults to live mode (new gate);
+# `touch ~/.cache/vft-kit/codegraph-prompt-filter.SHADOW` switches back to shadow (legacy output + decision log). Idempotent. No-op when codegraph is not installed or its prompt hook is not configured.
 set -euo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SETTINGS="${CLAUDE_SETTINGS:-$HOME/.claude/settings.json}"
