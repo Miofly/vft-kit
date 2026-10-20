@@ -51,6 +51,9 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/agent-ops/agent-baseline/claude-code/scripts/r
 - 写 description：一句做什么 + 用户会说的领域词，控制在 250 字内；实现细节、长触发词表放正文。压缩前后用真实说法做一次路由对照（`claude -p --model haiku` 只给列表让它选 skill），命中率不降才算过。
 - 很少用或只手动用的 skill：SKILL.md frontmatter 加 `disable-model-invocation: true`，描述不进上下文，仍可 `/名字` 调用。插件里按本仓 `explicitOnly` 约定：catalog 登记、`commands/<名字>.md` 带该字段、Codex `agents/openai.yaml` 设 `allow_implicit_invocation: false`、Claude plugin.json 的 skills 根排除该目录（`scripts/validate-skill-catalog.mjs` 校验四处一致）。插件 skill 不受 `skillOverrides` 影响。
 - 插件「enabled」不等于加载成功：缓存目录与 `installed_plugins.json` 记录的版本不一致时会静默失败，`claude --debug` 日志可见 `not cached at`；修复用 uninstall + install。
+- skill 正文调用后常驻上下文直到会话结束：SKILL.md 正文宜 ≤6,000 字，只留定位、何时用、硬规则、路由表，细节放 `references/` 按需读取。
+- 拆分 SKILL.md 时按原文行区间逐字搬运，并用脚本核对原文每行都落到新文件（覆盖率 100%）；理解后改写会丢内容。同时核对原有 references 文件没被删或覆盖。
+- 项目级 CLAUDE.md 过大时，把只对部分文件生效的规则移到 `.claude/rules/*.md`，用 `paths:` frontmatter 限定只在读写匹配文件时加载；子目录规则的 glob 同时写相对项目根与 `**/` 前缀两种（如 `src/api/**` 和 `**/src/api/**`）。
 
 ## Caveman 风格模式（用户级 hook）
 

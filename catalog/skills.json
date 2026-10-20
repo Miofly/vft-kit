@@ -35,7 +35,8 @@
         "agent-baseline",
         "email-ops",
         "notify",
-        "ollama-local"
+        "ollama-local",
+        "skill-creator"
       ]
     },
     {
@@ -82,6 +83,7 @@
       "skills": [
         "android-ui-automation",
         "chrome-web-store-publish",
+        "computer-use",
         "keyboard-maestro",
         "qr-login",
         "temp-mail",

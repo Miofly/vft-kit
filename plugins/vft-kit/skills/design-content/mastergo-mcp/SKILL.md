@@ -9,96 +9,28 @@ description: "配置或使用 MasterGo Vibe/Magic MCP，读取设计稿、原型
 
 # MasterGo MCP
 
-## 前置规范：API 优先，自我演进
+配置或使用 MasterGo 的 Vibe MCP（本机画布）与 Magic MCP（按链接读取远程 DSL/D2C），两种能力不混淆、不静默互相降级。
 
-执行本 skill 前先读本节，本节优先于下文的浏览器步骤。
-- **有接口先用接口**：已确认的接口或脚本（本 skill 的 scripts、下文或“API 化进度”里记录的）优先调用。浏览器只用于四种情况：登录、扫码/验证码/2FA 交给用户、接口未知的步骤、最终页面核验。
-- **没有接口就边做边研究**：某一步仍只能点页面时，先开 `Network.enable`，再用 `page.events()` 抓写请求，只记 URL、方法和 body，不记 Cookie、Token 或密码，存到任务临时目录。做完后自己分析出能复现的接口，用只读接口或回读页面验证，再写进脚本或本 skill；浏览器路径保留作兜底。
-- **维护进度**：本 skill 里维护“API 化进度”：已确认接口（用途、方法路径、body 模板、验证方法）和待抓步骤。每次执行至少推进一项，回复里写一句进度；全部改成接口后，把本节改为维护说明。
-- **安全边界**：写接口只在本次任务的目标对象上验证，不拿无关数据试错；会触发写入的 GET 不预取；凭据只从环境变量或私有配置读取，不打印。
+## 何时用
 
-用一套入口处理两种能力，但不要混淆或静默互相降级：
+读取设计稿、原型、画布与 DSL，导出素材或转代码，生成或修改画布；排查连接、`needsCanvasVisit`、50678 端口和 token。
 
-| 模式 | 用途 | 前提 |
-|---|---|---|
-| Vibe MCP | 连接本机 MasterGo，读取选区、生成/修改画布、变量与组件、HTML 双向同步 | MasterGo 客户端打开目标文件并启用 MCP；默认 `http://localhost:50678`，端口可变 |
-| Magic MCP | 从 MasterGo 链接读取远程 DSL/D2C、SVG、文本和元数据 | `MG_MCP_TOKEN` 或 `MASTERGO_API_TOKEN`；团队版及团队项目文件 |
+## 硬规则
 
-## 执行入口
-
-### 第 0 步：status，缺就装（不可跳过）
-
-任何 MasterGo 任务——包括只读画布、导切图、走浏览器回退——的**第一条命令**都是 `status`，不是打开浏览器：
-
-```bash
-SKILL_DIR="${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/design-content/mastergo-mcp"
-node "$SKILL_DIR/scripts/mastergo-mcp.mjs" status
-```
-
-如果宿主根变量不可用，从当前 `SKILL.md` 所在目录解析 `SKILL_DIR`，不要猜缓存路径。
-
-读当前宿主那两行（`claude` 或 `codex`）：
-
-- 任一行是 `missing` → **默认直接装，不要问、不要绕过**。用户请求执行实际设计任务即视为安装授权（见下节「配置」）。Magic 和 Vibe 两套都要补齐，不能只装当前任务直接用到的那套。
-- Magic 缺 Token 时仍先把 Vibe 装上，再请用户从安全来源提供 `MG_MCP_TOKEN`。
-- 装完提醒用户：MCP 在**新开会话**才注册，当前会话仍然用不上，本轮按浏览器回退路径继续。
-
-有浏览器回退脚本**不是**跳过这步的理由：回退只解决 MCP 覆盖不到的部分（拿 layerId、导位图切图），不替代 DSL / 文本 / 变量 / 组件那些只有 MCP 能给的读取能力。直接开浏览器等于把宿主长期留在没装的状态，下次还得重来。
-
-### 检查和诊断
-
-```bash
-node "$SKILL_DIR/scripts/mastergo-mcp.mjs" status --target codex
-node "$SKILL_DIR/scripts/mastergo-mcp.mjs" doctor --target both
-node "$SKILL_DIR/scripts/mastergo-mcp.mjs" doctor --target codex --health
-```
-
-- `status` 是只读检查；默认同时检查 Claude Code 和 Codex。
-- `doctor` 额外查 npm latest、Vibe 实际端口、Magic 权限前提；`--health` 才启动 MCP 做 initialize。
-- “未找到活跃连接”属于 Vibe：以配置中的实际 URL 查端口，再检查 MasterGo 客户端、当前文件 MCP 开关和重新连接；不要改查 Magic 的远程 API。
-
-### 配置
-
-只修改用户点名的宿主；同时配置必须显式传 `both`：
-
-```bash
-node "$SKILL_DIR/scripts/mastergo-mcp.mjs" configure --mode vibe --target codex
-MG_MCP_TOKEN='从安全来源注入' node "$SKILL_DIR/scripts/mastergo-mcp.mjs" configure --mode magic --target claude
-```
-
+- 任何 MasterGo 任务的第一条命令是 `node "$SKILL_DIR/scripts/mastergo-mcp.mjs" status`，不是打开浏览器；缺失就按 [setup.md](references/setup.md) 补装。
 - 用户请求使用 MasterGo MCP 执行实际设计任务，视为允许为当前宿主安装 Magic 和 Vibe 两套官方 MCP；仅问能力、状态或诊断时保持只读。
 - 实际任务开始前先检查当前宿主；Magic 或 Vibe 任一缺失时，分别运行对应的 `configure --mode ... --target <当前宿主>` 补齐两套，不得只安装当前任务直接用到的一套。
-- Magic 从环境变量或现有安全配置取得 Token 和实际 URL；缺少 Token 时仍先补齐 Vibe，再请用户从安全来源配置 Magic，不要让用户把 Token 发到聊天。
-- Vibe 优先使用客户端实际端口；客户端未启动、无法探测时按官方默认 `http://localhost:50678` 安装，并明确报告连接仍待客户端启用。
-- Vibe 使用钉死的 `@mastergo/vibe-mcp@1.0.31`（版本写在 `scripts/mastergo-mcp.mjs` 的 `MODES`，不用 `@latest`：未审查的新发布会直接执行；`doctor` 会报告与 registry 的版本漂移，审过再升）；端口变化时传 `--url http://localhost:<实际端口>`。
-- Magic 使用钉死的 `@mastergo/magic-mcp@0.2.10`；公网默认 API 是 `https://mastergo.com`，私有部署必须由用户或现有配置给出 `--url`。
-- Magic Token 只能从环境变量读取。不要让用户把 Token 发到聊天，不接受 `--token`，不输出明文，不写仓库。
-- **Token 必须和域匹配。** 内网 token 打公网 `mastergo.com` 返回 `401 {"code":"10002"}`，反之亦然。一套 token 只能读它自己那个实例的稿。
-- **需要出网代理的机器要把代理写进 MCP 配置。** MCP server 是 `npx` 拉起的独立进程，**不继承 shell 的 `https_proxy`**；缺了就报 `Client network socket disconnected before secure TLS connection was established` 或 `ECONNRESET`，看起来像 Token 或权限问题。在宿主配置的 `env` 里补 `HTTPS_PROXY` / `https_proxy` / `NO_PROXY=localhost,127.0.0.1`，**新开会话才生效**。
-- 上述安装授权允许宿主原生命令写用户级 MCP 配置；写入后脚本收紧已存在的宿主配置权限。
-- 等价配置幂等退出；冲突默认停止并报告脱敏差异。只有用户明确要求覆盖或已接受该影响时使用 `--force`。
-- 不提供删除命令。确需卸载时，先确认精确宿主和 server 名，再用宿主原生命令。
+- Magic Token 只从环境变量读，且必须与域匹配；不让用户把 Token 发到聊天，不打印、不写仓库。
+- 只修改用户点名的宿主；装完提醒新开会话才生效。
+- 删除节点/变量、全量 HTML 同步需明确授权；Vibe 连接失败时停止写操作，不降级为 Magic 假装完成。
+- 浏览器步骤有 ego-lite 就用独立 task space，没有才用 Playwright。
 
-## 设计操作
+## 路由
 
-实际读取、生成、修改或同步设计稿前，完整读取 [workflows.md](references/workflows.md)，按其中对应模式执行。
+| 任务 | references | 脚本 |
+|---|---|---|
+| API 优先、抓接口、维护 API 化进度 | [api-first.md](references/api-first.md) | — |
+| 模式选择、status/doctor、安装配置、代理与 Token | [setup.md](references/setup.md) | [mastergo-mcp.mjs](scripts/mastergo-mcp.mjs) |
+| 读取/生成/修改/同步设计稿、Magic 链接、`needsCanvasVisit`、浏览器回退与导切图、设计操作边界、完成标准 | [workflows.md](references/workflows.md) | [enumerate-containers.js](scripts/enumerate-containers.js)、[collect-export-nodes.js](scripts/collect-export-nodes.js)、[extract-text.js](scripts/extract-text.js)、[measure-layout.js](scripts/measure-layout.js) |
 
-通用边界：
-
-1. 先读取并锁定文件、页面、选区或节点 ID，再执行最小操作，最后回读或 diff 验证。
-2. 删除节点、删除变量、全量 HTML 同步会覆盖或移除设计数据，必须有明确授权。用户在当前请求已明确要求该动作时，不要重复确认。
-3. Vibe 同步接收静态 HTML；先把 Vue/React 页面运行或导出为静态 HTML，不把 `.vue`、`.tsx` 源码直接交给 MCP。
-4. Magic 先取 meta/section，再按需获取 DSL、SVG、文本；避免一次拉完整大 payload。
-5. Vibe 连接失败时停止写操作并修复连接，不得降级为 Magic 假装完成画布修改。
-6. MCP 不适合当前目标，或按上节安装仍不可用但页面已在浏览器加载时，按工作流使用 `window.mg` 只读回退脚本；普通 DOM 抓取无法读取 Canvas 画板。
-7. `getPageLayers` 返回 `totalLayers: 0 / needsCanvasVisit: true` 是图层缓存为空，不是没权限。不要空转重试，也不要把定位退回给用户——按工作流的「链接没有 layer_id 时」用浏览器枚举拿到 layerId 再调 `getDsl`。
-8. 需要打开浏览器加载、查看或枚举页面时，本机有 ego-lite（`command -v ego-browser` 探测）就一律用它：为本任务开一个独立 task space，复用登录态，结束 `task.finish({ keep: [] })` 关闭，不用 Playwright；只有没装 ego-lite 的环境才降级现有 Browser/Playwright 能力，不另起 Chrome。
-
-## 完成标准
-
-- 配置任务：宿主回读显示正确包、URL、启用状态和凭据存在性，输出无敏感值。
-- Vibe 操作：目标画布回读或 `get_design_diff` 证明改动落地。
-- Magic 操作：链接、file/layer 定位正确，返回所需范围和格式，并说明团队权限或草稿箱限制。
-- 安装或配置变更后提醒用户新开/重启对应宿主会话，使 MCP 注册生效。
-
-涉及当前包参数或工具变化时，以 [MasterGo MCP 帮助](https://mastergo.com/help/MG/MCP)、[配置指南](https://mastergo.com/help/MG/MCP/CONFIG) 和 [Magic MCP 官方仓库](https://github.com/mastergo-design/mastergo-magic-mcp) 为准，并用 `npm view` 核对 latest；不要把本文中的版本快照当作永久事实。
+测试：`node --test tests/test-mastergo-mcp.mjs`。

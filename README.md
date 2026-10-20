@@ -42,7 +42,7 @@ node scripts/audit-public.mjs
 
 | 分类 | 定位 | skills |
 |---|---|---|
-| Agent 运维 (`agent-ops`) | Claude Code、Codex、CC Switch、插件缓存与通知 | `agent-baseline` · `email-ops` · `notify` · `ollama-local` |
+| Agent 运维 (`agent-ops`) | Claude Code、Codex、CC Switch、插件缓存、通知与 skill 编写 | `agent-baseline` · `email-ops` · `notify` · `ollama-local` · `skill-creator` |
 | 云平台 (`cloud-platforms`) | 云服务、模型托管、部署平台和账号资源 | `aistudio` · `cloudflare-ops` · `huggingface-ops` · `kaggle-ops` · `modelscope-studio` · `vercel-ops` |
 | 开发工作流 (`dev-workflow`) | 数据库工具、前端质量、Git、代码托管和 Vue 配置 | `dbx` · `fe-quality-ops` · `git-auto-push` · `git-ops` · `github-ops` |
 | 设计与内容 (`design-content`) | 信息图、Office 文档、视觉内容和中文去 AI 味 | `co-infographic-generator` · `mastergo-mcp` · `office-doc-rewrite` · `zh-humanizer` |
