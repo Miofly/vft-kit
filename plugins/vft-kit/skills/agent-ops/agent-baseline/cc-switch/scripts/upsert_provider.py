@@ -42,6 +42,8 @@ class ProviderInput:
     auth_field: str
     api_key: str
     replace_id: str | None = None
+    settings_model: str = "opus"
+    common_config: bool = False
 
 
 def normalize_base_url(value: str, api_format: str) -> str:
@@ -159,7 +161,7 @@ def build_configs(
     env["ANTHROPIC_BASE_URL"] = normalized_base
     for key in MODEL_KEYS:
         env[key] = data.model
-    settings["model"] = "opus"
+    settings["model"] = data.settings_model
     meta.update(
         {
             "apiFormat": data.api_format,
@@ -167,6 +169,8 @@ def build_configs(
             "endpointAutoSelect": True,
         }
     )
+    if data.common_config:
+        meta["commonConfigEnabled"] = True
     return (
         json.dumps(settings, ensure_ascii=False, separators=(",", ":")),
         json.dumps(meta, ensure_ascii=False, separators=(",", ":")),
@@ -371,6 +375,27 @@ def self_test() -> None:
         assert settings["env"]["DISABLE_AUTOUPDATER"] == "1"
         assert settings["model"] == "opus"
         conn.close()
+        golden = ProviderInput(
+            "Provider C",
+            "https://native.example.com/anthropic",
+            "model-c[1m]",
+            "anthropic",
+            "ANTHROPIC_AUTH_TOKEN",
+            "test-secret",
+            None,
+            "client-model[1m]",
+            True,
+        )
+        assert upsert_provider(db_path, golden)["action"] == "create"
+        conn = sqlite3.connect(db_path)
+        row = conn.execute(
+            "SELECT settings_config, meta FROM providers WHERE name='Provider C'"
+        ).fetchone()
+        settings, meta = json.loads(row[0]), json.loads(row[1])
+        assert settings["model"] == "client-model[1m]"
+        assert all(settings["env"][key] == "model-c[1m]" for key in MODEL_KEYS)
+        assert meta["commonConfigEnabled"] is True
+        conn.close()
         try:
             upsert_provider(
                 db_path,
@@ -388,7 +413,7 @@ def self_test() -> None:
             assert "possible duplicate provider" in str(exc)
         else:
             raise AssertionError("duplicate provider was not rejected")
-        assert len(list((db_path.parent / "backups").glob("*.db"))) == 2
+        assert len(list((db_path.parent / "backups").glob("*.db"))) == 3
         assert db_path.stat().st_mode & 0o777 == 0o600
     print("SELF_TEST=PASS")
 
@@ -404,6 +429,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--auth-field", choices=AUTH_FIELDS, default=AUTH_FIELDS[0])
     parser.add_argument("--api-key-env", default="CC_SWITCH_API_KEY")
     parser.add_argument("--replace-id")
+    parser.add_argument("--settings-model", default="opus")
+    parser.add_argument("--common-config", action="store_true")
     parser.add_argument("--db", type=Path, default=Path.home() / ".cc-switch/cc-switch.db")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--self-test", action="store_true")
@@ -433,6 +460,8 @@ def main() -> int:
             args.auth_field,
             api_key,
             args.replace_id,
+            args.settings_model,
+            args.common_config,
         ),
         args.dry_run,
     )
