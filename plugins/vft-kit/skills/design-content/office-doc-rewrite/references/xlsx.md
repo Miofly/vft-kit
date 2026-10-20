@@ -88,3 +88,12 @@ unzip -l out.xlsx | grep -c "xl/media/image"
 $OFFICE_PY -c "import openpyxl; wb=openpyxl.load_workbook('out.xlsx'); ..."
 ```
 **零残留检测别用 openpyxl 的 row.cells 去重**（合并单元格会假阴性）——直接读 sharedStrings.xml 全文 grep 旧业务词最可靠。
+
+### 处理 .xlsx → 读 [references/xlsx.md](xlsx.md)
+
+要点速览（详见 reference）：
+- 文字几乎都在 `xl/sharedStrings.xml` 的共享字符串表里，sheet XML 只存索引。**只改 sharedStrings 就够，sheet/图片/样式全自动保留**。
+- 用 `scripts/xlsx_dump.py` 把 330 个共享字符串连同索引导出，据此规划映射。
+- 富文本 si（带 `<r><rPr>` 多 run，如粗体关键词）要保留 rPr 结构。
+- 用 `scripts/xlsx_swap.py` 按 `{si索引: 新文本}` 映射改写。
+- 数字型单元格（如版本号 2.7）直接存在 sheet XML 里，不在 sharedStrings，需单独改 sheet。

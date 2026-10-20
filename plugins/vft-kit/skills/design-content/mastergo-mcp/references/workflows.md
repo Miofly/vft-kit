@@ -105,3 +105,27 @@ const bytes = await img.getBytesAsync();   // Uint8Array，转 base64 传回落�
 不要仅凭“唯一顶层节点且有多个子节点”自动钻层：它也可能是合法的单画板。布局脚本只为横向范围重叠且垂直不重叠的直接子级计算 gap；横排、重叠或 `NAMES` 跨层筛选只返回原始 bbox。
 
 这一路径只读，不等价于 Vibe 写画布。读取后的实现仍需在目标项目运行并做浏览器验证；设计坐标换算应依据实际画板宽度和项目的 viewport/rem 配置，不能固定假设 1080 或直接等同 CSS px。
+
+## 设计操作
+
+实际读取、生成、修改或同步设计稿前，完整读取 [workflows.md](workflows.md)，按其中对应模式执行。
+
+通用边界：
+
+1. 先读取并锁定文件、页面、选区或节点 ID，再执行最小操作，最后回读或 diff 验证。
+2. 删除节点、删除变量、全量 HTML 同步会覆盖或移除设计数据，必须有明确授权。用户在当前请求已明确要求该动作时，不要重复确认。
+3. Vibe 同步接收静态 HTML；先把 Vue/React 页面运行或导出为静态 HTML，不把 `.vue`、`.tsx` 源码直接交给 MCP。
+4. Magic 先取 meta/section，再按需获取 DSL、SVG、文本；避免一次拉完整大 payload。
+5. Vibe 连接失败时停止写操作并修复连接，不得降级为 Magic 假装完成画布修改。
+6. MCP 不适合当前目标，或按上节安装仍不可用但页面已在浏览器加载时，按工作流使用 `window.mg` 只读回退脚本；普通 DOM 抓取无法读取 Canvas 画板。
+7. `getPageLayers` 返回 `totalLayers: 0 / needsCanvasVisit: true` 是图层缓存为空，不是没权限。不要空转重试，也不要把定位退回给用户——按工作流的「链接没有 layer_id 时」用浏览器枚举拿到 layerId 再调 `getDsl`。
+8. 需要打开浏览器加载、查看或枚举页面时，本机有 ego-lite（`command -v ego-browser` 探测）就一律用它：为本任务开一个独立 task space，复用登录态，结束 `task.finish({ keep: [] })` 关闭，不用 Playwright；只有没装 ego-lite 的环境才降级现有 Browser/Playwright 能力，不另起 Chrome。
+
+## 完成标准
+
+- 配置任务：宿主回读显示正确包、URL、启用状态和凭据存在性，输出无敏感值。
+- Vibe 操作：目标画布回读或 `get_design_diff` 证明改动落地。
+- Magic 操作：链接、file/layer 定位正确，返回所需范围和格式，并说明团队权限或草稿箱限制。
+- 安装或配置变更后提醒用户新开/重启对应宿主会话，使 MCP 注册生效。
+
+涉及当前包参数或工具变化时，以 [MasterGo MCP 帮助](https://mastergo.com/help/MG/MCP)、[配置指南](https://mastergo.com/help/MG/MCP/CONFIG) 和 [Magic MCP 官方仓库](https://github.com/mastergo-design/mastergo-magic-mcp) 为准，并用 `npm view` 核对 latest；不要把本文中的版本快照当作永久事实。

@@ -39,3 +39,8 @@ bash "<skill-dir>/scripts/doc_convert.sh" ./work/new.docx doc ./out
 bash "<skill-dir>/scripts/doc_convert.sh" out/new.doc txt /tmp/verify && cat /tmp/verify/*.txt
 ```
 确认：新业务词到位、旧业务词零残留、日期等字段已更新。
+
+### 处理 .doc（老 OLE 格式）→ 读 [references/doc.md](doc.md)
+
+- `.doc` 是二进制 OLE，不能 zip 层改。**用 LibreOffice 转成 .docx → 按上面的 docx 手法改 → 转回 .doc**。
+- 转换命令封装在 `scripts/doc_convert.sh`（doc↔docx↔txt）。

@@ -63,3 +63,10 @@ for tc in doc.element.body.iter(qn('w:tc')):
         full += "".join(n.text or '' for n in p.iter(qn('w:t'))) + "\n"
 # 然后 grep 旧业务词
 ```
+
+### 处理 .docx → 读 [references/docx.md](docx.md)
+
+要点速览：
+- 用 python-docx，但**不要改 `cell.text`**（会丢格式）。改 run 的 text，或走 XML 层遍历 `<w:t>`。
+- **合并单元格陷阱**：`row.cells` 对合并单元格返回共享 `_tc`，用 `id(cell._tc)` 去重会误杀正常单元格，导致漏改。正解是直接遍历 body 里所有 `<w:tc>`/`<w:p>` 元素（`scripts/docx_swap.py` 已封装）。
+- 一句话可能被拆成多个 run（`['视频彩铃','H5','重构']`），子串替换要先拼接再回写第一个 run、清空其余。

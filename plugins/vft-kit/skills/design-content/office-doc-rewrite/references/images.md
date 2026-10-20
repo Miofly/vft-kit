@@ -78,3 +78,16 @@ cat xl/drawings/_rels/drawingN.xml.rels   # drawing → media/imageN.png
 # 锚点跨度(看框大概多大)
 grep -A5 twoCellAnchor xl/drawings/drawingN.xml
 ```
+
+## 图片重绘（当模板里的图也需要换）
+
+如果模板里的图片是旧业务的（如架构图、流程图），要换成新内容的图：
+
+- **首选 mermaid** 渲染成 PNG（有 ego-lite 时在独立 task space 渲染，没有才用 playwright 兜底）（流程图、时序图、架构组件图、上下文图这类框线连接图，mermaid 最专业）。脚本 `scripts/mmd_render.mjs`。
+- 用 `scripts/xlsx_replace_images.py` 替换 `xl/media/imageN.png`。
+- **关键坑——图片变形与遮挡**：xlsx 图片用 `twoCellAnchor`（双单元格锚点）定位，显示框大小由 from/to 单元格坐标决定，**与图片像素无关**。若新图长宽比 ≠ 原框比例，图会被拉伸变形；若你擅自改锚点把框改大，图会**盖住旁边的文字**（表现为"文字被截断"，实为被图遮挡）。
+  - **正解**：① 保持原始 drawing 锚点不动（从原文件恢复）；② 用 pillow 把新图 **padding 加白边到原框的长宽比**（绝不拉伸），让它精确填充原框。`scripts/fit_image_ratio.py` 已封装。
+  - 先用 `scripts/xlsx_measure_frames.py` 量出每个图框的真实像素比例（累加列宽/行高换算），据此 padding。
+- **mermaid 布局坑**：v11 里 `subgraph` 内嵌 `direction` 常导致整图塌缩成一条细线。拿不准就用扁平的 `节点 --> 节点` 写法，让 mermaid 自己布局，比例不理想再靠 padding 兜底。渲染后用 `mmd_render.mjs` 附带的文字节点导出确认文字完整无截断（因为你可能看不到图）。
+
+详见 [references/images.md](images.md)。
