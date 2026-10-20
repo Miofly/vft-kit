@@ -60,3 +60,13 @@
 - **判断是否已登录别看整串 URL**：登录页 `loginpage?url=%2Fwxamp%2F…` 的参数里也带 `wxamp`，要看路径部分是不是 `/wxamp/...?token=`。
 - **开了原始 CDP 之后**（如 `Network.enable`），之前 snapshot 拿到的 `@ref` 会失效，要改用文字或选择器定位。
 - **开发者工具的模拟器别用模拟鼠标去点**：改用 miniprogram-automator，见 `miniprogram-devtools.md`。
+
+## 小程序版本发布与提审
+
+小程序后台同在 `mp.weixin.qq.com`，但路径是 `/wxamp/...`，而且是另一个账号（扫码时要选小程序账号）。上传走开发者工具 CLI，查状态和提审走后台：
+
+- 上传开发版和生成预览码首选 `scripts/mp-ci.mjs`（官方 miniprogram-ci，用上传密钥代替登录，不需要开发者工具，不碰桌面）；没有密钥时才用开发者工具 CLI
+- 查线上 / 审核中 / 开发版本：`ego-browser nodejs < scripts/wxamp-version-status.mjs`（接口已实测，只读）
+- 提交审核：首选接口版 `scripts/wxamp-submit-audit-api.mjs`（get_class 取 auto_id → 隐私声明 → submit_check → 回读，已实测）；页面点击版 `wxamp-submit-audit.mjs` 只作兜底。`audit.auditStatus=1` 才算进入审核
+- 隐私选项的后果、已抓到的接口清单（含提交审核的 `submit_check`）和踩过的坑，见 `references/miniprogram-release.md`
+- 开发阶段的自测：`cli auto` 开放端口后用 miniprogram-automator 驱动模拟器，不要用模拟鼠标点模拟器。请求、弹窗、插屏广告的打桩方法，连本地后端的构建方式，以及广告和分享的规则，见 `references/miniprogram-devtools.md`；公共函数在 `scripts/miniprogram-automator-helpers.cjs`

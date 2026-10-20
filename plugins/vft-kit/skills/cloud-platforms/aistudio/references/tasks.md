@@ -108,3 +108,9 @@ The official document says only the latest five tasks are retained, task outputs
 ## Completion report
 
 Report the project, pipeline, and task IDs as applicable; task type; selected hardware and confirmed rate/payment; submitted version or launch command; terminal state; elapsed time; output location and verification; remaining running or queued tasks; and whether the interactive Notebook runtime was stopped. Separate platform-confirmed facts from assumptions and stale documentation examples.
+
+## Script and background tasks
+
+Read `references/tasks.md` completely. Model-pipeline jobs, script-task projects, and Notebook background tasks are different products. Do not substitute one for another without explaining the change.
+
+All task types consume paid balance or compute points once running. Inspect the live environment, rate, balance, payment method, and task configuration immediately before submission, then require explicit confirmation of the displayed cost. Documentation examples dated 2024 are not current pricing proof. After submission, record the pipeline/task ID, verify the resulting state, monitor logs to a terminal state when the user asked for completion, retrieve and verify outputs, and terminate unexpected work. Deletion remains destructive and requires explicit authorization.

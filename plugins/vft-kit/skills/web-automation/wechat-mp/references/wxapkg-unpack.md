@@ -78,3 +78,7 @@ WXSS 编码规则：`[1]` 是组件作用域前缀，还原时删掉；`[0, N]` 
 | 同一 wxid 下有多个版本目录 | CLI 自动取修改时间最新的目录。要指定版本，直接传版本目录路径 |
 | `extract-wxss` 输出 `restored 0` | 旧版脚本只扫 `page-frame.html`；当前版本已同时扫 `pages/**/x.html`，确认用的是最新脚本 |
 | 上游更新 | 运行 `$S --rebuild scan` 拉取上游并重新编译 |
+
+## 小程序反编译（复刻参考）
+
+要复刻别人的小程序样式或交互时，用 `scripts/wxapkg/wxapkg.sh` 扫本机微信缓存、按页面文字定位 wxid、解密解包，再用 `scripts/wxapkg/extract-wxss.mjs` 还原 WXSS、`scripts/wxapkg/split-service.mjs` 拆逻辑并导出数据。完整流程、换 UI 复刻的步骤、产物怎么读、复刻到 Taro 的要点见 `references/wxapkg-unpack.md`。只用于学习研究或复刻自己有权使用的设计，不分发解出的源码。

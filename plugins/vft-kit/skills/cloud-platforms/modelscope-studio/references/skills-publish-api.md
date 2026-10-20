@@ -123,3 +123,51 @@ Skills → 确认创建) and creates **one** skill per run, with a single-select
 ids map 1:1 to the payload keys (`Name`, `DisplayName`, `SourceUrl`, `Path`, `License`,
 `Visibility`, `Description`, `L1`, `Tags`, `SourceAvatar`, `AutoSyncEnabled`, `Files`). Per-skill
 management lives at `/skills/{owner}/{name}/setting` (编辑 / 手动同步 / 删除).
+
+## Publish Skills from a GitHub Repository
+
+ModelScope Skills (`https://modelscope.cn/skills`) can be created from any public GitHub repo that
+holds `SKILL.md` directories. The web wizard publishes one skill per run; `scripts/publish-skills.mjs`
+publishes or re-syncs a whole repository through the same internal endpoints, headlessly.
+
+Prerequisites: a public GitHub repo, and ego-lite logged in to the ModelScope account that will own
+the skills (the script verifies the session identity and aborts on a mismatch). No API token,
+cookie, or credential file is read — the calls run as `page.fetch` inside the logged-in page,
+because skill creation has no working token route. See `references/skills-publish-api.md` for the
+endpoint contract, payload fields, and the routes that are only probed.
+
+```bash
+SCRIPT=scripts/publish-skills.mjs
+
+# 1. Plan: what would be created, with which catalogue, description and file set (no writes)
+node $SCRIPT --repo https://github.com/<user>/<repo> --owner <modelscope-user> --profile <egoProfileId>
+
+# 2. Publish everything the plan listed
+node $SCRIPT --repo ... --owner ... --apply --report /tmp/publish-report.json
+
+# 3. Later: re-pull already-published skills from GitHub (the 手动同步 button, for the whole repo)
+node $SCRIPT --repo ... --owner ... --sync
+
+# Narrow a run, override the default catalogue, or check the script offline
+node $SCRIPT --repo ... --owner ... --apply --only skill-a,skill-b
+node $SCRIPT --repo ... --owner ... --category developer-tools
+node $SCRIPT --selftest
+```
+
+Behaviour worth knowing:
+
+- Default is **dry-run**; nothing is created without `--apply`.
+- Already-published skills are skipped, not duplicated (`user_repeat`); a skill published by
+  someone else is reported as `skip-exists-official` and left alone — claiming it is a web-UI flow.
+- `--config <file.json>` reads the same keys (`repo`, `owner`, `profile`, `space`, `category`,
+  `category_map`, `license`, `visibility`, `autoSync`, `exclude`, `delayMs`) from a `skill_publish`
+  object, so a private wrapper can hold the personal defaults and the command stays short.
+- `category_map` keys are skill names or any parent directory name; values must be catalogue ids
+  from `GET /api/v1/catalogues?Business=skills`. Unknown ids are flagged, not silently sent.
+- Description, display name, icon and GitHub developer come from the platform's own SKILL.md parse,
+  so frontmatter quality shows up directly on the published page.
+- Each created skill is read back through the **public** detail route (`SourceURL`, `Visibility`,
+  `AutoSyncEnabled`, `L1.CatalogID`, non-empty `ReadMeContent`) plus the synced repo tree; exit code
+  is non-zero on any create failure, readback mismatch, or warning.
+- `AutoSyncEnabled=1` keeps the published copy following GitHub. The sync only sees **pushed**
+  commits — publish after the change is on the default branch, then `--sync` to pull immediately.

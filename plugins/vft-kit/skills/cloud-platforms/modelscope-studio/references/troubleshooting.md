@@ -61,3 +61,13 @@ Deployment failed
     git add . && git commit -m "fix" && git push modelscope master
     then call deployStudio
 ```
+
+## Notes
+
+1. The default branch is `master`; force push is prohibited
+2. Files over 100MB must use Git LFS
+3. The first Docker build takes about 3-5 minutes; other types start faster
+4. Free quotas have time limits
+5. Switching to paid hardware resources will incur charges on the Alibaba Cloud account bound to the user's ModelScope account; the user's explicit authorization must be obtained first
+6. Hardcoding sensitive information in code is prohibited; it must be injected via secrets; non-sensitive configuration may use plaintext variables
+7. A Studio **cannot be deleted through a programmatic interface**: OpenAPI `DELETE /openapi/v1/studios/{id}` returns 404; the SDK/CLI `delete_repo` is deprecated and does not support studio. Deletion is only possible via the web console at https://modelscope.cn (which uses a cookie-authenticated internal interface; a Bearer token call returns 401). Programmatically, you can only stop (`stop`).

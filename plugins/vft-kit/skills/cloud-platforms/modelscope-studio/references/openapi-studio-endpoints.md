@@ -162,3 +162,35 @@ curl -X DELETE "$MODELSCOPE_ENDPOINT/openapi/v1/studios/{owner}/{repo_name}/secr
 
 > ⚠️ Deleting either plaintext variables or secrets uses `DELETE .../variables` or `DELETE .../secrets` + body `{"key": "..."}`.
 > The path form `DELETE .../{key}` returns 404 and is a no-op.
+
+## Operations Overview: OpenAPI (source of truth) ↔ CLI ↔ Python
+
+| Operation | OpenAPI (source of truth) | ms CLI (equivalent alias) | `modelscope_hub.HubApi` (Python) | MCP tool (optional) |
+|------|---------------------|---------------------|-----------------------------------|------------------|
+| User info | `GET /users/me` | `ms whoami` | `api.whoami()` | `getCurrentUser` |
+| Create Studio | `POST /studios` | `ms create o/r --repo-type studio` | `api.create_repo("o/r", repo_type="studio", ...)` | `createStudio` |
+| Get details | `GET /studios/{o}/{r}` | `ms info o/r --repo-type studio` | `api.get_repo("o/r", repo_type="studio")` | `getStudio` |
+| Deploy/restart | `POST /studios/{o}/{r}/deploy` | `ms deploy o/r --repo-type studio` | `api.deploy_repo("o/r")` | `deployStudio` |
+| Stop | `POST /studios/{o}/{r}/stop` | `ms stop o/r --repo-type studio` | `api.stop_repo("o/r")` | `stopStudio` |
+| Logs | `GET /studios/{o}/{r}/logs/{run\|build}` | `ms logs o/r --log-type run` | `api.get_repo_logs("o/r", log_type="run")` | `getStudioLogs` |
+| Update settings | `PATCH /studios/{o}/{r}/settings` | `ms settings o/r --repo-type studio k=v` | `api.update_repo_settings("o/r","studio",**kw)` | `updateStudioSettings` |
+| Query available hardware | `GET /studios/hardware?sdk_type=gradio[&studio=o/r]` | none | none | `listHardware` |
+| Query SDK versions | `GET /studios/sdk-versions?sdk_type=gradio` | none | none | `listSdkVersions` |
+| Query base images | `GET /studios/base-images` | none | none | `listBaseImages` |
+| List plaintext variables | `GET /studios/{o}/{r}/variables` | none | none | `listStudioVariables` |
+| Add plaintext variable | `POST /studios/{o}/{r}/variables` | none | none | `addStudioVariable` |
+| Update plaintext variable | `PUT /studios/{o}/{r}/variables` | none | none | `updateStudioVariable` |
+| Delete plaintext variable | `DELETE /studios/{o}/{r}/variables` | none | none | `deleteStudioVariable` |
+| List secrets | `GET /studios/{o}/{r}/secrets` | `ms secret list o/r` | `api.list_secrets("o/r")` | `listStudioSecrets` |
+| Add secret | `POST /studios/{o}/{r}/secrets` | `ms secret add o/r K V` | `api.add_secret("o/r","K","V")` | `addStudioSecret` |
+| Update secret | `PUT /studios/{o}/{r}/secrets` | `ms secret update o/r K V` | `api.update_secret("o/r","K","V")` | `updateStudioSecret` |
+| Delete secret | `DELETE /studios/{o}/{r}/secrets` | `ms secret delete o/r K` | `api.delete_secret("o/r","K")` | `deleteStudioSecret` |
+
+> **`HubApi` is the same engine that drives the `ms` CLI** and is the API-first Python entry point:
+> ```python
+> from modelscope_hub import HubApi
+> api = HubApi(); api.login("$MODELSCOPE_API_KEY")
+> ```
+> Note it is a different pair of classes from the legacy `modelscope.hub.api.HubApi`: the legacy version has not yet wired up Studio methods such as deploy/stop, whereas **the new `modelscope_hub.HubApi` has** (its `deploy_repo`/`stop_repo`/`get_repo_logs`/secret series default to `repo_type="studio"`).
+
+> **MCP tools (optional)** — the last column of the table above lists the equivalent tools provided by the `studio-mcp` service, with the same semantics as the OpenAPI call in the same row; when the agent has this service configured it can be called directly, and when it is not configured this column can be ignored. See the appendix at the end for first-time setup.
