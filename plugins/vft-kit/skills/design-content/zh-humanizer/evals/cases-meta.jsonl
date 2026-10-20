@@ -1,0 +1,32 @@
+{"id": "B-02", "legacy_id": "SNF-08", "normal": true, "positive": false}
+{"id": "B-08", "legacy_id": "SF-41", "normal": false, "positive": false}
+{"id": "B-20", "legacy_id": "SF-45", "normal": false, "positive": true}
+{"id": "B-25", "legacy_id": "SF-05", "normal": false, "positive": false}
+{"id": "B-30", "legacy_id": "SF-03", "normal": false, "positive": false}
+{"id": "B-40", "legacy_id": "SF-19", "normal": false, "positive": false}
+{"id": "B-55", "legacy_id": "SF-36", "normal": false, "positive": false}
+{"id": "B-60", "legacy_id": "SF-29", "normal": false, "positive": true}
+{"id": "B-70", "legacy_id": "SNF-57", "normal": true, "positive": false}
+{"id": "B-73", "legacy_id": "SF-48", "normal": false, "positive": true}
+{"id": "B-76", "legacy_id": "SF-39", "normal": false, "positive": false}
+{"id": "B-79", "legacy_id": "SF-11", "normal": false, "positive": true}
+{"id": "B-81", "legacy_id": "SF-12", "normal": false, "positive": true}
+{"id": "B-82", "legacy_id": "SNF-31", "normal": true, "positive": false}
+{"id": "B-84", "legacy_id": "SF-01", "normal": false, "positive": true}
+{"id": "B-85", "legacy_id": "SNF-17", "normal": true, "positive": false}
+{"id": "B-86", "legacy_id": "SF-16", "normal": false, "positive": false}
+{"id": "B-87", "legacy_id": "SNF-35", "normal": true, "positive": false}
+{"id": "B-89", "legacy_id": "SF-37", "normal": false, "positive": false}
+{"id": "B-95", "legacy_id": "SNF-54", "normal": true, "positive": false}
+{"id": "B-100", "legacy_id": "SNF-37", "normal": true, "positive": false}
+{"id": "B-101", "legacy_id": "SNF-22", "normal": true, "positive": false}
+{"id": "B-104", "legacy_id": "SF-07", "normal": false, "positive": false}
+{"id": "B-114", "legacy_id": "SNF-29", "normal": true, "positive": false}
+{"id": "B-121", "legacy_id": "SF-64", "normal": false, "positive": true}
+{"id": "B-122", "legacy_id": "SF-65", "normal": false, "positive": false}
+{"id": "B-123", "legacy_id": "SNF-58", "normal": true, "positive": false}
+{"id": "W-01", "legacy_id": null, "normal": false, "positive": true, "note": "woshipm custom"}
+{"id": "W-02", "legacy_id": null, "normal": false, "positive": true, "note": "woshipm custom"}
+{"id": "W-03", "legacy_id": null, "normal": false, "positive": true, "note": "woshipm custom"}
+{"id": "W-04", "legacy_id": null, "normal": false, "positive": true, "note": "woshipm custom"}
+{"id": "W-05", "legacy_id": null, "normal": false, "positive": true, "note": "woshipm custom"}

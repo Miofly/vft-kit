@@ -1,0 +1,5 @@
+interface:
+  display_name: "qr-login"
+  short_description: "多平台扫码登录"
+policy:
+  allow_implicit_invocation: false

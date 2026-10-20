@@ -6,14 +6,12 @@
     "name": "VFT contributors"
   },
   "skills": [
-    "./skills/agent-ops",
-    "./skills/cloud-platforms",
-    "./skills/design-content",
-    "./skills/dev-workflow/dbx",
+    "./skills/agent-ops/notify",
+    "./skills/cloud-platforms/vercel-ops",
+    "./skills/design-content/co-infographic-generator",
+    "./skills/design-content/office-doc-rewrite",
     "./skills/dev-workflow/fe-quality-ops",
-    "./skills/dev-workflow/git-ops",
-    "./skills/dev-workflow/github-ops",
-    "./skills/web-automation",
-    "./skills/workplace-tools"
+    "./skills/web-automation/android-ui-automation",
+    "./skills/web-automation/wechat-mp"
   ]
 }

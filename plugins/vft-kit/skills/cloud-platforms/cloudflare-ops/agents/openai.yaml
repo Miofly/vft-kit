@@ -1,0 +1,5 @@
+interface:
+  display_name: "cloudflare-ops"
+  short_description: "Cloudflare 缓存、DNS 与 Workers 操作"
+policy:
+  allow_implicit_invocation: false

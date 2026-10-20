@@ -1,0 +1,5 @@
+interface:
+  display_name: "cc-backup-restore"
+  short_description: "备份、恢复或清理 Claude Code 配置、插件与本机残留，用于重装、换账号或迁移"
+policy:
+  allow_implicit_invocation: false

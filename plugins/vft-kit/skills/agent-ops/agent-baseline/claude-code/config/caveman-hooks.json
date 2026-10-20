@@ -1,0 +1,26 @@
+{
+  "_note": "Caveman 风格模式的用户级 hook（vendor-plugin-hooks.mjs 的配置）。只保留风格模式：SessionStart 注入规则、SubagentStart 给子 agent 注入、UserPromptSubmit 每轮提醒与 /caveman 切换。不装插件本体的 skill/agent。",
+  "repo": "https://github.com/JuliusBrussee/caveman.git",
+  "ref": "main",
+  "vendor": "~/.cache/vft-kit/caveman",
+  "events": [
+    "SessionStart",
+    "SubagentStart",
+    "UserPromptSubmit"
+  ],
+  "files": [
+    "src/hooks",
+    "skills/caveman",
+    "skills/ultracave",
+    "skills/megacave"
+  ],
+  "expect": {
+    "SessionStart": "CAVEMAN MODE ACTIVE",
+    "SubagentStart": "CAVEMAN MODE ACTIVE",
+    "UserPromptSubmit": "CAVEMAN MODE ACTIVE"
+  },
+  "skipIfPluginEnabled": "caveman@caveman",
+  "commands": {
+    "caveman": "caveman-command.md"
+  }
+}

@@ -1,0 +1,5 @@
+interface:
+  display_name: "kaggle-ops"
+  short_description: "Kaggle 账号、数据集与 kernel 操作"
+policy:
+  allow_implicit_invocation: false

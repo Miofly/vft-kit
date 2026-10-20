@@ -1,4 +1,6 @@
 interface:
   display_name: "Agent baseline"
-  short_description: "Check and maintain Claude Code and Codex setup"
-  default_prompt: "Use $agent-baseline to check the setup for my current CLI."
+  short_description: "维护 CC/Codex 装配、CC 备份恢复、插件缓存与 CC Switch 供应商"
+  default_prompt: "使用 $agent-baseline 处理装配、备份恢复、插件刷新或 CC Switch 供应商任务，只执行对应路线并验证结果。"
+policy:
+  allow_implicit_invocation: false

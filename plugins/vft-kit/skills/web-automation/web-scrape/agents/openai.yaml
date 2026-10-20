@@ -1,0 +1,5 @@
+interface:
+  display_name: "web-scrape"
+  short_description: "智能网页抓取与场景路由工具，按需求选择 Scrapling、Crawl4AI 或 ego-lite（ego-browser），没有 ego-lite 时用 Pl"
+policy:
+  allow_implicit_invocation: false

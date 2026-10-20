@@ -1,23 +1,16 @@
----
-name: cc-backup-restore
-description: "备份、恢复或清理 Claude Code 配置、插件与本机残留，用于重装、换账号或迁移。备份默认不含登录授权；清理前展示范围并交互确认。"
----
-
 # Claude Code 配置备份 / 恢复 / 清理
 
-> **浏览器/API 边界**：遵守 [浏览器到 API 强制演进](../../BROWSER_API_EVOLUTION.md)。本机装配、视觉、兼容性或浏览器本身的验证可保留浏览器；认证后的远端业务读写必须探索实际接口、写后独立回读，并在确认后更新本 skill，后续默认 API。
+资源目录：`../backup/`。这是 `agent-baseline` 的按需路线，不运行完整装配维护。浏览器/API 边界见 [浏览器到 API 强制演进](../../../BROWSER_API_EVOLUTION.md)。
 
 备份或恢复 `~/.claude` 下的配置与数据；需要重置环境时，先生成脱敏备份，再交互清理并检查残留。
 
 ## 职责边界（先分清，别用错）
 
-| | 本 skill | cc-auth-migrate | cc-baseline |
-|---|---|---|---|
-| 干什么 | 搬配置 + 数据；按确认彻底清理 CC | 搬登录授权（token / 身份 / 代理） | 核对个人基线（CLI / npm / MCP / 插件 / 权限），缺什么给修复命令 |
-| 场景 | 换号 / 重装 / 换机；清空本机 CC 信息 | 目标机不方便走浏览器 OAuth | 新机器 / 新号想确认环境是否「默认就绪」 |
-| 副作用 | 备份/恢复只拷文件；清理会卸载软件并删除数据 | 写入登录态 | 基本只读（仅 `ponytail` 缺失时自动补齐） |
-
-**本 skill 刻意不做基线核对**：一个「恢复备份」的动作不该顺手替你判断 `defaultMode`、二进制、全局 `npm i -g` 齐不齐。那是「核对新环境」的语义，拆在 cc-baseline 里。三者可按需先后使用。
+| 路线 | 行为 | 副作用 |
+|---|---|---|
+| 备份 / 恢复 | 搬配置与数据，不搬登录授权 | 覆盖前留回滚副本，不装软件或改权限模式 |
+| 清理 | 重置 CC 环境并检查残留 | 会卸载软件和删除数据，必须由用户交互确认 |
+| 装配核对 | 检查 CLI / MCP / 插件 / 权限 | 恢复后只调用只读 `check.sh`；完整维护另走 [Claude Code 装配](claude-code.md) |
 
 ## 清理前固定顺序
 
@@ -33,7 +26,7 @@ description: "备份、恢复或清理 Claude Code 配置、插件与本机残�
 ## 备份（换号 / 重装前）
 
 ```bash
-bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/agent-ops/cc-backup-restore/scripts/cc-backup.sh"
+bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/agent-ops/agent-baseline/backup/scripts/cc-backup.sh"
 ```
 
 产出 `~/cc-backups/cc-backup-<时间戳>/`（可用 `CC_BACKUP_ROOT` 环境变量改目标目录），**自包含**：内含 `cc-restore.sh` + `README.md` + `MANIFEST.txt`，整个目录拷到任何机器都能独立恢复，不依赖本仓库。
@@ -58,7 +51,7 @@ bash cc-restore.sh -y       # 默认：非交互，零点击
 也可以不 cd，直接指定备份目录（推荐这种，一条命令搞定）：
 
 ```bash
-bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/agent-ops/cc-backup-restore/scripts/cc-restore.sh" ~/cc-backups/cc-backup-<时间戳> -y
+bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/agent-ops/agent-baseline/backup/scripts/cc-restore.sh" ~/cc-backups/cc-backup-<时间戳> -y
 ```
 
 > 不加 `-y` 时脚本会 `read` 一句 `继续？(y/N)` 等你敲回车——那是**脚本自身**的交互，跟 Claude Code 的权限模式无关。想要零点击就始终带 `-y`（本 skill 默认如此）。
@@ -74,17 +67,16 @@ bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/a
 - memory / hooks / skills / agents / commands 按原路径还原；插件在下次启动 CC 时自动重装。
 - Playwright 的 `--output-dir` 需插件装好后手动补（脚本会提示，目标目录见全局 CLAUDE.md 的 Playwright 段落）。
 
-### 恢复完成后：自动核对基线（cc-baseline）
+### 恢复完成后：只读核对基线
 
-`cc-restore.sh` 跑完后，**紧接着自动执行 cc-baseline 的核对脚本**，把「换机 / 重装后哪些还没恢复到位」一次性亮出来。恢复只搬配置与数据、**不装软件**（见职责边界），所以换机后 CLI（codegraph / node）、全局 npm 包、MCP 注册、插件二进制这些大概率还缺——恢复完立刻核对，正好接上这道缺口，不用用户再手动想起来跑一次。
+`cc-restore.sh` 跑完后，由执行者紧接着运行下方只读核对脚本，列出换机 / 重装后尚未恢复的 CLI、MCP 与插件。恢复脚本本身不调用它，也不运行含安装和同步动作的 `run.sh`。
 
 ```bash
 bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/agent-ops/agent-baseline/claude-code/scripts/check.sh"
 ```
 
 - 这一步**纯只读**，不改任何配置，可无条件自动跑（不需要用户点头）。
-- 核对结果按 cc-baseline 自己的规矩回报：缺失项用「项 | 作用」两列表格讲清每项干什么、缺了什么影响，**不要把修复命令罗列给用户**。
-- **补齐仍走 cc-baseline 的确认流程**——除 `ponytail` 缺失可静默补齐（常设授权）外，其余 `✗` 项都要等用户点头再照脚本内嵌命令补。恢复动作本身绝不顺手补基线。
+- 核对结果按 [Claude Code 装配](claude-code.md) 回报缺失项与影响；修复沿用该路线的授权边界，不把恢复请求扩成完整维护。
 - 若插件是「下次启动 CC 才自动重装」，此刻核对可能仍报若干插件 `✗`，属正常；回报时提示用户「重启会话后插件会自动装回，可再跑一次核对」。
 
 ## 清理与残留检查
@@ -92,7 +84,7 @@ bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/a
 启动 Skill 内置的交互式清理工具：
 
 ```bash
-bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/agent-ops/cc-backup-restore/scripts/claude-cleaner.sh"
+bash "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skills/agent-ops/agent-baseline/backup/scripts/claude-cleaner.sh"
 ```
 
 菜单用途：

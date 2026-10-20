@@ -64,7 +64,7 @@ const pluginRoot =
 
 ## 平台专属 skill
 
-`agent-baseline` 按目标工具选择 Claude Code 或 Codex reference 与资源子目录。Claude Code 路线及 `cc-backup-restore` 操作 `~/.claude`、Claude 插件 cache 或相关 App；Codex 路线操作 `~/.codex`。执行宿主与操作目标可以不同，仍须按目标的认证、权限和配置格式执行。插件刷新由 `agent-baseline` 的插件维护路线按宿主分别调用 Claude Code / Codex CLI。
+`agent-baseline` 按任务选择宿主装配、插件维护、CC 备份恢复或 CC Switch 供应商 reference。Claude Code 装配和 `backup/` 操作 `~/.claude`，`cc-switch/` 操作 CC Switch 数据库；Codex 装配操作 `~/.codex`。执行宿主与操作目标可以不同，仍须按目标的认证、权限和配置格式执行。插件刷新由插件维护路线按宿主分别调用 Claude Code / Codex CLI。
 
 ## 规则模块
 

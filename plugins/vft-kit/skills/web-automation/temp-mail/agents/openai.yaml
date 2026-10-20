@@ -1,0 +1,5 @@
+interface:
+  display_name: "temp-mail"
+  short_description: "用临时邮箱收注册验证码和邮件"
+policy:
+  allow_implicit_invocation: false

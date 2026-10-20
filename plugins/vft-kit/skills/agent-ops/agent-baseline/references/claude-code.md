@@ -19,7 +19,7 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/agent-ops/agent-baseline/claude-code/scripts/r
 bash ${CLAUDE_PLUGIN_ROOT}/skills/agent-ops/agent-baseline/claude-code/scripts/run.sh --health
 ```
 
-`run.sh` 先保证 RTK 可用（缺失时 Homebrew 安装）并把 RTK 的 `PreToolUse` Bash hook 幂等补进 `~/.claude/settings.json`（`rtk hook claude`，装了才会自动压缩 Bash 输出），再幂等安装或更新并启用 Caveman 插件，把 `~/.config/caveman/config.json.defaultMode` 固定为 `full`，再把 codegraph 的 `UserPromptSubmit` hook 包上过滤脚本（后台任务通知和非代码问题不再注入约 15 KB 符号，省 token），再安装补丁版 `claude-model-router-hook`（固定 commit + `patches/claude-model-router-hook.patch` + `config/model-router.json`，首次为 advisory 影子模式），再把 `handoff-nudge.py` 注册为 `PostToolUse` hook（读 transcript 最后一条主线程 usage，上下文过 40%、55%、70%、85% 各记一次；默认影子运行，只写 `~/.cache/vft-kit/handoff-nudge.jsonl`，`touch ~/.cache/vft-kit/handoff-nudge.LIVE` 后才注入「写交接」提示），再把 `reply-lang-pin.py` 注册为 `UserPromptSubmit` hook（提问里中文占比低于 30% 时补一句「用简体中文回复」，压过 caveman「跟随用户语言」的默认，caveman 的简短风格不变；目标语言 `VFT_REPLY_LANG`，关闭用 `touch ~/.cache/vft-kit/reply-lang.OFF`），最后调用只读的 `check.sh`。退出码为 0 表示必需项齐全，为 1 表示存在必需项缺失；可选项不影响退出码。
+`run.sh` 先保证 RTK 可用（缺失时 Homebrew 安装）并把 RTK 的 `PreToolUse` Bash hook 幂等补进 `~/.claude/settings.json`（`rtk hook claude`，装了才会自动压缩 Bash 输出），再同步 Caveman 风格模式（见下节「Caveman 风格模式」：拉上游最新代码，vendor 成用户级 hook，卸掉插件本体），把 `~/.config/caveman/config.json.defaultMode` 固定为 `full`，再把 codegraph 的 `UserPromptSubmit` hook 包上过滤脚本（后台任务通知和非代码问题不再注入约 15 KB 符号，省 token），再安装补丁版 `claude-model-router-hook`（固定 commit + `patches/claude-model-router-hook.patch` + `config/model-router.json`，首次为 advisory 影子模式），再把 `handoff-nudge.py` 注册为 `PostToolUse` hook（读 transcript 最后一条主线程 usage，上下文过 40%、55%、70%、85% 各记一次；默认影子运行，只写 `~/.cache/vft-kit/handoff-nudge.jsonl`，`touch ~/.cache/vft-kit/handoff-nudge.LIVE` 后才注入「写交接」提示），再把 `reply-lang-pin.py` 注册为 `UserPromptSubmit` hook（提问里中文占比低于 30% 时补一句「用简体中文回复」，压过 caveman「跟随用户语言」的默认，caveman 的简短风格不变；目标语言 `VFT_REPLY_LANG`，关闭用 `touch ~/.cache/vft-kit/reply-lang.OFF`），最后调用只读的 `check.sh`。退出码为 0 表示必需项齐全，为 1 表示存在必需项缺失；可选项不影响退出码。
 
 启动 skill 后立即新建一个子 Agent，与主线程的 baseline 检查并行。子 Agent 只读比较 `claude --version` 与 `npm view @anthropic-ai/claude-code version --registry=https://registry.npmjs.org`，按 SemVer 数字段（禁止字符串排序）判断 Claude Code CLI 是否有新版本；**不核对插件版本**（用户明确不需要，也不提示）。主线程完成检查后收集其结果：CLI 有新版本时列出“Claude Code｜当前版本｜最新版本”，询问用户是否更新；无新版本时只报告已是最新。本地或上游命令失败、输出为空、版本无法解析时必须报告“无法判断”，不得当作已是最新。子 Agent 不可用时由主线程完成同一只读检查，不阻塞 baseline。
 
@@ -27,7 +27,7 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/agent-ops/agent-baseline/claude-code/scripts/r
 
 - 用“项 | 作用”表格回报缺失必需项；**未安装的可选项也必须一并列出**（项 | 作用 | 适合场景），让用户知道还有哪些可装，装不装由用户选。不向用户倾倒脚本中的长修复命令。
 - 用户确认补齐后，执行对应检查行给出的命令并重跑检查。
-- RTK（含其 PreToolUse hook）、Ponytail、Caveman 默认 full 和 codegraph prompt-hook 过滤缺失已获长期授权，可直接补齐；其他项目先回报。
+- RTK（含其 PreToolUse hook）、Ponytail、Caveman 风格模式 hook（含卸载 caveman 插件本体）和 codegraph prompt-hook 过滤缺失已获长期授权，可直接补齐；其他项目先回报。
 - MCP、插件或全局规范变更后提醒用户新开 Claude Code 会话。
 
 ## 基线
@@ -39,10 +39,24 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/agent-ops/agent-baseline/claude-code/scripts/r
 | CLI | node、npm、claude、rtk、codegraph、code-review-graph                                                                                             | brew、jq、gh |
 | npm | `@danielsogl/lighthouse-mcp`                                                                                                                | - |
 | MCP | codegraph、code-review-graph、lighthouse-mcp                                                                                                  | - |
-| 插件 | superpowers、skill-creator、code-review、frontend-design、playwright、typescript-lsp、jdtls-lsp、context-mode、ponytail、caveman、gsap-skills | claude-hud、context7、grill-me、understand-anything、diagram-design、pm-skills |
+| 插件 | superpowers、skill-creator、code-review、frontend-design、playwright、typescript-lsp、jdtls-lsp、context-mode、ponytail、gsap-skills | claude-hud、context7、grill-me、understand-anything、diagram-design、pm-skills |
 | Agent Skills | Emil 的 animate、review-animations、apple-design                                                                                               | AnySearch、Emil 其余 7 项 |
-| 系统 | RTK hook（PreToolUse Bash 自动压缩）、bash-prompt-guard hook（拒掉会触发内置确认框的 Bash 写法并给改写提示）、codegraph prompt-hook 过滤、reply-lang-pin hook（英文提问也用中文回复）、handoff-nudge hook（上下文过 40% 提醒写交接，默认影子运行，标记文件 `~/.cache/vft-kit/handoff-nudge.LIVE` 存在才生效；窗口按模型 id 判断，可用 `HANDOFF_NUDGE_WINDOW` 覆盖）、model-router（补丁版 claude-model-router-hook：只把机械子 agent 路由到 haiku；`~/.claude/model-router.json` 的 `subagent_enforcement` 从 `advisory` 改 `on` 才生效）、bypassPermissions、bypass 警告已接受、`~` 目录已信任、供应链只读检查（`mcp-pin-check.mjs`：MCP 是否钉版本，`@latest`/未写版本/git 分支记 HIGH，env 只报 key 名；`skill-supply-scan.mjs ~/.claude/skills`：隐藏 Unicode、curl\|sh、改 API 端点、读凭据路径、未钉版本的 npx 等，只报不计失败；装第三方 skill 或插件前对其目录单独跑一遍）、CodeGraph 白名单、关闭自动更新、Codex 自动注入 `OPENAI_API_KEY`、全局 CLAUDE.md、项目 memory 目录 | claude-hud 状态栏、CC Switch |
+| 系统 | Caveman 风格模式 hook（用户级，默认 full；caveman 插件本体不装）、RTK hook（PreToolUse Bash 自动压缩）、bash-prompt-guard hook（拒掉会触发内置确认框的 Bash 写法并给改写提示）、codegraph prompt-hook 过滤、reply-lang-pin hook（英文提问也用中文回复）、handoff-nudge hook（上下文过 40% 提醒写交接，默认影子运行，标记文件 `~/.cache/vft-kit/handoff-nudge.LIVE` 存在才生效；窗口按模型 id 判断，可用 `HANDOFF_NUDGE_WINDOW` 覆盖）、model-router（补丁版 claude-model-router-hook：只把机械子 agent 路由到 haiku；`~/.claude/model-router.json` 的 `subagent_enforcement` 从 `advisory` 改 `on` 才生效）、bypassPermissions、bypass 警告已接受、`~` 目录已信任、供应链只读检查（`mcp-pin-check.mjs`：MCP 是否钉版本，`@latest`/未写版本/git 分支记 HIGH，env 只报 key 名；`skill-supply-scan.mjs ~/.claude/skills`：隐藏 Unicode、curl\|sh、改 API 端点、读凭据路径、未钉版本的 npx 等，只报不计失败；装第三方 skill 或插件前对其目录单独跑一遍）、CodeGraph 白名单、关闭自动更新、Codex 自动注入 `OPENAI_API_KEY`、全局 CLAUDE.md、项目 memory 目录 | claude-hud 状态栏、CC Switch |
 | 全局规范 | 中文回复、可点短链、压缩取舍、代理兜底、多 Agent 并行、CodeGraph 自动初始化、Code Review Graph 优先、Token 节省、Bash 命令避开内置确认框                                                                                         | context7 / AnySearch / context-mode 已安装时才检查对应调用规则（各 1 项） |
+
+## Caveman 风格模式（用户级 hook）
+
+只保留 caveman 的风格模式，不装插件本体：插件带的二十多个 skill 和 cavecrew agent 每个会话都占上下文。`install-caveman-default.sh` 调用通用脚本 `scripts/vendor-plugin-hooks.mjs`，配置文件是 `config/caveman-hooks.json`，调用方可用 `CAVEMAN_VENDOR_CONFIG` 指向自己的配置。脚本按以下步骤执行：
+
+1. 在 `~/.cache/vft-kit/caveman/upstream` 浅拉上游 `ref`（默认 `main`）。只把 `src/hooks`、`skills/caveman|ultracave|megacave` 和 `.claude-plugin/plugin.json` 复制到暂存目录。
+2. 自检：在隔离的 `CLAUDE_CONFIG_DIR` 里依次运行 SessionStart、SubagentStart、UserPromptSubmit，要求退出码为 0，且输出含 `CAVEMAN MODE ACTIVE`。通过后换入 `~/.cache/vft-kit/caveman/current`，上一版留在 `previous`。
+3. 按 `current` 中 `plugin.json` 的 hook 定义改写 `settings.json`。命令前加 `export CLAUDE_PLUGIN_ROOT='<vendor>/current';`，命令文本里的 `${CLAUDE_PLUGIN_ROOT}` 换成字面路径。Claude Code 会拒绝运行引用这个变量的非插件 hook，报错 `Hook command references ${CLAUDE_PLUGIN_ROOT} but the hook is not associated with a plugin`。新条目插在各事件数组的最前面，其他 hook 不动。
+4. 装用户级命令 `~/.claude/commands/caveman.md`（来源 `config/caveman-command.md`，设了 `disable-model-invocation`，不占模型上下文）。插件卸载后，交互式会话里输入 `/caveman ultra` 会报 `Unknown command` 且不发送，hook 也收不到；有了这个命令，hook 才能完成切换。
+5. caveman 插件仍装着时，脚本只 vendor 不接线，避免同一套规则注入两次；`--check` 通过后才卸载插件，卸载后再接线。
+
+拉取失败、上游缺文件或缺事件、自检失败时，保留旧的 `current`，打印告警，退出码为 0。只有 `--check` 会以 1 退出，供 `check.sh` 使用。手动执行：`node scripts/vendor-plugin-hooks.mjs --config config/caveman-hooks.json`；只核对时加 `--check`，不联网时加 `--offline`。
+
+上游 4.x 起，档位从 lite/full/ultra/wenyan-* 合并为 `caveman`、`ultracave`、`megacave`，旧名自动映射，用 `/caveman`、`/caveman ultra`、`/caveman wenyan` 切换，用 `stop caveman` 或 `normal mode` 关闭。`claude -p` 等 SDK 入口默认不启用；需要启用时设置环境变量 `CAVEMAN_DEFAULT_MODE=full`。要固定在某个版本，把配置里的 `ref` 改成对应的 tag 或 commit。
 
 Claude Code 2.1.59 起默认提供 auto memory，项目记忆位于 `~/.claude/projects/<project>/memory/`。不要再叠加第三方记忆插件或记忆类 MCP；只有用户明确需要外部向量检索服务时才单独评估。
 
@@ -89,7 +103,7 @@ cd ${CLAUDE_PLUGIN_ROOT}/skills/agent-ops/agent-baseline/claude-code/scripts
 for t in test-*.sh; do bash "$t" >/dev/null 2>&1 && echo "✓ $t" || echo "✗ $t"; done
 ```
 
-覆盖：`run.sh` 的安装顺序 / 参数转发 / 退出码传播、RTK 二进制与 hook 的幂等安装、Caveman 默认 full、codegraph 与 code-review-graph 与 Emil skills 的基线判定、RTK hook 缺失判为必需项、codegraph prompt-hook 过滤（筛选逻辑与幂等改写 settings）、handoff-nudge（判定、每档只记一次、影子与生效两种输出、幂等注册）。`test-mcp-pin-check.sh` 与 `test-skill-supply-scan.sh` 覆盖供应链两脚本的分类、不泄露 env 值、不写配置。
+覆盖：`run.sh` 的安装顺序 / 参数转发 / 退出码传播、RTK 二进制与 hook 的幂等安装、Caveman 风格模式 hook（`test-caveman-default.sh`：只卸一次插件、接三条 hook、默认 full；`test-vendor-plugin-hooks.sh`：本地 git 夹具上验证接线幂等、其他 hook 保留、上游坏/拉取失败/自检失败保留旧版、插件在时不接线、用户级命令只覆盖受管文件）、codegraph 与 code-review-graph 与 Emil skills 的基线判定、RTK hook 缺失判为必需项、codegraph prompt-hook 过滤（筛选逻辑与幂等改写 settings）、handoff-nudge（判定、每档只记一次、影子与生效两种输出、幂等注册）。`test-mcp-pin-check.sh` 与 `test-skill-supply-scan.sh` 覆盖供应链两脚本的分类、不泄露 env 值、不写配置。
 
 > 测试靠环境变量注入 mock（`RTK_SCRIPT` / `CAVEMAN_SCRIPT` / `CHECK_SCRIPT`），所以 `run.sh` 里这些路径变量（含 `CG_FILTER_SCRIPT`、`MR_SCRIPT`、`HN_SCRIPT`）**必须保持 `${VAR:-默认值}` 形式**；写成硬编码会让 mock 注入失效、测试报出误导性的「exit code not propagated」。
 
