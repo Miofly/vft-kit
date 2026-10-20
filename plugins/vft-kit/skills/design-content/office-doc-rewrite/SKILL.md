@@ -1,6 +1,6 @@
 ---
 name: office-doc-rewrite
-description: "基于现有 Excel/Word 模板替换文字，保留图片、样式、合并单元格和版式；适用于旧文档换业务内容或修复格式丢失。.doc 需要 LibreOffice。"
+description: "按 Excel/Word 模板替换文字，保留图片、样式、合并单元格和版式；旧文档换内容、修复格式丢失；.doc 需 LibreOffice。"
 ---
 
 # Office 文档改写（保版式换内容）

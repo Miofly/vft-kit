@@ -6,9 +6,13 @@
 # UserPromptSubmit hook exits 2 in warn mode (blocks the prompt until /model is run); and it
 # injects a model into named agents, overriding e.g. a haiku carrier with opus. The patch
 # fixes those three and logs advisory decisions. Chinese keywords live in config, not code.
-# It also points SessionStart at hooks/session_brief.py: one line about the routing instead
-# of upstream's ~1.4k-char "Model Tier Rules ... (MANDATORY)" table, which contradicts this
-# config (only mechanical work is lowered). PreToolUse routing is unchanged.
+# It also points SessionStart at hooks/session_brief.py: silent when healthy (routing
+# rules live in the global CLAUDE.md), one line only when routed variants go missing,
+# instead of upstream's ~1.4k-char "Model Tier Rules ... (MANDATORY)" table, which
+# contradicts this config (only mechanical work is lowered). PreToolUse routing is unchanged.
+# The routed-* agent descriptions shrink to "Router-internal; do not use.": every session
+# lists them, and Claude Code has no way to hide an agent the hook must still reach
+# (deny Agent(name) disables it, and hook "allow" never overrides a deny rule).
 #
 # Config (config/model-router.json -> ~/.claude/model-router.json, never overwritten):
 # only mechanical work goes to haiku, every other class stays opus/high, so routing can

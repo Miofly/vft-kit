@@ -1,6 +1,6 @@
 ---
 name: android-ui-automation
-description: "通过 ADB 与 uiautomator2/u2cli 检查和操控已连接的 Android 真机，包括语义定位、点击、滑动、输入、截图、状态等待与应用调试；适用于手机操作、真机复现及登录或支付流程验证。"
+description: "用 ADB 与 uiautomator2/u2cli 操控已连接的 Android 真机：定位、点击、滑动、输入、截图、等待、应用调试；手机操作、真机复现、登录或支付验证。"
 ---
 
 # Android 真机自动化

@@ -33,6 +33,8 @@ lint-fix.sh /abs/path/to/pkg     # 绝对路径
 
 目标目录必须有 `package.json`，否则报错退出（exit 2）。
 
+> 本机 wfly/bolierplate monorepo 的主前端项目是仓库根下 `project/blog`，日常收尾直接 `lint-fix.sh <仓库根>/project/blog`。
+
 ## 只跑某一步 / 跳过某一步
 
 ```bash

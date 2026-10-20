@@ -1,6 +1,6 @@
 ---
 name: wechat-mp
-description: "公众号后台与微信开发者控制台：登录、草稿排版、发布、素材、IP 白名单、40164/48001；小程序：开发者工具 CLI、automator 自测、miniprogram-ci 上传体验版、提审与发布、版本状态、广告分享规则、反编译 wxapkg 复刻样式。"
+description: "公众号后台与微信开发者控制台：登录、草稿排版、发布、素材、IP 白名单、40164/48001；小程序：开发者工具 CLI、automator 自测、miniprogram-ci 上传体验版、提审发布、版本状态、广告分享规则、反编译 wxapkg 复刻样式。"
 ---
 
 # 微信公众号 / 开发者平台自动化

@@ -1,6 +1,6 @@
 ---
 name: co-infographic-generator
-description: "将结构化文字、KPI、成果或对比内容制成中文信息图 PNG，使用 HTML/CSS 精确排版。技术架构图优先 diagram-design，纯统计图使用绘图工具。"
+description: "把结构化文字、KPI、成果或对比内容做成中文信息图 PNG（HTML/CSS 排版）；架构图用 diagram-design，统计图用绘图工具。"
 ---
 
 # 信息图生成器（HTML + puppeteer）

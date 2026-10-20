@@ -76,6 +76,11 @@ plugin_installed(){
   done
   return 1
 }
+# 插件启用状态（settings.json 的 enabledPlugins，按插件名匹配任意 marketplace）：已启用 / 已禁用 / 未登记
+plugin_state(){
+  jq -r --arg p "$1" '[(.enabledPlugins // {}) | to_entries[] | select((.key | split("@")[0]) == $p) | .value]
+    | if length == 0 then "未登记" elif any then "已启用" else "已禁用" end' "$HOME/.claude/settings.json" 2>/dev/null || echo "状态未知"
+}
 # Caveman 风格模式由用户级 hook 提供（vendor-plugin-hooks.mjs，不装插件本体），并显式固定用户默认档为 full。
 # 判定：defaultMode=full、vendor 版本在位且自检通过、settings 里的 hook 与 vendor 一致、caveman 插件已不在（否则规则注入两次）。
 caveman_default_full(){
@@ -164,7 +169,10 @@ claudemd_has_shortlink(){
 # 逐个工具调用问两件事：调用还要记得吗、输出还要原样留吗；能重跑恢复的只留一行结论，有副作用的操作原样留。
 claudemd_has_compact(){
   local f="$HOME/.claude/CLAUDE.md"
-  [ -f "$f" ] && grep -Eq '上下文压缩' "$f" && grep -Eq '重跑' "$f" && grep -Eq '副作用' "$f" && grep -Eq '实施中途' "$f"
+  [ -f "$f" ] || return 1
+  # 规则已拆进交接类 skill（如 handoff-private）时，全局只留一行指针也算有
+  grep -Eq '上下文压缩.*skill `[a-z-]*handoff' "$f" && return 0
+  grep -Eq '上下文压缩' "$f" && grep -Eq '重跑' "$f" && grep -Eq '副作用' "$f" && grep -Eq '实施中途' "$f"
 }
 # 全局 ~/.claude/CLAUDE.md 是否含「外网操作代理兜底」规范
 # 见 SKILL.md：境外访问连不上/被 RST/超时/慢得反常时，先探到可用本地代理走代理重试，别在直连路径反复重试。
@@ -317,7 +325,10 @@ npm_g_installed "@danielsogl/lighthouse-mcp"                  && ok "@danielsogl
 sec "MCP 服务器（已注册到 CC）"
 mcp_registered codegraph           && ok "codegraph"           || bad "codegraph MCP"           "codegraph install --target=claude --location=global --yes"
 mcp_registered code-review-graph   && ok "code-review-graph MCP" || bad "code-review-graph MCP"   "claude mcp add code-review-graph -s user -- code-review-graph serve"
-mcp_registered lighthouse-mcp      && ok "lighthouse-mcp"      || bad "lighthouse-mcp MCP"      "claude mcp add lighthouse-mcp -s user -- node \"\$(npm root -g)/@danielsogl/lighthouse-mcp/dist/index.js\""
+# lighthouse-mcp 2026-10-20 起按需加载：MCP 注册移除、npm 载体保留，要用时再注册（用户定）
+if mcp_registered lighthouse-mcp; then ok "lighthouse-mcp"
+elif npm_g_installed "@danielsogl/lighthouse-mcp"; then opt "lighthouse-mcp" "已按需移除注册；要用时：claude mcp add lighthouse-mcp -s user -- node \"\$(npm root -g)/@danielsogl/lighthouse-mcp/dist/index.js\""
+else bad "lighthouse-mcp MCP" "npm i -g @danielsogl/lighthouse-mcp && claude mcp add lighthouse-mcp -s user -- node \"\$(npm root -g)/@danielsogl/lighthouse-mcp/dist/index.js\""; fi
 
 # ---------- 4. 插件（默认必备集） ----------
 sec "插件（默认必备集）"
@@ -325,8 +336,15 @@ sec "插件（默认必备集）"
 for p in superpowers skill-creator code-review frontend-design playwright \
          typescript-lsp jdtls-lsp \
          context-mode ponytail gsap-skills; do
-  if plugin_installed "$p"; then ok "$p"; else
+  if plugin_installed "$p"; then ok "${p}（已装，$(plugin_state "$p")）"; else
     case "$p" in
+      # playwright 2026-10-20 起按需启用：ego-lite 不可用时的兜底，平时禁用不加载 24 个工具（用户定）
+      playwright)
+        if jq -e '.enabledPlugins["playwright@claude-plugins-official"] == false' ~/.claude/settings.json >/dev/null 2>&1; then
+          opt "playwright" "已按需禁用；要用时：claude plugin enable playwright@claude-plugins-official"
+        else
+          bad "$p" "claude plugin install $p@claude-plugins-official"
+        fi;;
       context-mode)                   bad "$p" "claude plugin marketplace add mksglu/claude-context-mode && claude plugin install context-mode@context-mode";;
       ponytail)                       bad "$p" "claude plugin marketplace add DietrichGebert/ponytail && claude plugin install ponytail@ponytail（两条要分开发）";;
       gsap-skills)                    bad "$p" "claude plugin marketplace add greensock/gsap-skills && claude plugin install gsap-skills@gsap-skills（GSAP 官方，两条要分开发）";;
@@ -339,7 +357,7 @@ plugin_installed claude-hud && ok "claude-hud（可选状态栏）" || opt "clau
 caveman_default_full && ok "Caveman 风格模式 hook（默认 full）" || bad "Caveman 风格模式 hook（默认 full）" "bash \"$SCRIPT_DIR/install-caveman-default.sh\""
 # 可选插件（装了更好，不装不算故障）
 for p in context7; do
-  if plugin_installed "$p"; then ok "$p"; else opt "$p" "claude plugin install $p@claude-plugins-official"; fi
+  if plugin_installed "$p"; then ok "${p}（已装，$(plugin_state "$p")）"; else opt "$p" "claude plugin install $p@claude-plugins-official"; fi
 done
 # 可选 skill：anysearch（AI Agent 联网实时搜索，装到 ~/.claude/skills/anysearch）
 skill_installed anysearch && ok "anysearch skill（联网实时搜索）" || opt "anysearch skill" "bash \"$SCRIPT_DIR/install-anysearch.sh\"（自动安装、随机邮箱注册 key 并写入 skill/.env）"
@@ -398,6 +416,8 @@ dir_trusted "$HOME"                && ok "~ 目录已信任（免文件夹信任
 perm_allows "codegraph"            && ok "codegraph 只读工具白名单（permissions.allow）" || bad "codegraph 白名单" '把 "mcp__codegraph__*" 加进 ~/.claude/settings.json 的 permissions.allow'
 rtk_hook_installed                 && ok "RTK hook（Bash 输出自动压缩）"                  || bad "RTK hook" "bash \"$SCRIPT_DIR/install-rtk.sh\""
 env_is "DISABLE_AUTOUPDATER" "1"   && ok "自动更新已关闭（env.DISABLE_AUTOUPDATER）"    || bad "关闭自动更新" "jq '.env.DISABLE_AUTOUPDATER=\"1\"' ~/.claude/settings.json > /tmp/s.json && mv /tmp/s.json ~/.claude/settings.json"
+# ponytail 5.x 的 Codebase map 按 cwd 扫目录，monorepo 根下多是无关目录；规则注入不受影响
+env_is "PONYTAIL_MAP" "0"          && ok "ponytail 代码地图已关闭（env.PONYTAIL_MAP）"  || bad "关闭 ponytail 代码地图" "jq '.env.PONYTAIL_MAP=\"0\"' ~/.claude/settings.json > /tmp/s.json && mv /tmp/s.json ~/.claude/settings.json"
 if codex_auth_has_key; then
   codex_key_injector_installed       && ok "Codex 启动自动注入 OPENAI_API_KEY"            || bad "Codex API key 启动注入" "bash \"$SCRIPT_DIR/install-codex-key-injector.sh\""
 else

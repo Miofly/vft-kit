@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """PostToolUse hook: nudge the main session to write a handoff doc once context crosses ~40%.
 
-Rule it backs: global CLAUDE.md「交接文档」— when the main session's context exceeds about 40% of the
+Rule it backs: global CLAUDE.md「交接文档」(or the handoff skill it points to)— when the main session's context exceeds about 40% of the
 window, write a handoff doc and /clear (or start a new session). The rule had no trigger; this hook
 supplies one from the real token count.
 
@@ -129,7 +129,7 @@ def latest_usage(path):
 
 def message(ratio, tokens, window):
     return (f"[handoff-nudge] 主会话上下文已 {ratio:.0%}（约 {tokens // 1000}k / {window // 1000}k tokens）。"
-            "按全局 CLAUDE.md「交接文档」规范：基于完整对话写交接（五节＋回查），再 /clear 或新开会话；"
+            "按交接规范（全局 CLAUDE.md「交接文档」或其指向的 handoff skill）：基于完整对话写交接（五节＋回查），再 /clear 或新开会话；"
             "正处在实施中途就先做完当前一步再交接。")
 
 

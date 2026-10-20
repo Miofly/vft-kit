@@ -1,6 +1,6 @@
 ---
 name: fe-quality-ops
-description: "前端质量检查与修复：处理 lint、格式、TypeScript 类型错误，验证页面渲染、控制台、Canvas/WebGL、交互、截图、Lighthouse、缓存、SEO 与 hydration；复用项目脚本和包管理器，浏览器优先 ego-lite。"
+description: "前端质量检查与修复：修 lint、格式、TypeScript 类型报错（ESLint / Stylelint / Prettier / vue-tsc 一键自动修复，代码改动后的静态收尾），验证页面渲染、控制台、Canvas/WebGL、交互、截图、Lighthouse、缓存、SEO 与 hydration；复用项目脚本和包管理器，浏览器优先 ego-lite。"
 ---
 
 # 前端质量
