@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const skillsRoot = path.join(repoRoot, 'plugins/vft-kit/skills');
+const skillsRoot = path.join(repoRoot, 'skills');
 const catalog = JSON.parse(fs.readFileSync(path.join(repoRoot, 'catalog/skills.json'), 'utf8'));
 const errors = [];
 const categoryIds = new Set();
@@ -53,8 +53,8 @@ const expectedClaudeRoots = (catalog.categories ?? []).flatMap((category) => {
     : [`./skills/${category.id}`];
 }).sort();
 for (const [manifestPath, expectedSkillRoots] of [
-  ['plugins/vft-kit/.claude-plugin/plugin.json', expectedClaudeRoots],
-  ['plugins/vft-kit/.codex-plugin/plugin.json', expectedCodexRoots],
+  ['.claude-plugin/plugin.json', expectedClaudeRoots],
+  ['.codex-plugin/plugin.json', expectedCodexRoots],
 ]) {
   const manifest = JSON.parse(fs.readFileSync(path.join(repoRoot, manifestPath), 'utf8'));
   const skillRoots = Array.isArray(manifest.skills) ? [...manifest.skills].sort() : [manifest.skills];
@@ -69,12 +69,12 @@ const inventoryFiles = process.argv.includes('--working-tree')
     .filter((category) => category.isDirectory())
     .flatMap((category) => fs.readdirSync(path.join(skillsRoot, category.name), { withFileTypes: true })
       .filter((skill) => skill.isDirectory() && fs.existsSync(path.join(skillsRoot, category.name, skill.name, 'SKILL.md')))
-      .map((skill) => `plugins/vft-kit/skills/${category.name}/${skill.name}/SKILL.md`))
+      .map((skill) => `skills/${category.name}/${skill.name}/SKILL.md`))
   : execFileSync('git', ['ls-files'], { cwd: repoRoot, encoding: 'utf8' }).split('\n');
 
 const trackedEntries = inventoryFiles
   .map((file) => {
-    const match = file.match(/^plugins\/vft-kit\/skills\/([^/]+)\/([^/]+)\/SKILL\.md$/);
+    const match = file.match(/^skills\/([^/]+)\/([^/]+)\/SKILL\.md$/);
     return match ? { file, category: match[1], skill: match[2] } : null;
   })
   .filter(Boolean);
@@ -97,7 +97,7 @@ for (const entry of trackedEntries) {
   }
 
   const openaiPath = path.join(path.dirname(path.join(repoRoot, entry.file)), 'agents/openai.yaml');
-  const commandPath = path.join(repoRoot, `plugins/vft-kit/commands/${entry.skill}.md`);
+  const commandPath = path.join(repoRoot, `commands/${entry.skill}.md`);
   if (explicitOnly.has(entry.skill)) {
     if (!fs.existsSync(openaiPath) || !/allow_implicit_invocation:\s*false\b/.test(fs.readFileSync(openaiPath, 'utf8'))) {
       errors.push(`explicit-only skill lacks Codex policy: ${entry.skill}`);
