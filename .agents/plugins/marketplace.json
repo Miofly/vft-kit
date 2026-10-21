@@ -8,7 +8,7 @@
       "name": "vft-kit",
       "source": {
         "source": "local",
-        "path": "./plugins/vft-kit"
+        "path": "./"
       },
       "policy": {
         "installation": "AVAILABLE",

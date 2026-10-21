@@ -8,7 +8,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const plugin = path.join(root, 'plugins/vft-kit');
+const plugin = root;
 const base = path.join(plugin, 'skills/agent-ops/agent-baseline');
 const catalog = JSON.parse(fs.readFileSync(path.join(root, 'catalog/skills.json'), 'utf8'));
 const skills = catalog.categories.flatMap((category) => category.skills);

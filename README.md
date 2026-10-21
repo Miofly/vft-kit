@@ -1,6 +1,6 @@
 # vft-kit
 
-Claude Code / Codex 运维工具箱与通用开发工具。插件主体在 `plugins/vft-kit/`。
+Claude Code / Codex 运维工具箱与通用开发工具。仓库根目录即插件根（与 affaan-m/ECC 相同的布局），`.claude-plugin/marketplace.json` 的 source 为 `./`。
 
 这些 Skill 面向需要把 Claude Code / Codex 工作流做成可复用工具的开发者：安装、检查、部署、抓取、文档处理、需求评审和前端质量验证都能在项目里直接复用。账号、域名、数据库和密钥通过环境变量或本地忽略配置提供，仓库不包含个人环境。
 
@@ -20,9 +20,9 @@ codex plugin marketplace add Miofly/vft-kit
 codex plugin add vft-kit@vft-kit
 ```
 
-Codex 入口在 `plugins/vft-kit/.codex-plugin/plugin.json`，skill 目录仍是 `plugins/vft-kit/skills/`。
+Codex 入口在 `.codex-plugin/plugin.json`，skill 目录同为 `skills/`。
 
-新增或修改非平台专属能力时，必须遵循 `plugins/vft-kit/docs/codex-compat.md`。
+新增或修改非平台专属能力时，必须遵循 `docs/codex-compat.md`。
 
 公开边界和导入规则见 [`docs/public-boundary.md`](docs/public-boundary.md)。改动目录或内容后运行：
 
@@ -38,7 +38,7 @@ node scripts/audit-public.mjs
 每个 Skill 的完整用法在对应目录的 `SKILL.md`，脚本和参考资料跟随 Skill 发布。需要账号或外部服务时，先阅读该文件中的配置表；不要把 token、Cookie、密码或真实业务数据写入仓库。带有上传、发布、删除、部署等副作用的流程会先要求确认目标，完成后应回读外部状态。
 ## Skill 分类
 
-运行目录使用 `plugins/vft-kit/skills/<category>/<skill-name>/`。分类清单以 [`catalog/skills.json`](catalog/skills.json) 为唯一来源，目录分类、Claude manifest 和 Codex manifest 必须一致。
+运行目录使用 `skills/<category>/<skill-name>/`。分类清单以 [`catalog/skills.json`](catalog/skills.json) 为唯一来源，目录分类、Claude manifest 和 Codex manifest 必须一致。
 
 | 分类 | 定位 | skills |
 |---|---|---|
@@ -57,7 +57,15 @@ node scripts/validate-skill-catalog.mjs
 
 校验器保证每个已跟踪 skill 恰好属于一个分类，并具有有效的 frontmatter `name`。插件 skill 的调用名允许与目录名不同。未跟踪的开发中 skill 只提示，不阻塞验证。
 
-`agent-baseline` 按需加载装配核对、插件刷新、[CC 备份恢复 / 清理](plugins/vft-kit/skills/agent-ops/agent-baseline/references/backup.md)与 [CC Switch 供应商配置](plugins/vft-kit/skills/agent-ops/agent-baseline/references/cc-switch.md)。恢复或供应商配置不会顺带运行完整装配维护。清理保留交互确认，供应商写库前备份且默认不切换当前供应商。
+`agent-baseline` 按需加载装配核对、插件刷新、[CC 备份恢复 / 清理](skills/agent-ops/agent-baseline/references/backup.md)与 [CC Switch 供应商配置](skills/agent-ops/agent-baseline/references/cc-switch.md)。恢复或供应商配置不会顺带运行完整装配维护。清理保留交互确认，供应商写库前备份且默认不切换当前供应商。
+
+## Agents
+
+`agents/` 下的子 agent 随插件自动加载：
+
+| agent | 用途 |
+|---|---|
+| `vft-kit:vue-reviewer` | 只读审查 Vue 改动（响应式、模板安全、组件契约、Router/Pinia、SSR、性能），并合入 vft-kit 规则检查结果；改编自 affaan-m/ECC（MIT） |
 
 ## 规则模块（rules + hooks）
 
@@ -68,8 +76,13 @@ Claude Code 插件不能直接提供 `.claude/rules/`，vft-kit 用钩子实现�
 | `scripts/rules/inject.mjs` | PreToolUse（Read/Edit/Write/MultiEdit） | 文件路径命中规则 `paths` 时，把规则正文注入上下文；同会话每条只注入一次 |
 | `scripts/rules/check.mjs` | PostToolUse（Edit/Write/MultiEdit） | 运行规则声明的 `checks`；error 退回模型修复，warn 只提示 |
 | `scripts/rules/reset.mjs` | SessionStart（compact/clear） | 上下文压缩后清注入记录，下次命中重新注入 |
+| `scripts/hooks/bash-prompt-guard.py` | PreToolUse（Bash） | 拒掉会触发 Claude Code 内置确认框的 Bash 写法（cd 后 git、变量删除等）并给改写提示 |
+| `scripts/hooks/handoff-nudge.py` | PostToolUse（*） | 主会话上下文过 40%/55%/70%/85% 各记一次；默认影子运行，`~/.cache/vft-kit/handoff-nudge.LIVE` 存在才注入「写交接」提示 |
+| `scripts/hooks/reply-lang-pin.py` | UserPromptSubmit | 提问中文占比低于 30% 时补一句「用简体中文回复」；`VFT_REPLY_LANG` 改目标语言，`~/.cache/vft-kit/reply-lang.OFF` 关闭 |
 
-插件自带规则在 `plugins/vft-kit/rules/`（目前：`vue-sfc`、`style-layout`、`package-json`）。项目继承与私有规则放在项目根（从被操作文件向上逐级合并，monorepo 根与子项目可各放一份）：
+后三个是 agent-baseline 的通用 hook，随插件注册，不再写进 `settings.json`；旧版留下的绝对路径条目用 `skills/agent-ops/agent-baseline/claude-code/scripts/migrate-plugin-hooks.sh` 清理（`CLAUDE_CONFIG_DIR` 指定实例，`--dry-run` 预览）。
+
+插件自带规则在 `rules/`（目前：`vue-sfc`、`style-layout`、`package-json`）。项目继承与私有规则放在项目根（从被操作文件向上逐级合并，monorepo 根与子项目可各放一份）：
 
 ```text
 .claude/vft-rules.json        # { "disable": ["vue-sfc"], "checks": { "v-for-needs-key": "off" } }
@@ -77,7 +90,7 @@ Claude Code 插件不能直接提供 `.claude/rules/`，vft-kit 用钩子实现�
 .claude/vft-rules/checks.mjs  # 私有自动检查：export default { id: { level, run({ src, blocks, filePath }) } }
 ```
 
-Codex 没有对应钩子时用 CLI：`node "$VFT_PLUGIN_ROOT/scripts/rules/check.mjs" <file...>`（有 error 退出码 1）、`node "$VFT_PLUGIN_ROOT/scripts/rules/inject.mjs" <file>`（打印适用规则）。改动后跑 `node plugins/vft-kit/scripts/rules/selftest.mjs`。
+Codex 没有对应钩子时用 CLI：`node "$VFT_PLUGIN_ROOT/scripts/rules/check.mjs" <file...>`（有 error 退出码 1）、`node "$VFT_PLUGIN_ROOT/scripts/rules/inject.mjs" <file>`（打印适用规则）。改动后跑 `node scripts/rules/selftest.mjs`。
 
 ### fe-quality-ops 页面路线的依赖
 
