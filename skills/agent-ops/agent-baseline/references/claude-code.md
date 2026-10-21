@@ -51,6 +51,8 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/agent-ops/agent-baseline/claude-code/scripts/r
 - skill 列表预算是上下文窗口的 1%（`skillListingBudgetFraction` 可调），超出时先丢**最少调用** skill 的描述，名字保留；单条 description + when_to_use 上限 1,536 字。`/context` 的 Skills 行是截断后的实际大小，`claude plugin details <插件>` 给出每个插件的常驻估算。
 - 写 description：一句做什么 + 用户会说的领域词，控制在 250 字内；实现细节、长触发词表放正文。压缩前后用真实说法做一次路由对照（`claude -p --model haiku` 只给列表让它选 skill），命中率不降才算过。
 - 很少用或只手动用的 skill：SKILL.md frontmatter 加 `disable-model-invocation: true`，描述不进上下文，仍可 `/名字` 调用。插件里按本仓 `explicitOnly` 约定：catalog 登记、`commands/<名字>.md` 带该字段、Codex `agents/openai.yaml` 设 `allow_implicit_invocation: false`、Claude plugin.json 的 skills 根排除该目录（`scripts/validate-skill-catalog.mjs` 校验四处一致）。插件 skill 不受 `skillOverrides` 影响；第三方插件的 skill 只能在插件缓存的 SKILL.md 里补这一行，插件升级会还原，需用 SessionStart hook 每次幂等重打。
+- 内置 skill（名字无插件前缀，如 `dataviz`、`claude-api`）描述长又用不到：`settings.json` 的 `skillOverrides` 设 `"name-only"`，列表只留名字，仍可手动调用。用不到的插件设 `enabledPlugins=false`（保留安装，如不写 Java 关 `jdtls-lsp`）。用 CC Switch 时两项都要同步写进公共配置，否则切 provider 会被覆盖。
+- 全局 CLAUDE.md 瘦身：低频规则的细则下沉到对应 skill，全局只留一行指针，指针里保留硬约束关键词（如「推理只在 X 跑」「先 `command -v ego-browser`」），保证不调 skill 也知道去哪；与常驻风格插件（ponytail、caveman）重复的条目删掉。被本 skill check.sh 按措辞校验的规范（CodeGraph 自动初始化、Code Review Graph 优先、代理兜底标题）保留原措辞，否则 check 会报缺失；全局 CLAUDE.md 若由脚本按标记块生成，改源再生成，手写进生成文件的条目会在下次生成时丢失。
 - 插件「enabled」不等于加载成功：缓存目录与 `installed_plugins.json` 记录的版本不一致时会静默失败，`claude --debug` 日志可见 `not cached at`；修复用 uninstall + install。
 - skill 正文调用后常驻上下文直到会话结束：SKILL.md 正文宜 ≤6,000 字，只留定位、何时用、硬规则、路由表，细节放 `references/` 按需读取。
 - 拆分 SKILL.md 时按原文行区间逐字搬运，并用脚本核对原文每行都落到新文件（覆盖率 100%）；理解后改写会丢内容。同时核对原有 references 文件没被删或覆盖。
