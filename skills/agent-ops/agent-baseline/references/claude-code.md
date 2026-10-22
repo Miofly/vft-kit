@@ -64,7 +64,7 @@ bash ${CLAUDE_PLUGIN_ROOT}/skills/agent-ops/agent-baseline/claude-code/scripts/r
 
 1. 在 `~/.cache/vft-kit/caveman/upstream` 浅拉上游 `ref`（默认 `main`）。只把 `src/hooks`、`skills/caveman|ultracave|megacave` 和 `.claude-plugin/plugin.json` 复制到暂存目录。
 2. 自检：在隔离的 `CLAUDE_CONFIG_DIR` 里依次运行 SessionStart、SubagentStart、UserPromptSubmit，要求退出码为 0，且输出含 `CAVEMAN MODE ACTIVE`。通过后换入 `~/.cache/vft-kit/caveman/current`，上一版留在 `previous`。
-3. 按 `current` 中 `plugin.json` 的 hook 定义改写 `settings.json`。命令前加 `export CLAUDE_PLUGIN_ROOT='<vendor>/current';`，命令文本里的 `${CLAUDE_PLUGIN_ROOT}` 换成字面路径。Claude Code 会拒绝运行引用这个变量的非插件 hook，报错 `Hook command references ${CLAUDE_PLUGIN_ROOT} but the hook is not associated with a plugin`。新条目插在各事件数组的最前面，其他 hook 不动。
+3. 按 `current` 中 `plugin.json` 的 hook 定义改写 `settings.json`。命令前加 `export CLAUDE_PLUGIN_ROOT='<vendor>/current';`，命令文本里的 `${CLAUDE_PLUGIN_ROOT}` 换成字面路径。Claude Code 会拒绝运行引用这个变量的非插件 hook，报错 `Hook command references ${CLAUDE_PLUGIN_ROOT} but the hook is not associated with a plugin`。新条目插在各事件数组的最前面，其他 hook 不动。配置里的 `commandOverrides{事件: 命令}` 用来替换该事件上游唯一一个 hook 的命令：caveman 用它让 SubagentStart 先把 `loadRuleset` 置空，再运行上游的 `--subagent`。这样子 agent 只拿到约 0.7KB 的短版规则，主会话仍是约 4.7KB 的全文，模式判断仍走上游。
 4. 装用户级命令 `~/.claude/commands/caveman.md`（来源 `config/caveman-command.md`，设了 `disable-model-invocation`，不占模型上下文）。插件卸载后，交互式会话里输入 `/caveman ultra` 会报 `Unknown command` 且不发送，hook 也收不到；有了这个命令，hook 才能完成切换。
 5. caveman 插件仍装着时，脚本只 vendor 不接线，避免同一套规则注入两次；`--check` 通过后才卸载插件，卸载后再接线。
 

@@ -179,7 +179,14 @@ export async function stopRuntime(page, { projectId, startMode = 0, timeoutMs = 
 
 export const JOB_DIR = 'nbapi-jobs'; // relative to /home/aistudio (Contents API rejects hidden dirs with 400); files removed after collection
 
-function enc(p) { return String(p || '').split('/').filter(Boolean).map(encodeURIComponent).join('/'); }
+export function contentPath(p) {
+  let value = String(p || '');
+  if (value === '/home/aistudio') return '';
+  if (value.startsWith('/home/aistudio/')) value = value.slice('/home/aistudio/'.length);
+  if (value.startsWith('/') || value.split('/').includes('..')) throw new Error('Contents path must be relative to /home/aistudio');
+  return value;
+}
+function enc(p) { return contentPath(p).split('/').filter(Boolean).map(encodeURIComponent).join('/'); }
 const shq = (s) => "'" + String(s).replace(/'/g, "'\\''") + "'";
 
 // Shell line typed into the terminal. Exported for the self-test.
@@ -199,6 +206,19 @@ export function jupyter(page, base) {
   });
   const api = {
     base,
+    async kernelState(id) {
+      if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id)) throw new Error('Invalid kernel id');
+      const r = await req('api/kernels/' + id);
+      if (!r.ok) throw new Error(`kernel state HTTP ${r.status}`);
+      const k = JSON.parse(r.body);
+      return { id: k.id, name: k.name, state: k.execution_state };
+    },
+    async restartKernel(id) {
+      if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id)) throw new Error('Invalid kernel id');
+      const r = await req('api/kernels/' + id + '/restart', { method: 'POST' });
+      if (!r.ok) throw new Error(`kernel restart HTTP ${r.status}`);
+      return api.kernelState(id);
+    },
     async ls(path = '') {
       const r = await req('api/contents/' + enc(path));
       if (!r.ok) throw new Error(`ls ${path} HTTP ${r.status}`);
@@ -222,7 +242,7 @@ export function jupyter(page, base) {
     },
     async mkdirs(path) {
       let cur = '';
-      for (const p of String(path).split('/').filter(Boolean)) {
+      for (const p of contentPath(path).split('/').filter(Boolean)) {
         cur = cur ? cur + '/' + p : p;
         if (await api.stat(cur)) continue;
         const r = await req('api/contents/' + enc(cur), { method: 'PUT', json: { type: 'directory' } });
@@ -230,6 +250,7 @@ export function jupyter(page, base) {
       }
     },
     async putBuffer(remote, buf) {
+      remote = contentPath(remote);
       const dir = String(remote).split('/').slice(0, -1).join('/');
       if (dir) await api.mkdirs(dir);
       const r = await req('api/contents/' + enc(remote), { method: 'PUT', json: { type: 'file', format: 'base64', content: Buffer.from(buf).toString('base64') } });
@@ -330,6 +351,11 @@ export function jupyter(page, base) {
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 if (isMain && process.argv.includes('--self-test')) {
   const assert = (await import('node:assert/strict')).default;
+  assert.equal(contentPath('/home/aistudio/h3v/a.py'), 'h3v/a.py');
+  assert.equal(contentPath('h3v/a.py'), 'h3v/a.py');
+  assert.equal(contentPath('/home/aistudio'), '');
+  assert.throws(() => contentPath('/tmp/a.py'), /relative/);
+  assert.throws(() => contentPath('../a.py'), /relative/);
   assert.equal(baseFromJumpUrl('https://aistudio.baidu.com/bj-cpu-01/user/123/456/home#codelab'), 'https://aistudio.baidu.com/bj-cpu-01/user/123/456/');
   assert.equal(baseFromJumpUrl('/bj-gpu-03/user/1/2/lab?userType=1'), 'https://aistudio.baidu.com/bj-gpu-03/user/1/2/');
   assert.equal(baseFromJumpUrl('https://aistudio.baidu.com/bj-cpu-01/hub/user/1/2/'), 'https://aistudio.baidu.com/bj-cpu-01/user/1/2/');
@@ -375,5 +401,16 @@ if (isMain && process.argv.includes('--self-test')) {
   globalThis.setTimeout = origSet;
   assert.equal(sp.stopped, true);
   assert.throws(() => jupyter(page, 'https://aistudio.baidu.com/x/'), /无效/);
+  const kernelCalls = [];
+  const kernelId = 'f164b1a0-fe03-457d-88e5-341c7772ccb9';
+  const kernelApi = jupyter({ fetch: async (url, opts) => {
+    kernelCalls.push({ url, method: opts.method });
+    return { ok: true, status: 200, body: JSON.stringify({ id: kernelId, name: 'python3', execution_state: 'idle' }) };
+  } }, 'https://aistudio.baidu.com/bj-gpu-03/user/1/9/');
+  await assert.rejects(kernelApi.restartKernel('../stop'), /Invalid/);
+  assert.equal((await kernelApi.restartKernel(kernelId)).state, 'idle');
+  assert.equal(kernelCalls[0].method, 'POST');
+  assert.ok(kernelCalls[0].url.endsWith(`/api/kernels/${kernelId}/restart`));
+  assert.ok(kernelCalls.every(c => !c.url.includes('/studio/project/stop')));
   console.log('notebook_api self-test OK (base parse, run classify, captcha short-circuit, paid guard, launching->up, stop)');
 }

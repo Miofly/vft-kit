@@ -14,6 +14,7 @@ log="$tmp/claude.log"
 mkdir -p "$home/.claude/plugins" "$home/.config/caveman" "$bin" "$up/.claude-plugin" "$up/src/hooks"
 for s in caveman ultracave megacave; do mkdir -p "$up/skills/$s"; echo "# $s" > "$up/skills/$s/SKILL.md"; done
 echo 'process.stdout.write("CAVEMAN MODE ACTIVE")' > "$up/src/hooks/caveman-activate.js"
+echo 'module.exports = {}' > "$up/src/hooks/caveman-config.js"
 cat > "$up/.claude-plugin/plugin.json" <<'EOF'
 {"hooks":{
  "SessionStart":[{"hooks":[{"type":"command","command":"node \"${CLAUDE_PLUGIN_ROOT}/src/hooks/caveman-activate.js\""}]}],

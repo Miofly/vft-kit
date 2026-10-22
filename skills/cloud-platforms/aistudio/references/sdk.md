@@ -18,6 +18,8 @@ uv run --with aistudio-sdk python3 "<skill-dir>/scripts/aistudio.py" download-re
 
 Set `AISTUDIO_OWNER` to allow short repo names; otherwise transfers require `OWNER/REPO`. Repository creation is private by default. Require `--public` for a public repository. Downloads reject collisions unless `--force` is explicit. Before mutations, inspect the target and local source; afterward verify the returned result and remote state. A request timeout has unknown outcome: inspect the remote account before retrying.
 
+2026-10-21 compatibility: newer BOS SDKs renamed `put_super_obejct_from_file` to `put_super_object_from_file`, while AI Studio still calls the legacy name. The launcher adds the alias only when the old method is absent; existing implementations remain unchanged. `self-check` covers both cases. Upload logs and a Git commit are insufficient: download the actual object and compare bytes/SHA-256. Use a recognized LFS extension such as `.bin` for large snapshot parts; `.part00` was classified as a normal file and hit the 500MB limit. `download-file` now fails if the SDK returns no file.
+
 Official references:
 
 - Access token: <https://ai.baidu.com/ai-doc/AISTUDIO/slmkadt9z>

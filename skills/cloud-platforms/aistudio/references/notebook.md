@@ -74,6 +74,8 @@ Run `scripts/gpu_probe.py` after transfer. Verify Python, GPU/CPU, CUDA, Paddle/
 
 ## Long-running Commands
 
+For continuous logs, the proxy `GET files/<path>` supports `Range: bytes=<offset>-<end>` (verified 2026-10-21). Append only a `206` response whose `Content-Range` start and byte length match; `416` can mean no new bytes yet. Reject HTML even with HTTP 200 and preserve the last valid capture. Prefer bounded incremental reads over repeatedly downloading a growing log; keep platform-status polling independent so a blocked Jupyter request does not hide a stopped runtime. This uses the existing browser session without exporting credentials.
+
 Terminal websockets live in the page: a navigation or new heredoc round drops the `window` globals, and one `js()` call must not block for minutes. For anything long (pip installs, weight downloads) launch detached and poll the log instead of holding the socket:
 
 1. Upload the script via Contents API.
