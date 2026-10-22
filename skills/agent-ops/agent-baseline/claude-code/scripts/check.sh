@@ -253,9 +253,9 @@ plugin_hook_check(){ # $1 脚本名（不含 .py） $2 ok 时的说明
 # 配置关掉 CLI 二次判断。只把机械子 agent 路由到 haiku，其余保持 opus/high。见 install-model-router.sh。
 model_router_installed(){
   local f="$HOME/.claude/settings.json" c="$HOME/.claude/model-router.json"
-  [ -f "$f" ] && grep -q '"claude-model-router-hook@claude-model-router-hook": true' "$f" \
+  [ -f "$f" ] && grep -q '"router@claude-model-router-hook": true' "$f" \
     && [ -f "$c" ] && grep -Eq '"cli_fallback": *false' "$c" \
-    && grep -q 'vft-kit patch' "$HOME"/.claude/plugins/cache/claude-model-router-hook/claude-model-router-hook/*/hooks/pre_tool_use.py 2>/dev/null
+    && grep -q 'vft-kit patch' "$HOME"/.claude/plugins/cache/claude-model-router-hook/router/*/hooks/pre_tool_use.py 2>/dev/null
 }
 # 全局规范是否要求 Agent 调用显式写 model（机械活 haiku/sonnet，推理类继承；规则正文在 rules/agent-model.md）。
 claudemd_has_agent_model(){

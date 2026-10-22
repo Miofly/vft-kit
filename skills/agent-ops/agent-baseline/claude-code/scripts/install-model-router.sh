@@ -7,10 +7,10 @@
 # injects a model into named agents, overriding e.g. a haiku carrier with opus. The patch
 # fixes those three and logs advisory decisions. Chinese keywords live in config, not code.
 # It also points SessionStart at hooks/session_brief.py: silent when healthy (routing
-# rules live in the global CLAUDE.md), one line only when routed variants go missing,
+# rules live in the global CLAUDE.md), one line only when router variants go missing,
 # instead of upstream's ~1.4k-char "Model Tier Rules ... (MANDATORY)" table, which
 # contradicts this config (only mechanical work is lowered). PreToolUse routing is unchanged.
-# The routed-* agent descriptions shrink to "Router-internal; do not use.": every session
+# The variant agent (router:haiku, router:opus-high, ...) descriptions shrink to "Router-internal; do not use.": every session
 # lists them, and Claude Code has no way to hide an agent the hook must still reach
 # (deny Agent(name) disables it, and hook "allow" never overrides a deny rule).
 #
@@ -26,7 +26,7 @@ REV="f687111e1bd1947df23d676354afc99467294a39"
 DEST="${MODEL_ROUTER_DIR:-$HOME/.cache/vft-kit/claude-model-router-hook}"
 PATCH="$DIR/../patches/claude-model-router-hook.patch"
 CONF="$HOME/.claude/model-router.json"
-PLUGIN="claude-model-router-hook@claude-model-router-hook"
+PLUGIN="router@claude-model-router-hook"
 
 if [ ! -d "$DEST/.git" ]; then
   mkdir -p "$(dirname "$DEST")"
@@ -49,7 +49,7 @@ fi
 if ! claude plugin list 2>/dev/null | grep -q "$PLUGIN"; then
   claude plugin install "$PLUGIN" >/dev/null
 elif [ "$changed" -eq 1 ]; then
-  bash "$DIR/../../plugins/scripts/refresh-local-plugin.sh" -p claude-model-router-hook >/dev/null
+  bash "$DIR/../../plugins/scripts/refresh-local-plugin.sh" -p router-hook >/dev/null
 fi
 
 # Superseded by the router: drop the earlier agent-model-guard hook if still registered.

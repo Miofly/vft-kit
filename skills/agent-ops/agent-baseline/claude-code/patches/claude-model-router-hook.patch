@@ -1,59 +1,103 @@
-diff --git a/plugins/claude-model-router-hook/agents/routed-haiku.md b/plugins/claude-model-router-hook/agents/routed-haiku.md
-index b606062..9f0c2eb 100644
+diff --git a/.claude-plugin/marketplace.json b/.claude-plugin/marketplace.json
+index b07bd07..1d17890 100644
+--- a/.claude-plugin/marketplace.json
++++ b/.claude-plugin/marketplace.json
+@@ -9,7 +9,7 @@
+   },
+   "plugins": [
+     {
+-      "name": "claude-model-router-hook",
++      "name": "router",
+       "description": "Automatic model switching for Claude Code based on prompt complexity. No API key required.",
+       "version": "2.1.0",
+       "author": {
+diff --git a/plugins/claude-model-router-hook/.claude-plugin/plugin.json b/plugins/claude-model-router-hook/.claude-plugin/plugin.json
+index b59a6cf..cfaa0ff 100644
+--- a/plugins/claude-model-router-hook/.claude-plugin/plugin.json
++++ b/plugins/claude-model-router-hook/.claude-plugin/plugin.json
+@@ -1,5 +1,5 @@
+ {
+-  "name": "claude-model-router-hook",
++  "name": "router",
+   "description": "Automatic model switching for Claude Code based on prompt complexity. No API key required.",
+   "version": "2.1.0",
+   "author": {
+diff --git a/plugins/claude-model-router-hook/agents/routed-haiku.md b/plugins/claude-model-router-hook/agents/haiku.md
+similarity index 62%
+rename from plugins/claude-model-router-hook/agents/routed-haiku.md
+rename to plugins/claude-model-router-hook/agents/haiku.md
+index b606062..3a59961 100644
 --- a/plugins/claude-model-router-hook/agents/routed-haiku.md
-+++ b/plugins/claude-model-router-hook/agents/routed-haiku.md
++++ b/plugins/claude-model-router-hook/agents/haiku.md
 @@ -1,6 +1,6 @@
  ---
- name: routed-haiku
+-name: routed-haiku
 -description: Router-managed variant for mechanical tasks. Spawned by the model router hook; do not invoke directly.
++name: haiku
 +description: Router-internal; do not use.
  model: haiku
  disallowedTools: Agent
  router-generated: true
-diff --git a/plugins/claude-model-router-hook/agents/routed-opus-high.md b/plugins/claude-model-router-hook/agents/routed-opus-high.md
-index 21cb8eb..fc8a37c 100644
+diff --git a/plugins/claude-model-router-hook/agents/routed-opus-high.md b/plugins/claude-model-router-hook/agents/opus-high.md
+similarity index 73%
+rename from plugins/claude-model-router-hook/agents/routed-opus-high.md
+rename to plugins/claude-model-router-hook/agents/opus-high.md
+index 21cb8eb..16b322c 100644
 --- a/plugins/claude-model-router-hook/agents/routed-opus-high.md
-+++ b/plugins/claude-model-router-hook/agents/routed-opus-high.md
++++ b/plugins/claude-model-router-hook/agents/opus-high.md
 @@ -1,6 +1,6 @@
  ---
- name: routed-opus-high
+-name: routed-opus-high
 -description: Router-managed variant for debugging tasks. Spawned by the model router hook; do not invoke directly.
++name: opus-high
 +description: Router-internal; do not use.
  model: opus
  effort: high
  router-generated: true
-diff --git a/plugins/claude-model-router-hook/agents/routed-opus-max.md b/plugins/claude-model-router-hook/agents/routed-opus-max.md
-index 7f98458..a689beb 100644
+diff --git a/plugins/claude-model-router-hook/agents/routed-opus-max.md b/plugins/claude-model-router-hook/agents/opus-max.md
+similarity index 73%
+rename from plugins/claude-model-router-hook/agents/routed-opus-max.md
+rename to plugins/claude-model-router-hook/agents/opus-max.md
+index 7f98458..35497eb 100644
 --- a/plugins/claude-model-router-hook/agents/routed-opus-max.md
-+++ b/plugins/claude-model-router-hook/agents/routed-opus-max.md
++++ b/plugins/claude-model-router-hook/agents/opus-max.md
 @@ -1,6 +1,6 @@
  ---
- name: routed-opus-max
+-name: routed-opus-max
 -description: Router-managed variant for extreme tasks. Spawned by the model router hook; do not invoke directly.
++name: opus-max
 +description: Router-internal; do not use.
  model: opus
  effort: max
  router-generated: true
-diff --git a/plugins/claude-model-router-hook/agents/routed-opus-medium.md b/plugins/claude-model-router-hook/agents/routed-opus-medium.md
-index fc92816..a10de9f 100644
+diff --git a/plugins/claude-model-router-hook/agents/routed-opus-medium.md b/plugins/claude-model-router-hook/agents/opus-medium.md
+similarity index 72%
+rename from plugins/claude-model-router-hook/agents/routed-opus-medium.md
+rename to plugins/claude-model-router-hook/agents/opus-medium.md
+index fc92816..ea838f8 100644
 --- a/plugins/claude-model-router-hook/agents/routed-opus-medium.md
-+++ b/plugins/claude-model-router-hook/agents/routed-opus-medium.md
++++ b/plugins/claude-model-router-hook/agents/opus-medium.md
 @@ -1,6 +1,6 @@
  ---
- name: routed-opus-medium
+-name: routed-opus-medium
 -description: Router-managed variant for implementation tasks. Spawned by the model router hook; do not invoke directly.
++name: opus-medium
 +description: Router-internal; do not use.
  model: opus
  effort: medium
  router-generated: true
-diff --git a/plugins/claude-model-router-hook/agents/routed-opus-xhigh.md b/plugins/claude-model-router-hook/agents/routed-opus-xhigh.md
-index b94160d..f4cd340 100644
+diff --git a/plugins/claude-model-router-hook/agents/routed-opus-xhigh.md b/plugins/claude-model-router-hook/agents/opus-xhigh.md
+similarity index 72%
+rename from plugins/claude-model-router-hook/agents/routed-opus-xhigh.md
+rename to plugins/claude-model-router-hook/agents/opus-xhigh.md
+index b94160d..5d999b7 100644
 --- a/plugins/claude-model-router-hook/agents/routed-opus-xhigh.md
-+++ b/plugins/claude-model-router-hook/agents/routed-opus-xhigh.md
++++ b/plugins/claude-model-router-hook/agents/opus-xhigh.md
 @@ -1,6 +1,6 @@
  ---
- name: routed-opus-xhigh
+-name: routed-opus-xhigh
 -description: Router-managed variant for architecture tasks. Spawned by the model router hook; do not invoke directly.
++name: opus-xhigh
 +description: Router-internal; do not use.
  model: opus
  effort: xhigh
@@ -89,7 +133,7 @@ index 7502daa..0a33c97 100644
        {
          "matcher": "Agent|Task",
 diff --git a/plugins/claude-model-router-hook/hooks/pre_tool_use.py b/plugins/claude-model-router-hook/hooks/pre_tool_use.py
-index 27533aa..41aebe1 100644
+index 27533aa..11abbed 100644
 --- a/plugins/claude-model-router-hook/hooks/pre_tool_use.py
 +++ b/plugins/claude-model-router-hook/hooks/pre_tool_use.py
 @@ -5,7 +5,9 @@ Thin wiring only; all logic lives in the router package. Never denies:
@@ -102,7 +146,18 @@ index 27533aa..41aebe1 100644
  import sys
  from pathlib import Path
  
-@@ -65,6 +67,22 @@ def _resolve_variant(variant, cwd):
+@@ -14,7 +16,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
+ from router import config, hookio, policy, taxonomy, variants  # noqa: E402
+ from router.ladder import detect_tier  # noqa: E402
+ 
+-PLUGIN_PREFIX = "claude-model-router-hook:"
++PLUGIN_PREFIX = "router:"
++# Plugin names this plugin shipped under before; old sessions still list them.
++LEGACY_PLUGIN_PREFIXES = ("claude-model-router-hook:", "router-hook:")
+ GENERIC_TYPES = ("general-purpose", "default", "claude")
+ 
+ 
+@@ -65,6 +69,22 @@ def _resolve_variant(variant, cwd):
      return None
  
  
@@ -125,7 +180,25 @@ index 27533aa..41aebe1 100644
  @hookio.fail_open
  def main():
      if hookio.is_child():
-@@ -104,6 +122,25 @@ def main():
+@@ -80,13 +100,15 @@ def main():
+ 
+     subagent_type = tool_input.get("subagent_type")
+     if isinstance(subagent_type, str) and (
+-        subagent_type.startswith(PLUGIN_PREFIX + "routed-")
+-        or subagent_type.startswith("routed-")
++        subagent_type.startswith((PLUGIN_PREFIX, *LEGACY_PLUGIN_PREFIXES))
++        or subagent_type.startswith(variants.LEGACY_PREFIX)
+     ):
+         sys.exit(0)  # idempotency guard: already rewritten (scoped or unscoped)
+ 
+     cwd = event.get("cwd") if isinstance(event.get("cwd"), str) else os.getcwd()
+     cfg = config.load_config(global_path=config.global_config_path(), cwd=cwd)
++    if subagent_type in variants.variant_map(cfg).values():
++        sys.exit(0)  # idempotency guard: bare variant name, already rewritten
+     enforcement = cfg.get("subagent_enforcement", "on")
+     if enforcement == "off":
+         sys.exit(0)
+@@ -104,6 +126,25 @@ def main():
          prompt, target, cfg, delegated=bool(event.get("agent_id"))
      )
  
@@ -151,7 +224,7 @@ index 27533aa..41aebe1 100644
      explicit = tool_input.get("model")
      if explicit is not None:
          # Explicit caller model: NO injection, respect it (locked decision 4).
-@@ -160,6 +197,10 @@ def main():
+@@ -160,6 +201,10 @@ def main():
          warning = _env_model_warning(decision.model)
          if warning:
              messages.append(warning)
@@ -216,10 +289,22 @@ index f3dc941..dea6598 100644
      scores["architecture"] += min(length_bonus, 2)  # hard cap +2 (FR-7)
  
 diff --git a/plugins/claude-model-router-hook/hooks/router/variants.py b/plugins/claude-model-router-hook/hooks/router/variants.py
-index ae7a053..7249bf7 100644
+index ae7a053..a3d1583 100644
 --- a/plugins/claude-model-router-hook/hooks/router/variants.py
 +++ b/plugins/claude-model-router-hook/hooks/router/variants.py
-@@ -40,6 +40,8 @@ AGENT_DESCRIPTION_ESCALATED = (
+@@ -24,7 +24,10 @@ from .ladder import EFFORTS, TIERS
+ from .policy import gate_outcomes, target_for_class
+ from .taxonomy import CLASSES
+ 
+-AGENT_PREFIX = "routed-"
++# vft-kit patch: bare variant names, so the host shows `router:haiku`. Files
++# the generator wrote under the old prefix are still recognized and pruned.
++AGENT_PREFIX = ""
++LEGACY_PREFIX = "routed-"
+ 
+ OWNERSHIP_KEY = "router-generated"
+ 
+@@ -40,6 +43,8 @@ AGENT_DESCRIPTION_ESCALATED = (
      "Spawned by the model router hook; do not invoke directly."
  )
  
@@ -228,7 +313,7 @@ index ae7a053..7249bf7 100644
  LEGACY_AGENT_BODY = "Complete the delegated task exactly as prompted; return a concise report."
  
  AGENT_BODY = (
-@@ -110,14 +112,12 @@ def variant_map(cfg):
+@@ -110,14 +115,12 @@ def variant_map(cfg):
  
  def agent_markdown(name, model, effort, classes):
      """Full agent file content for one variant."""
@@ -246,9 +331,18 @@ index ae7a053..7249bf7 100644
          "model: " + model,
      ]
      if effort is not None:
+@@ -211,7 +214,7 @@ def is_generated(text, filename=None):
+         return False
+ 
+     name = match.group("name")
+-    if name != variant_name(model, effort):
++    if name not in (variant_name(model, effort), LEGACY_PREFIX + variant_name(model, effort)):
+         return False
+     if filename is not None:
+         if name != os.path.splitext(os.path.basename(filename))[0]:
 diff --git a/plugins/claude-model-router-hook/hooks/session_brief.py b/plugins/claude-model-router-hook/hooks/session_brief.py
 new file mode 100755
-index 0000000..983a0a5
+index 0000000..43adbc0
 --- /dev/null
 +++ b/plugins/claude-model-router-hook/hooks/session_brief.py
 @@ -0,0 +1,53 @@
@@ -286,7 +380,7 @@ index 0000000..983a0a5
 +    if not missing:
 +        sys.exit(0)
 +    context = (
-+        "model-router 缺少 routed 变体 agent：" + ", ".join(sorted(missing))
++        "model-router 缺少路由变体 agent：" + ", ".join(sorted(missing))
 +        + "，重跑 install-model-router.sh。"
 +    )
 +    print(
@@ -305,25 +399,727 @@ index 0000000..983a0a5
 +
 +if __name__ == "__main__":
 +    main()
+diff --git a/plugins/claude-model-router-hook/install.sh b/plugins/claude-model-router-hook/install.sh
+index 3854c55..e0cf52a 100755
+--- a/plugins/claude-model-router-hook/install.sh
++++ b/plugins/claude-model-router-hook/install.sh
+@@ -47,7 +47,7 @@ echo "  hooks/session_init.py             -> $HOOKS_DIR/session_init.py"
+ echo "  hooks/user_prompt_submit.py       -> $HOOKS_DIR/user_prompt_submit.py"
+ echo "  hooks/pre_tool_use.py             -> $HOOKS_DIR/pre_tool_use.py"
+ echo "  hooks/post_tool_use.py            -> $HOOKS_DIR/post_tool_use.py"
+-echo "  agents/routed-*.md                -> $AGENTS_DIR/"
++echo "  agents/<variant>.md               -> $AGENTS_DIR/"
+ echo "  schema/model-router.schema.json   -> $SCHEMA_DIR/"
+ echo ""
+ echo "Register the following in ~/.claude/settings.json:"
+diff --git a/scripts/generate_variants.py b/scripts/generate_variants.py
+index 79ec3df..8dfe654 100755
+--- a/scripts/generate_variants.py
++++ b/scripts/generate_variants.py
+@@ -1,5 +1,5 @@
+ #!/usr/bin/env python3
+-"""Generate the routed-* agent files a config declares (FR-14).
++"""Generate the router variant agent files a config declares (FR-14).
+ 
+ The variant set is derived from the configured class targets via
+ router.variants, the same module the PreToolUse hook uses to pick a variant.
+@@ -15,7 +15,7 @@ Modes:
+ 
+ Only files this generator wrote are ever overwritten or removed; ownership is
+ a `router-generated: true` frontmatter key, not a guess at the body text. A
+-routed-*.md the user wrote themselves is reported as a conflict and the run
++variant-named .md the user wrote themselves is reported as a conflict and the run
+ exits non-zero rather than replacing it.
+ 
+ The committed set under plugins/claude-model-router-hook/agents is generated
+@@ -74,16 +74,26 @@ def _read(path):
+         return None
+ 
+ 
+-def _existing_router_files(agents_dir):
++def _existing_router_files(agents_dir, variants):
++    """Agent files this generator may own: generated ones, plus legacy-prefixed names.
++
++    vft-kit patch: variant names are bare (haiku.md), so they share the
++    directory with hand-written agents. Claim a file only by ownership, except
++    legacy routed-*.md, which are still listed so a foreign one is reported.
++    """
+     try:
+         names = os.listdir(agents_dir)
+     except OSError:
+         return {}
+     found = {}
+     for name in sorted(names):
+-        if not name.startswith("routed-") or not name.endswith(".md"):
++        if not name.endswith(".md"):
+             continue
+-        found[name] = os.path.join(agents_dir, name)
++        path = os.path.join(agents_dir, name)
++        if name.startswith(variants.LEGACY_PREFIX) or variants.is_generated(
++            _read(path), name
++        ):
++            found[name] = path
+     return found
+ 
+ 
+@@ -123,14 +133,14 @@ def main(argv):
+     if not args.check:
+         os.makedirs(agents_dir, exist_ok=True)
+ 
+-    existing = _existing_router_files(agents_dir)
++    existing = _existing_router_files(agents_dir, variants)
+     drift = False
+     conflicts = []
+     failures = []
+ 
+     for filename in sorted(wanted):
+         path = os.path.join(agents_dir, filename)
+-        current = _read(path) if filename in existing else None
++        current = _read(path)  # a hand-written file is not in `existing`
+         if current == wanted[filename]:
+             print("OK: " + filename)
+             continue
+diff --git a/tests/test-hook.sh b/tests/test-hook.sh
+index b6ed8b0..c362254 100644
+--- a/tests/test-hook.sh
++++ b/tests/test-hook.sh
+@@ -23,7 +23,7 @@ REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+ install_agents() {
+     local home_dir="$1"
+     mkdir -p "$home_dir/.claude/agents"
+-    cp "$REPO_DIR"/plugins/claude-model-router-hook/agents/routed-*.md \
++    cp "$REPO_DIR"/plugins/claude-model-router-hook/agents/*.md \
+         "$home_dir/.claude/agents/"
+ }
+ 
+@@ -379,7 +379,7 @@ rm -rf "$HOME_SAME"
+ 
+ # ── PreToolUse runner + assertions (FR-41, AC-4.x, AC-5.1, AC-10.5) ──────────
+ PRE_HOOK="$(cd "$(dirname "$0")/.." && pwd)/plugins/claude-model-router-hook/hooks/pre_tool_use.py"
+-# Real plugin root: contains agents/routed-*.md so the scoped-name existence
++# Real plugin root: contains agents/*.md so the scoped-name existence
+ # check (F6) resolves to the plugin-scoped variant.
+ PLUGIN_ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)/plugins/claude-model-router-hook"
+ 
+@@ -432,19 +432,19 @@ HOME_DIR=$(make_home "sonnet")
+ MECH_PROMPT="rename the file src/a.py to src/b.py and fix imports"
+ 
+ # Generic mechanical spawn under a plugin install (CLAUDE_PLUGIN_ROOT points at
+-# the real plugin, so agents/routed-haiku.md exists): full rewrite -> plugin-
+-# scoped routed-haiku variant + bare model alias.
++# the real plugin, so agents/haiku.md exists): full rewrite -> plugin-
++# scoped haiku variant + bare model alias.
+ run_pre_hook "{\"tool_name\":\"Agent\",\"tool_input\":{\"subagent_type\":\"general-purpose\",\"prompt\":\"$MECH_PROMPT\"}}" "$HOME_DIR" "CLAUDE_PLUGIN_ROOT=$PLUGIN_ROOT_DIR"
+-assert_pre_json "plugin-context generic spawn rewrites to scoped routed-haiku + model haiku" \
+-    'import json,sys; d=json.load(sys.stdin)["hookSpecificOutput"]; u=d["updatedInput"]; assert d["permissionDecision"]=="allow"; assert u["subagent_type"]=="claude-model-router-hook:routed-haiku"; assert u["model"]=="haiku"'
++assert_pre_json "plugin-context generic spawn rewrites to scoped haiku + model haiku" \
++    'import json,sys; d=json.load(sys.stdin)["hookSpecificOutput"]; u=d["updatedInput"]; assert d["permissionDecision"]=="allow"; assert u["subagent_type"]=="router:haiku"; assert u["model"]=="haiku"'
+ 
+ # F6: CLAUDE_PLUGIN_ROOT is set but the shipped agent file is absent (host
+ # substituted the var textually or it points elsewhere): fall back to the bare
+ # name, which resolves against the agent files installed in ~/.claude/agents.
+ MISSING_ROOT=$(mktemp -d)
+ run_pre_hook "{\"tool_name\":\"Agent\",\"tool_input\":{\"subagent_type\":\"general-purpose\",\"prompt\":\"$MECH_PROMPT\"}}" "$HOME_DIR" "CLAUDE_PLUGIN_ROOT=$MISSING_ROOT"
+-assert_pre_json "plugin root without agents file falls back to bare routed-haiku" \
+-    'import json,sys; u=json.load(sys.stdin)["hookSpecificOutput"]["updatedInput"]; assert u["subagent_type"]=="routed-haiku"; assert u["model"]=="haiku"'
++assert_pre_json "plugin root without agents file falls back to bare haiku" \
++    'import json,sys; u=json.load(sys.stdin)["hookSpecificOutput"]["updatedInput"]; assert u["subagent_type"]=="haiku"; assert u["model"]=="haiku"'
+ rm -rf "$MISSING_ROOT"
+ 
+ # F7: the variant is declared by config but installed nowhere (config edited
+@@ -460,10 +460,16 @@ assert_pre_json "uninstalled variant degrades to model-only injection" \
+ rm -rf "$BARE_HOME"
+ 
+ # Same spawn without CLAUDE_PLUGIN_ROOT (manual/unscoped install): emit the
+-# bare routed-haiku name that resolves against ~/.claude/agents.
++# bare haiku name that resolves against ~/.claude/agents.
+ run_pre_hook "{\"tool_name\":\"Agent\",\"tool_input\":{\"subagent_type\":\"general-purpose\",\"prompt\":\"$MECH_PROMPT\"}}" "$HOME_DIR"
+-assert_pre_json "manual-install generic spawn rewrites to unscoped routed-haiku + model haiku" \
+-    'import json,sys; d=json.load(sys.stdin)["hookSpecificOutput"]; u=d["updatedInput"]; assert d["permissionDecision"]=="allow"; assert u["subagent_type"]=="routed-haiku"; assert u["model"]=="haiku"'
++assert_pre_json "manual-install generic spawn rewrites to unscoped haiku + model haiku" \
++    'import json,sys; d=json.load(sys.stdin)["hookSpecificOutput"]; u=d["updatedInput"]; assert d["permissionDecision"]=="allow"; assert u["subagent_type"]=="haiku"; assert u["model"]=="haiku"'
++
++# Idempotency: a spawn already on a variant (current or legacy name) is left alone.
++for routed in router:haiku haiku router-hook:routed-haiku claude-model-router-hook:routed-haiku routed-haiku; do
++    run_pre_hook "{\"tool_name\":\"Agent\",\"tool_input\":{\"subagent_type\":\"$routed\",\"prompt\":\"$MECH_PROMPT\"}}" "$HOME_DIR"
++    assert_pre_passthrough "already-routed $routed passes through"
++done
+ 
+ # Custom subagent_type: model-only injection, subagent_type left untouched (FR-15).
+ run_pre_hook "{\"tool_name\":\"Agent\",\"tool_input\":{\"subagent_type\":\"my-custom-agent\",\"prompt\":\"$MECH_PROMPT\"}}" "$HOME_DIR"
+diff --git a/tests/test_router.py b/tests/test_router.py
+index c9af023..b8def1b 100644
+--- a/tests/test_router.py
++++ b/tests/test_router.py
+@@ -1261,11 +1261,11 @@ def _parse_frontmatter(path):
+ 
+ 
+ class TestVariantCoverage(unittest.TestCase):
+-    """Every default class target has a shipped routed-* variant (AC-4.2)."""
++    """Every default class target has a shipped router variant (AC-4.2)."""
+ 
+     def _variant_name(self, model, effort):
+-        """Same convention pre_tool_use.py uses: routed-<model>[-<effort>]."""
+-        return "routed-" + model if effort is None else f"routed-{model}-{effort}"
++        """Same convention pre_tool_use.py uses: <model>[-<effort>]."""
++        return model if effort is None else f"{model}-{effort}"
+ 
+     def test_every_default_target_has_matching_variant(self):
+         classes = DEFAULTS["classes"]
 diff --git a/tests/test_variants.py b/tests/test_variants.py
-index b82473b..8478f34 100644
+index b82473b..10192eb 100644
 --- a/tests/test_variants.py
 +++ b/tests/test_variants.py
-@@ -452,7 +452,7 @@ class TestVariantClosure(unittest.TestCase):
+@@ -2,7 +2,7 @@
+ 
+ Covers the three places a model name used to be hard-coded:
+   1. router.advisory - the SessionStart table and its closing prose
+-  2. router.variants / pre_tool_use - the routed-* variant set
++  2. router.variants / pre_tool_use - the router variant set
+   3. router.policy.apply_gates - the minimum tier for gated work
+ 
+ The shared property under test: with a model absent from every configured
+@@ -281,11 +281,11 @@ class TestSessionInitUsesConfig(unittest.TestCase):
+                     "implementation": {"target": {"model": "opus", "effort": "medium"}},
+                     "debugging": {"target": {"model": "opus", "effort": "high"}},
+                 },
+-            }, agents=[("routed-haiku", "haiku", None, ("mechanical",)),
+-                       ("routed-opus-medium", "opus", "medium", ("implementation",)),
+-                       ("routed-opus-high", "opus", "high", ("debugging",)),
+-                       ("routed-opus-xhigh", "opus", "xhigh", ("architecture",)),
+-                       ("routed-opus-max", "opus", "max", ("extreme",))])
++            }, agents=[("haiku", "haiku", None, ("mechanical",)),
++                       ("opus-medium", "opus", "medium", ("implementation",)),
++                       ("opus-high", "opus", "high", ("debugging",)),
++                       ("opus-xhigh", "opus", "xhigh", ("architecture",)),
++                       ("opus-max", "opus", "max", ("extreme",))])
+             context = self._context(home)
+             self.assertNotIn("sonnet", context)
+             self.assertIn("| implementation | opus | medium |", context)
+@@ -323,11 +323,11 @@ class TestSessionInitDivergenceWarning(unittest.TestCase):
+                 "classes": {
+                     "implementation": {"target": {"model": "opus", "effort": "medium"}},
+                 },
+-            }, agents=[("routed-haiku", "haiku", None, ("mechanical",))])
++            }, agents=[("haiku", "haiku", None, ("mechanical",))])
+             context = self._context(home)
+             self.assertIn("Routed variants out of date", context)
+-            self.assertIn("routed-opus-medium", context)
+-            self.assertIn("Re-run install.sh", context)
++            self.assertIn("opus-medium", context)
++            self.assertIn("Re-run install.sh", context.replace("-\n", "-").replace("\n", " "))  # wrap may split at the hyphen
+ 
+     def test_no_warning_when_every_declared_variant_is_installed(self):
+         with tempfile.TemporaryDirectory() as home:
+@@ -356,11 +356,11 @@ class TestVariantMap(unittest.TestCase):
+         self.assertEqual(
+             variants.variant_map(copy.deepcopy(DEFAULTS)),
+             {
+-                ("haiku", None): "routed-haiku",
+-                ("opus", "medium"): "routed-opus-medium",
+-                ("opus", "high"): "routed-opus-high",
+-                ("opus", "xhigh"): "routed-opus-xhigh",
+-                ("opus", "max"): "routed-opus-max",
++                ("haiku", None): "haiku",
++                ("opus", "medium"): "opus-medium",
++                ("opus", "high"): "opus-high",
++                ("opus", "xhigh"): "opus-xhigh",
++                ("opus", "max"): "opus-max",
+             },
+         )
+ 
+@@ -374,12 +374,12 @@ class TestVariantMap(unittest.TestCase):
+         """The (opus, medium) target had no shipped variant; config declares it."""
+         self.assertEqual(
+             variants.variant_map(_sonnet_free_cfg())[("opus", "medium")],
+-            "routed-opus-medium",
++            "opus-medium",
+         )
+ 
+     def test_variant_name_shape(self):
+-        self.assertEqual(variants.variant_name("haiku", None), "routed-haiku")
+-        self.assertEqual(variants.variant_name("opus", "xhigh"), "routed-opus-xhigh")
++        self.assertEqual(variants.variant_name("haiku", None), "haiku")
++        self.assertEqual(variants.variant_name("opus", "xhigh"), "opus-xhigh")
+ 
+     def test_unusable_target_is_skipped_not_raised(self):
+         cfg = copy.deepcopy(DEFAULTS)
+@@ -423,7 +423,7 @@ class TestVariantClosure(unittest.TestCase):
+         )
+         self.assertEqual(
+             sorted(variants.variant_map(cfg).values()),
+-            ["routed-haiku", "routed-opus-high", "routed-opus-medium"],
++            ["haiku", "opus-high", "opus-medium"],
+         )
+         self._closure_covers_gates(cfg)
+ 
+@@ -450,9 +450,9 @@ class TestVariantClosure(unittest.TestCase):
+         )
+         declared = {name: classes for name, _m, _e, classes
                      in variants.target_variants(cfg)}
-         self.assertEqual(declared["routed-opus-high"], ())
-         markdown = variants.agent_markdown("routed-opus-high", "opus", "high", ())
+-        self.assertEqual(declared["routed-opus-high"], ())
+-        markdown = variants.agent_markdown("routed-opus-high", "opus", "high", ())
 -        self.assertIn("gate-escalated tasks", markdown)
++        self.assertEqual(declared["opus-high"], ())
++        markdown = variants.agent_markdown("opus-high", "opus", "high", ())
 +        self.assertIn("description: Router-internal; do not use.\n", markdown)  # vft-kit patch
  
  
  class TestAgentMarkdown(unittest.TestCase):
-@@ -478,7 +478,7 @@ class TestAgentMarkdown(unittest.TestCase):
+@@ -468,7 +468,7 @@ class TestAgentMarkdown(unittest.TestCase):
+                 )
+ 
+     def test_omits_effort_for_haiku(self):
+-        md = variants.agent_markdown("routed-haiku", "haiku", None, ("mechanical",))
++        md = variants.agent_markdown("haiku", "haiku", None, ("mechanical",))
+         self.assertNotIn("effort:", md)
+         self.assertIn("model: haiku", md)
+         self.assertIn("disallowedTools: Agent", md)
+@@ -476,22 +476,22 @@ class TestAgentMarkdown(unittest.TestCase):
+ 
+     def test_names_every_declaring_class(self):
          md = variants.agent_markdown(
-             "routed-opus-high", "opus", "high", ("debugging", "architecture")
+-            "routed-opus-high", "opus", "high", ("debugging", "architecture")
++            "opus-high", "opus", "high", ("debugging", "architecture")
          )
 -        self.assertIn("for debugging and architecture tasks", md)
 +        self.assertIn("description: Router-internal; do not use.\n", md)  # vft-kit patch
  
      def test_carries_the_ownership_key(self):
-         md = variants.agent_markdown("routed-haiku", "haiku", None, ("mechanical",))
+-        md = variants.agent_markdown("routed-haiku", "haiku", None, ("mechanical",))
++        md = variants.agent_markdown("haiku", "haiku", None, ("mechanical",))
+         self.assertIn("router-generated: true", md)
+-        self.assertTrue(variants.is_generated(md, "routed-haiku.md"))
++        self.assertTrue(variants.is_generated(md, "haiku.md"))
+ 
+ 
+ class TestOwnershipBoundary(unittest.TestCase):
+     """Ownership is declared in frontmatter, never inferred from body text."""
+ 
+     def test_generated_file_is_owned(self):
+-        md = variants.agent_markdown("routed-opus-high", "opus", "high", ("architecture",))
+-        self.assertTrue(variants.is_generated(md, "routed-opus-high.md"))
++        md = variants.agent_markdown("opus-high", "opus", "high", ("architecture",))
++        self.assertTrue(variants.is_generated(md, "opus-high.md"))
+ 
+     def test_prose_quoting_the_description_is_not_owned(self):
+         """The old marker sniff called this ours and deleted it."""
+@@ -503,14 +503,14 @@ class TestOwnershipBoundary(unittest.TestCase):
+         self.assertFalse(variants.is_generated(text, "routed-zach-notes.md"))
+ 
+     def test_hand_written_file_at_a_wanted_name_is_not_owned(self):
+-        text = "---\nname: routed-opus-high\nmodel: opus\n---\n\nmine\n"
+-        self.assertFalse(variants.is_generated(text, "routed-opus-high.md"))
++        text = "---\nname: opus-high\nmodel: opus\n---\n\nmine\n"
++        self.assertFalse(variants.is_generated(text, "opus-high.md"))
+ 
+     def test_pre_key_rendering_is_recognised_for_upgrade(self):
+         """Files written before the ownership key existed stay manageable."""
+         legacy = (
+             "---\n"
+-            "name: routed-opus-high\n"
++            "name: opus-high\n"
+             "description: Router-managed variant for architecture tasks. "
+             "Spawned by the model router hook; do not invoke directly.\n"
+             "model: opus\n"
+@@ -518,12 +518,12 @@ class TestOwnershipBoundary(unittest.TestCase):
+             "---\n\n"
+             "Complete the delegated task exactly as prompted; return a concise report.\n"
+         )
+-        self.assertTrue(variants.is_generated(legacy, "routed-opus-high.md"))
++        self.assertTrue(variants.is_generated(legacy, "opus-high.md"))
+ 
+     def test_pre_key_rendering_under_a_mismatched_filename_is_not_owned(self):
+         legacy = (
+             "---\n"
+-            "name: routed-opus-high\n"
++            "name: opus-high\n"
+             "description: Router-managed variant for architecture tasks. "
+             "Spawned by the model router hook; do not invoke directly.\n"
+             "model: opus\n"
+@@ -531,12 +531,12 @@ class TestOwnershipBoundary(unittest.TestCase):
+             "---\n\n"
+             "Complete the delegated task exactly as prompted; return a concise report.\n"
+         )
+-        self.assertFalse(variants.is_generated(legacy, "routed-something-else.md"))
++        self.assertFalse(variants.is_generated(legacy, "something-else.md"))
+ 
+     def test_trailing_content_after_a_legacy_body_is_not_owned(self):
+         legacy_plus = (
+             "---\n"
+-            "name: routed-opus-high\n"
++            "name: opus-high\n"
+             "description: Router-managed variant for architecture tasks. "
+             "Spawned by the model router hook; do not invoke directly.\n"
+             "model: opus\n"
+@@ -545,11 +545,11 @@ class TestOwnershipBoundary(unittest.TestCase):
+             "Complete the delegated task exactly as prompted; return a concise report.\n"
+             "\nAnd my own notes below.\n"
+         )
+-        self.assertFalse(variants.is_generated(legacy_plus, "routed-opus-high.md"))
++        self.assertFalse(variants.is_generated(legacy_plus, "opus-high.md"))
+ 
+     def test_non_string_input_is_not_owned(self):
+         for value in (None, 7, b"bytes", []):
+-            self.assertFalse(variants.is_generated(value, "routed-haiku.md"))
++            self.assertFalse(variants.is_generated(value, "haiku.md"))
+ 
+ 
+ class TestVariantGenerator(unittest.TestCase):
+@@ -570,10 +570,10 @@ class TestVariantGenerator(unittest.TestCase):
+         with tempfile.TemporaryDirectory() as tmp:
+             agents = os.path.join(tmp, "agents")
+             os.makedirs(agents)
+-            stale = os.path.join(agents, "routed-sonnet-medium.md")
++            stale = os.path.join(agents, "sonnet-medium.md")
+             with open(stale, "w") as fh:
+                 fh.write(variants.agent_markdown(
+-                    "routed-sonnet-medium", "sonnet", "medium", ("implementation",)))
++                    "sonnet-medium", "sonnet", "medium", ("implementation",)))
+ 
+             home = _write_home(os.path.join(tmp, "home"), {
+                 "version": 2,
+@@ -587,17 +587,17 @@ class TestVariantGenerator(unittest.TestCase):
+             self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+             self.assertEqual(
+                 sorted(os.listdir(agents)),
+-                ["routed-haiku.md", "routed-opus-high.md",
+-                 "routed-opus-max.md", "routed-opus-medium.md",
+-                 "routed-opus-xhigh.md"],
++                ["haiku.md", "opus-high.md",
++                 "opus-max.md", "opus-medium.md",
++                 "opus-xhigh.md"],
+             )
+             self.assertFalse(os.path.exists(stale))
+ 
+     def test_refuses_to_overwrite_a_hand_written_file_at_a_wanted_name(self):
+         """The overwrite path needs the same ownership check as the prune path."""
+         with tempfile.TemporaryDirectory() as agents:
+-            target = os.path.join(agents, "routed-opus-high.md")
+-            original = "---\nname: routed-opus-high\nmodel: opus\n---\n\nmine\n"
++            target = os.path.join(agents, "opus-high.md")
++            original = "---\nname: opus-high\nmodel: opus\n---\n\nmine\n"
+             with open(target, "w") as fh:
+                 fh.write(original)
+             proc = self._run("--agents-dir", agents)
+@@ -608,9 +608,9 @@ class TestVariantGenerator(unittest.TestCase):
+ 
+     def test_force_overwrites_a_hand_written_file(self):
+         with tempfile.TemporaryDirectory() as agents:
+-            target = os.path.join(agents, "routed-opus-high.md")
++            target = os.path.join(agents, "opus-high.md")
+             with open(target, "w") as fh:
+-                fh.write("---\nname: routed-opus-high\n---\n\nmine\n")
++                fh.write("---\nname: opus-high\n---\n\nmine\n")
+             proc = self._run("--agents-dir", agents, "--force")
+             self.assertEqual(proc.returncode, 0, proc.stdout)
+             with open(target) as fh:
+@@ -677,14 +677,14 @@ class TestVariantGenerator(unittest.TestCase):
+         with tempfile.TemporaryDirectory() as agents:
+             proc = self._run("--check", "--agents-dir", agents)
+             self.assertEqual(proc.returncode, 1)
+-            self.assertIn("MISSING: routed-haiku.md", proc.stdout)
++            self.assertIn("MISSING: haiku.md", proc.stdout)
+             self.assertEqual(os.listdir(agents), [])
+ 
+     def test_check_mode_reports_a_conflict_without_writing(self):
+         with tempfile.TemporaryDirectory() as agents:
+-            target = os.path.join(agents, "routed-haiku.md")
++            target = os.path.join(agents, "haiku.md")
+             with open(target, "w") as fh:
+-                fh.write("---\nname: routed-haiku\n---\n\nmine\n")
++                fh.write("---\nname: haiku\n---\n\nmine\n")
+             proc = self._run("--check", "--agents-dir", agents)
+             self.assertEqual(proc.returncode, 1, proc.stdout)
+             self.assertIn("CONFLICT", proc.stdout)
+@@ -718,9 +718,9 @@ class TestInstallScript(unittest.TestCase):
+             installed = sorted(os.listdir(os.path.join(home, ".claude", "agents")))
+             self.assertEqual(
+                 installed,
+-                ["routed-haiku.md", "routed-opus-high.md",
+-                 "routed-opus-max.md", "routed-opus-medium.md",
+-                 "routed-opus-xhigh.md"],
++                ["haiku.md", "opus-high.md",
++                 "opus-max.md", "opus-medium.md",
++                 "opus-xhigh.md"],
+             )
+ 
+     def test_generator_conflict_aborts_the_install(self):
+@@ -729,8 +729,8 @@ class TestInstallScript(unittest.TestCase):
+             _write_home(home, {"version": 2})
+             agents = os.path.join(home, ".claude", "agents")
+             os.makedirs(agents)
+-            handwritten = os.path.join(agents, "routed-haiku.md")
+-            original = "---\nname: routed-haiku\n---\n\nmine\n"
++            handwritten = os.path.join(agents, "haiku.md")
++            original = "---\nname: haiku\n---\n\nmine\n"
+             with open(handwritten, "w") as fh:
+                 fh.write(original)
+             env = dict(os.environ)
+@@ -757,8 +757,8 @@ class TestInstallScript(unittest.TestCase):
+             })
+             agents = os.path.join(home, ".claude", "agents")
+             os.makedirs(agents)
+-            with open(os.path.join(agents, "routed-haiku.md"), "w") as fh:
+-                fh.write("---\nname: routed-haiku\n---\n\nmine\n")
++            with open(os.path.join(agents, "haiku.md"), "w") as fh:
++                fh.write("---\nname: haiku\n---\n\nmine\n")
+             env = dict(os.environ)
+             env["HOME"] = home
+             proc = subprocess.run(
+@@ -799,7 +799,7 @@ class TestPreToolUseVariantSelection(unittest.TestCase):
+                         agents=list(variants.target_variants(copy.deepcopy(DEFAULTS))))
+             updated, _msg = self._spawn(home, self.MECH)
+             self.assertEqual(updated.get("model"), "haiku")
+-            self.assertEqual(updated.get("subagent_type"), "routed-haiku")
++            self.assertEqual(updated.get("subagent_type"), "haiku")
+ 
+     def test_opus_medium_variant_is_selected_when_installed(self):
+         with tempfile.TemporaryDirectory() as home:
+@@ -810,23 +810,23 @@ class TestPreToolUseVariantSelection(unittest.TestCase):
+                     "implementation": {"target": {"model": "opus", "effort": "medium"}},
+                     "debugging": {"target": {"model": "opus", "effort": "high"}},
+                 },
+-            }, agents=[("routed-opus-medium", "opus", "medium", ("implementation",))])
++            }, agents=[("opus-medium", "opus", "medium", ("implementation",))])
+             updated, _msg = self._spawn(home, self.IMPL)
+             self.assertEqual(updated.get("model"), "opus")
+-            self.assertEqual(updated.get("subagent_type"), "routed-opus-medium")
++            self.assertEqual(updated.get("subagent_type"), "opus-medium")
+ 
+     def test_project_scoped_variant_is_selected_from_event_cwd(self):
+         with tempfile.TemporaryDirectory() as home, tempfile.TemporaryDirectory() as project:
+             _write_home(home, {"version": 2, "classifier": {"cli_fallback": False}})
+             agents = os.path.join(project, ".claude", "agents")
+             os.makedirs(agents)
+-            with open(os.path.join(agents, "routed-opus-medium.md"), "w") as fh:
++            with open(os.path.join(agents, "opus-medium.md"), "w") as fh:
+                 fh.write(variants.agent_markdown(
+-                    "routed-opus-medium", "opus", "medium", ("implementation",)
++                    "opus-medium", "opus", "medium", ("implementation",)
+                 ))
+             updated, _msg = self._spawn(home, self.IMPL, cwd=project)
+             self.assertEqual(updated.get("model"), "opus")
+-            self.assertEqual(updated.get("subagent_type"), "routed-opus-medium")
++            self.assertEqual(updated.get("subagent_type"), "opus-medium")
+ 
+     def test_nested_mechanical_spawn_is_gated_to_opus(self):
+         with tempfile.TemporaryDirectory() as home:
+@@ -837,7 +837,7 @@ class TestPreToolUseVariantSelection(unittest.TestCase):
+             )
+             updated, _msg = self._spawn(home, self.MECH, agent_id="agent-parent")
+             self.assertEqual(updated.get("model"), "opus")
+-            self.assertEqual(updated.get("subagent_type"), "routed-opus-medium")
++            self.assertEqual(updated.get("subagent_type"), "opus-medium")
+ 
+     def test_declared_but_uninstalled_variant_degrades_and_says_so(self):
+         """F7: never name a subagent_type with no agent file behind it."""
+@@ -853,7 +853,7 @@ class TestPreToolUseVariantSelection(unittest.TestCase):
+             self.assertEqual(updated.get("model"), "opus")
+             self.assertEqual(updated.get("subagent_type"), "general-purpose")
+             self.assertIn("declared by the config but not installed", message)
+-            self.assertIn("routed-opus-medium", message)
++            self.assertIn("opus-medium", message)
+ 
+ 
+ # ── Change 3: gated tier floor follows the configured implementation target ──
+@@ -1146,7 +1146,7 @@ class TestNestedMalformedConfigNeverShutsRoutingDown(unittest.TestCase):
+                     capture_output=True, text=True, env=env,
+                 )
+                 self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+-                self.assertIn("routed-haiku.md", os.listdir(agents))
++                self.assertIn("haiku.md", os.listdir(agents))
+ 
+ 
+ class TestLegacyMatchIsByteEquality(unittest.TestCase):
+@@ -1154,7 +1154,7 @@ class TestLegacyMatchIsByteEquality(unittest.TestCase):
+ 
+     LEGACY = (
+         "---\n"
+-        "name: routed-opus-high\n"
++        "name: opus-high\n"
+         "description: Router-managed variant for architecture tasks. "
+         "Spawned by the model router hook; do not invoke directly.\n"
+         "model: opus\n"
+@@ -1164,51 +1164,51 @@ class TestLegacyMatchIsByteEquality(unittest.TestCase):
+     )
+ 
+     def test_genuine_pre_key_rendering_is_owned(self):
+-        self.assertTrue(variants.is_generated(self.LEGACY, "routed-opus-high.md"))
++        self.assertTrue(variants.is_generated(self.LEGACY, "opus-high.md"))
+ 
+     def test_foreign_model_is_not_owned(self):
+         """The reported repro: boilerplate body, someone else's model."""
+         text = self.LEGACY.replace("model: opus", "model: local-custom-model")
+-        text = text.replace("name: routed-opus-high", "name: routed-my-notes")
++        text = text.replace("name: opus-high", "name: routed-my-notes")
+         self.assertFalse(variants.is_generated(text, "routed-my-notes.md"))
+ 
+     def test_foreign_effort_is_not_owned(self):
+         text = self.LEGACY.replace("effort: high", "effort: enormous")
+-        self.assertFalse(variants.is_generated(text, "routed-opus-high.md"))
++        self.assertFalse(variants.is_generated(text, "opus-high.md"))
+ 
+     def test_name_not_matching_the_pair_is_not_owned(self):
+-        text = self.LEGACY.replace("name: routed-opus-high", "name: routed-opus-low")
+-        self.assertFalse(variants.is_generated(text, "routed-opus-low.md"))
++        text = self.LEGACY.replace("name: opus-high", "name: opus-low")
++        self.assertFalse(variants.is_generated(text, "opus-low.md"))
+ 
+     def test_effort_on_haiku_is_not_owned(self):
+         text = (
+-            "---\nname: routed-haiku\n"
++            "---\nname: haiku\n"
+             "description: Router-managed variant for mechanical tasks. "
+             "Spawned by the model router hook; do not invoke directly.\n"
+             "model: haiku\neffort: high\n---\n\n"
+             "Complete the delegated task exactly as prompted; return a concise report.\n"
+         )
+-        self.assertFalse(variants.is_generated(text, "routed-haiku.md"))
++        self.assertFalse(variants.is_generated(text, "haiku.md"))
+ 
+     def test_missing_effort_on_a_non_haiku_model_is_not_owned(self):
+         text = self.LEGACY.replace("effort: high\n", "")
+-        self.assertFalse(variants.is_generated(text, "routed-opus-high.md"))
++        self.assertFalse(variants.is_generated(text, "opus-high.md"))
+ 
+     def test_class_list_that_is_not_routable_classes_is_not_owned(self):
+         text = self.LEGACY.replace(
+             "for architecture tasks", "for whatever-i-like tasks")
+-        self.assertFalse(variants.is_generated(text, "routed-opus-high.md"))
++        self.assertFalse(variants.is_generated(text, "opus-high.md"))
+ 
+     def test_multi_class_pre_key_rendering_is_owned(self):
+         text = self.LEGACY.replace(
+             "for architecture tasks", "for debugging and architecture tasks")
+-        self.assertTrue(variants.is_generated(text, "routed-opus-high.md"))
++        self.assertTrue(variants.is_generated(text, "opus-high.md"))
+ 
+     def test_generator_does_not_prune_a_foreign_lookalike(self):
+         with tempfile.TemporaryDirectory() as agents:
+             path = os.path.join(agents, "routed-my-notes.md")
+             text = self.LEGACY.replace("model: opus", "model: local-custom-model")
+-            text = text.replace("name: routed-opus-high", "name: routed-my-notes")
++            text = text.replace("name: opus-high", "name: routed-my-notes")
+             with open(path, "w") as fh:
+                 fh.write(text)
+             proc = subprocess.run(
+@@ -1232,70 +1232,70 @@ class TestInstalledMeansUsable(unittest.TestCase):
+     def test_directory_at_the_name_is_not_installed(self):
+         with tempfile.TemporaryDirectory() as tmp:
+             agents = self._agents(tmp)
+-            os.makedirs(os.path.join(agents, "routed-haiku.md"))
+-            self.assertFalse(variants.is_installed(agents, "routed-haiku"))
++            os.makedirs(os.path.join(agents, "haiku.md"))
++            self.assertFalse(variants.is_installed(agents, "haiku"))
+ 
+     def test_symlink_to_a_directory_is_not_installed(self):
+         with tempfile.TemporaryDirectory() as tmp:
+             agents = self._agents(tmp)
+             target = os.path.join(tmp, "somedir")
+             os.makedirs(target)
+-            os.symlink(target, os.path.join(agents, "routed-haiku.md"))
+-            self.assertFalse(variants.is_installed(agents, "routed-haiku"))
++            os.symlink(target, os.path.join(agents, "haiku.md"))
++            self.assertFalse(variants.is_installed(agents, "haiku"))
+ 
+     def test_dangling_symlink_is_not_installed(self):
+         with tempfile.TemporaryDirectory() as tmp:
+             agents = self._agents(tmp)
+             os.symlink(os.path.join(tmp, "nope"),
+-                       os.path.join(agents, "routed-haiku.md"))
+-            self.assertFalse(variants.is_installed(agents, "routed-haiku"))
++                       os.path.join(agents, "haiku.md"))
++            self.assertFalse(variants.is_installed(agents, "haiku"))
+ 
+     def test_foreign_file_is_not_installed(self):
+         """The file the generator refuses to overwrite must not be selected."""
+         with tempfile.TemporaryDirectory() as tmp:
+             agents = self._agents(tmp)
+-            with open(os.path.join(agents, "routed-haiku.md"), "w") as fh:
+-                fh.write("---\nname: routed-haiku\n---\n\nhand written\n")
+-            self.assertFalse(variants.is_installed(agents, "routed-haiku"))
++            with open(os.path.join(agents, "haiku.md"), "w") as fh:
++                fh.write("---\nname: haiku\n---\n\nhand written\n")
++            self.assertFalse(variants.is_installed(agents, "haiku"))
+ 
+     def test_undecodable_bytes_are_not_installed(self):
+         with tempfile.TemporaryDirectory() as tmp:
+             agents = self._agents(tmp)
+-            with open(os.path.join(agents, "routed-haiku.md"), "wb") as fh:
++            with open(os.path.join(agents, "haiku.md"), "wb") as fh:
+                 fh.write(b"\xff\xfe\x00binary")
+-            self.assertFalse(variants.is_installed(agents, "routed-haiku"))
++            self.assertFalse(variants.is_installed(agents, "haiku"))
+ 
+     def test_unreadable_file_is_not_installed(self):
+         if os.geteuid() == 0:
+             self.skipTest("root ignores file permissions")
+         with tempfile.TemporaryDirectory() as tmp:
+             agents = self._agents(tmp)
+-            path = os.path.join(agents, "routed-haiku.md")
++            path = os.path.join(agents, "haiku.md")
+             with open(path, "w") as fh:
+                 fh.write(variants.agent_markdown(
+-                    "routed-haiku", "haiku", None, ("mechanical",)))
++                    "haiku", "haiku", None, ("mechanical",)))
+             os.chmod(path, 0o000)
+             try:
+-                self.assertFalse(variants.is_installed(agents, "routed-haiku"))
++                self.assertFalse(variants.is_installed(agents, "haiku"))
+             finally:
+                 os.chmod(path, 0o600)
+ 
+     def test_generated_file_is_installed(self):
+         with tempfile.TemporaryDirectory() as tmp:
+             agents = self._agents(tmp)
+-            with open(os.path.join(agents, "routed-haiku.md"), "w") as fh:
++            with open(os.path.join(agents, "haiku.md"), "w") as fh:
+                 fh.write(variants.agent_markdown(
+-                    "routed-haiku", "haiku", None, ("mechanical",)))
+-            self.assertTrue(variants.is_installed(agents, "routed-haiku"))
++                    "haiku", "haiku", None, ("mechanical",)))
++            self.assertTrue(variants.is_installed(agents, "haiku"))
+ 
+     def test_missing_directory_is_not_installed(self):
+-        self.assertFalse(variants.is_installed("/nonexistent/nowhere", "routed-haiku"))
+-        self.assertFalse(variants.is_installed("", "routed-haiku"))
++        self.assertFalse(variants.is_installed("/nonexistent/nowhere", "haiku"))
++        self.assertFalse(variants.is_installed("", "haiku"))
+ 
+     def test_spawn_does_not_select_a_directory(self):
+         with tempfile.TemporaryDirectory() as home:
+             _write_home(home, {"version": 2, "classifier": {"cli_fallback": False}})
+-            os.makedirs(os.path.join(home, ".claude", "agents", "routed-haiku.md"))
++            os.makedirs(os.path.join(home, ".claude", "agents", "haiku.md"))
+             payload = json.dumps({
+                 "tool_name": "Agent",
+                 "tool_input": {"subagent_type": "general-purpose",
+@@ -1315,8 +1315,8 @@ class TestInstalledMeansUsable(unittest.TestCase):
+             _write_home(home, {"version": 2, "classifier": {"cli_fallback": False}})
+             agent_dir = os.path.join(home, ".claude", "agents")
+             os.makedirs(agent_dir)
+-            with open(os.path.join(agent_dir, "routed-haiku.md"), "w") as fh:
+-                fh.write("---\nname: routed-haiku\n---\n\nhand written\n")
++            with open(os.path.join(agent_dir, "haiku.md"), "w") as fh:
++                fh.write("---\nname: haiku\n---\n\nhand written\n")
+             payload = json.dumps({
+                 "tool_name": "Agent",
+                 "tool_input": {"subagent_type": "general-purpose",
+@@ -1332,13 +1332,13 @@ class TestInstalledMeansUsable(unittest.TestCase):
+             _write_home(home, {"version": 2})
+             agent_dir = os.path.join(home, ".claude", "agents")
+             os.makedirs(agent_dir)
+-            with open(os.path.join(agent_dir, "routed-haiku.md"), "w") as fh:
+-                fh.write("---\nname: routed-haiku\n---\n\nhand written\n")
++            with open(os.path.join(agent_dir, "haiku.md"), "w") as fh:
++                fh.write("---\nname: haiku\n---\n\nhand written\n")
+             code, stdout = _run_hook("session_init.py", "{}", home)
+             self.assertEqual(code, 0)
+             context = json.loads(stdout)["hookSpecificOutput"]["additionalContext"]
+             self.assertIn("Routed variants out of date", context)
+-            self.assertIn("routed-haiku", context)
++            self.assertIn("haiku", context)
+ 
+ 
+ if __name__ == "__main__":
