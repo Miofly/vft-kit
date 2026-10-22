@@ -374,8 +374,6 @@ if [ -z "$emil_optional_missing" ]; then
 else
   opt "Emil 扩展 skills（缺 ${emil_optional_missing}）" "按项目用 npx skills add emilkowalski/skills --skill <name> --agent claude-code --global --yes 单独安装"
 fi
-# 可选 skill：grill-me（无情追问式访谈，via mattpocock-skills 插件）
-plugin_installed mattpocock-skills && ok "grill-me skill（via mattpocock-skills）" || opt "grill-me skill" "claude plugin install mattpocock-skills@claude-plugins-official"
 # 可选插件：understand-anything（代码库知识图谱 + 可视化 dashboard，来自第三方 marketplace Egonex-AI/Understand-Anything）
 # 与 codegraph 互补：codegraph 是 CLI/MCP 即时查符号+调用链，这个是多 agent 全量分析出可视化图谱与导览。
 plugin_installed understand-anything && ok "understand-anything（代码知识图谱 dashboard）" || opt "understand-anything" "claude plugin marketplace add Egonex-AI/Understand-Anything && claude plugin install understand-anything@understand-anything（两条要分开发；首次 /understand 全量分析耗 token）"

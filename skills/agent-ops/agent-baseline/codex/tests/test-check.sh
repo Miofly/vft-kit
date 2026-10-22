@@ -261,14 +261,12 @@ grep -Fq 'context7 官方文档优先' <<< "$output" || { printf 'FAIL: context7
 grep -Fq 'anysearch 联网搜索优先' <<< "$output" || { printf 'FAIL: anysearch AGENTS check missing\n' >&2; exit 1; }
 grep -Fq 'Caveman 默认 full 自动启用' <<< "$output" || { printf 'FAIL: Caveman default activation check missing\n' >&2; exit 1; }
 grep -Fq 'RTK Codex 安全规则已接入' <<< "$output" || { printf 'FAIL: active RTK rule check missing\n' >&2; exit 1; }
-grep -Fq 'grill-me skill' <<< "$output" || { printf 'FAIL: optional grill-me skill check missing\n' >&2; exit 1; }
 grep -Fq 'diagram-design@diagram-design' <<< "$output" || { printf 'FAIL: optional diagram-design plugin check missing\n' >&2; exit 1; }
 grep -Fq 'understand-anything skills' <<< "$output" || { printf 'FAIL: optional understand-anything check missing\n' >&2; exit 1; }
 grep -Fq 'pm-skills' <<< "$output" || { printf 'FAIL: optional pm-skills check missing\n' >&2; exit 1; }
 grep -Fq 'Emil 动效 skills（必装 3 项）' <<< "$output" || { printf 'FAIL: required Emil skills check missing\n' >&2; exit 1; }
 grep -Fq 'Emil 扩展 skills' <<< "$output" || { printf 'FAIL: optional Emil skills check missing\n' >&2; exit 1; }
 grep -Fq 'context-mode@context-mode' <<< "$output" || { printf 'FAIL: required context-mode plugin check missing\n' >&2; exit 1; }
-grep -Fq 'npx skills add mattpocock/skills --skill grill-me --agent codex --global --yes' <<< "$output" || { printf 'FAIL: grill-me Codex install command missing\n' >&2; exit 1; }
 grep -Fq 'Codex Memories' <<< "$output" && { printf 'FAIL: enabled memories reported missing\n' >&2; exit 1; }
 grep -Fq 'Codex multi_agent' <<< "$output" && { printf 'FAIL: enabled multi_agent reported missing\n' >&2; exit 1; }
 grep -Fq 'OpenAI Developer Docs MCP 已配置' <<< "$output" || { printf 'FAIL: docs MCP check missing\n' >&2; exit 1; }

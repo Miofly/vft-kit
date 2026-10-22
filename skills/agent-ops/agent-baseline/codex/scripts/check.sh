@@ -437,7 +437,6 @@ global_skill_exists "caveman" && ok "caveman skill" || bad "caveman skill" "npx 
 agents_has_caveman_default && ok "Caveman 默认 full 自动启用" || bad "Caveman 默认 full 自动启用" "bash \"$SCRIPT_DIR/install-caveman-default.sh\""
 gsap_skills_installed && ok "GSAP 官方 skills（8 项）" || bad "GSAP 官方 skills" "npx skills add https://github.com/greensock/gsap-skills --agent codex"
 global_skill_exists "anysearch" && ok "anysearch skill（联网实时搜索）" || opt "anysearch skill" "bash \"$SCRIPT_DIR/install-anysearch.sh\""
-global_skill_exists "grill-me" && ok "grill-me skill（深度访谈）" || opt "grill-me skill" "npx skills add mattpocock/skills --skill grill-me --agent codex --global --yes"
 emil_required_missing="$(missing_global_skills animate review-animations apple-design)"
 if [ -z "$emil_required_missing" ]; then
   ok "Emil 动效 skills（必装 3 项）"

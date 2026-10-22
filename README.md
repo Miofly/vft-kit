@@ -44,7 +44,7 @@ node scripts/audit-public.mjs
 |---|---|---|
 | Agent 运维 (`agent-ops`) | Claude Code、Codex、CC Switch、插件缓存、通知与 skill 编写 | `agent-baseline` · `email-ops` · `notify` · `ollama-local` · `skill-creator` |
 | 云平台 (`cloud-platforms`) | 云服务、模型托管、部署平台和账号资源 | `aistudio` · `cloudflare-ops` · `huggingface-ops` · `kaggle-ops` · `modelscope-studio` · `vercel-ops` |
-| 开发工作流 (`dev-workflow`) | 数据库工具、前端质量、Git、代码托管和 Vue 配置 | `dbx` · `fe-quality-ops` · `git-auto-push` · `git-ops` · `github-ops` |
+| 开发工作流 (`dev-workflow`) | 数据库工具、前端质量、Git、代码托管、Vue 配置和方案逼问 | `dbx` · `fe-quality-ops` · `git-auto-push` · `git-ops` · `github-ops` · `grill-me` |
 | 设计与内容 (`design-content`) | 信息图、Office 文档、视觉内容和中文去 AI 味 | `co-infographic-generator` · `mastergo-mcp` · `office-doc-rewrite` · `zh-humanizer` |
 | 工作台工具 (`workplace-tools`) | Lark/飞书文档、表格、云盘、任务和知识库 | `lark-cli` |
 | Web 与自动化 (`web-automation`) | 浏览器发布、网页抓取、Android 与 macOS 自动化 | `android-ui-automation` · `chrome-web-store-publish` · `keyboard-maestro` · `qr-login` · `temp-mail` · `web-scrape` · `wechat-mp` |
