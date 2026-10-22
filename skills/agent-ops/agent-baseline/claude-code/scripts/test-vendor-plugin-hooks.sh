@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Isolated test for vendor-plugin-hooks.mjs: local git fixture as upstream, fake CLAUDE_CONFIG_DIR, no network.
-# Covers: vendor + wire, idempotent rerun, --check, other hooks kept, broken upstream / bad repo / failing
+# Covers: vendor + wire, commandOverrides, idempotent rerun, --check, other hooks kept, broken upstream / bad repo / failing
 # selftest keep the old version (exit 0), and plugin-still-enabled unwires to avoid double injection.
 set -euo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -14,12 +14,14 @@ cat > "$up/.claude-plugin/plugin.json" <<'EOF'
  "SessionEnd":[{"hooks":[{"type":"command","command":"node \"${CLAUDE_PLUGIN_ROOT}/src/hooks/stats.js\""}]}]}}
 EOF
 echo 'process.stdout.write("MARK "+require("fs").readFileSync(process.env.CLAUDE_PLUGIN_ROOT+"/skills/x/SKILL.md","utf8"))' > "$up/src/hooks/a.js"
+echo 'process.stdout.write("MARK override")' > "$up/src/hooks/b.js"
 echo 'v1' > "$up/skills/x/SKILL.md"
 git -C "$up" init -q -b main && git -C "$up" add -A && git -C "$up" -c user.name=t -c user.email=t@t commit -qm v1
 cat > "$tmp/cfg.json" <<EOF
 {"repo":"$up","ref":"main","vendor":"$vendor","events":["SessionStart","UserPromptSubmit"],
  "files":["src/hooks","skills/x"],"expect":{"SessionStart":"MARK","UserPromptSubmit":"MARK"},"skipIfPluginEnabled":"demo@demo",
- "commands":{"demo":"demo-cmd.md","mine":"demo-cmd.md"}}
+ "commands":{"demo":"demo-cmd.md","mine":"demo-cmd.md"},
+ "commandOverrides":{"UserPromptSubmit":"node \\"\${CLAUDE_PLUGIN_ROOT}/src/hooks/b.js\\""}}
 EOF
 echo '{"hooks":{"UserPromptSubmit":[{"hooks":[{"type":"command","command":"other-hook"}]}]}}' > "$cc/settings.json"
 printf -- '---\nmanaged-by: vft-kit vendor-plugin-hooks\n---\nbody\n' > "$tmp/demo-cmd.md"
@@ -33,6 +35,7 @@ run | grep -q '已同步' || fail 'first sync'
 grep -q 'other-hook' "$cc/settings.json" || fail 'other hook lost'
 ! grep -q 'CLAUDE_PLUGIN_ROOT}' "$cc/settings.json" || fail 'CC refuses non-plugin hooks that reference ${CLAUDE_PLUGIN_ROOT}'
 node -e "const j=require(process.argv[1]);process.exit(j.hooks.UserPromptSubmit[0].hooks[0].command.includes('vendor/current')&&!j.hooks.SessionEnd?0:1)" "$cc/settings.json" || fail 'order or unselected event'
+node -e "const h=require(process.argv[1]).hooks.UserPromptSubmit[0].hooks[0];process.exit(h.command.includes('b.js')&&!h.command.includes('a.js')&&h.timeout===30?0:1)" "$cc/settings.json" || fail 'commandOverrides not applied'
 grep -q 'managed-by' "$cc/commands/demo.md" || fail 'user command not installed'
 [ "$(cat "$cc/commands/mine.md")" = 'user owned' ] || fail 'unmanaged command overwritten'
 run | grep -q '已是最新' || fail 'idempotent rerun'

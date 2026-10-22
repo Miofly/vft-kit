@@ -46,13 +46,21 @@ def absolute_destination(value: str) -> Path:
     return path
 
 
+def adapt_bos_upload(client):
+    # AI Studio still calls the legacy misspelling; newer BOS SDKs corrected it.
+    if not hasattr(client, 'put_super_obejct_from_file') and hasattr(client, 'put_super_object_from_file'):
+        client.put_super_obejct_from_file = client.put_super_object_from_file
+
+
 def load_hub():
     try:
         from aistudio_sdk import hub
+        from baidubce.services.bos.bos_client import BosClient
     except ImportError as exc:
         raise SystemExit(
             "aistudio-sdk is required; run with: uv run --with aistudio-sdk python3 ..."
         ) from exc
+    adapt_bos_upload(BosClient)
     return hub
 
 
@@ -145,6 +153,16 @@ def main() -> None:
         print_result({"configured": bool(token), "length": len(token), "owner": owner or None})
         return
     if args.command == "self-check":
+        class ModernBos:
+            def put_super_object_from_file(self, value):
+                return value
+        adapt_bos_upload(ModernBos)
+        assert ModernBos().put_super_obejct_from_file(42) == 42
+        class LegacyBos(ModernBos):
+            def put_super_obejct_from_file(self, value):
+                return value + 1
+        adapt_bos_upload(LegacyBos)
+        assert LegacyBos().put_super_obejct_from_file(42) == 43
         assert resolve_repo_id("repo", "123") == "123/repo"
         assert resolve_repo_id("456/repo", "123") == "456/repo"
         assert "app" not in TRANSFER_TYPES
@@ -239,6 +257,8 @@ def main() -> None:
             repo_type=args.repo_type,
             token=token,
         )
+        if not result or not Path(result).is_file():
+            raise SystemExit('Download failed: no local file was produced; remote metadata alone is not proof of transfer')
     else:
         ensure_download_target(args)
         from aistudio_sdk.snapshot_download import snapshot_download

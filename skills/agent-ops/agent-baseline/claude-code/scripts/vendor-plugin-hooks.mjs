@@ -21,7 +21,9 @@
 //
 // 用法：node vendor-plugin-hooks.mjs --config <json> [--repo URL] [--ref REF] [--vendor DIR] [--events A,B]
 //         [--files a,b] [--settings FILE[#jsonKey]]... [--offline] [--check]
-// 配置 JSON 字段同名：repo ref vendor events files expect{事件:子串} settings[] skipIfPluginEnabled commands{}。
+// 配置 JSON 字段同名：repo ref vendor events files expect{事件:子串} settings[] skipIfPluginEnabled commands{}
+//   commandOverrides{事件: 命令}（只配置文件可用）：替换该事件上游唯一 hook 的命令（timeout 等字段保留），
+//   可照常写 ${CLAUDE_PLUGIN_ROOT}；上游该事件不止一个 hook 时报问题、保留旧版本。
 // 路径支持 ~；配置里的相对路径按配置文件所在目录解析。settings 缺省为 $CLAUDE_CONFIG_DIR/settings.json。
 import fs from 'node:fs';
 import os from 'node:os';
@@ -57,6 +59,7 @@ const vendorArg = opt('--vendor') || cfg.vendor;
 const vendor = vendorArg ? path.resolve(expand(vendorArg, cfgDir)) : '';
 const events = list(opt('--events') || cfg.events);
 const files = list(opt('--files') || cfg.files);
+const overrides = cfg.commandOverrides || {};
 const expect = cfg.expect || {};
 const skipPlugin = opt('--skip-if-plugin-enabled') || cfg.skipIfPluginEnabled || '';
 const settingsTargets = (opts('--settings').length ? opts('--settings') : (cfg.settings || [path.join(claudeDir, 'settings.json')]))
@@ -106,9 +109,12 @@ function buildGroups(root) {
   const groups = {};
   for (const ev of events) {
     if (!Array.isArray(hooks[ev]) || !hooks[ev].length) { problems.push(`上游缺 ${ev} hook`); continue; }
+    const override = overrides[ev];
+    if (override && hooks[ev].flatMap((g) => g.hooks || []).length !== 1) { problems.push(`上游 ${ev} 不止一个 hook，commandOverrides 对不上`); continue; }
     groups[ev] = hooks[ev].map((g) => {
-      const out = { ...g, hooks: (g.hooks || []).map((h) => ({ ...h, command: prefix(root) + inline(h.command, root) })) };
-      for (const h of g.hooks || []) {
+      const src = (g.hooks || []).map((h) => ({ ...h, command: override || h.command }));
+      const out = { ...g, hooks: src.map((h) => ({ ...h, command: prefix(root) + inline(h.command, root) })) };
+      for (const h of src) {
         for (const [, rel] of String(h.command).matchAll(/(?:\$\{?CLAUDE_PLUGIN_ROOT\}?|\$\{?HOOK_ROOT\}?)\/([^"'\s;]+)/g)) {
           if (!fs.existsSync(path.join(root, rel))) problems.push(`${ev} 引用的 ${rel} 不在 vendor 文件里`);
         }

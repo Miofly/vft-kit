@@ -7,7 +7,7 @@ supplies one from the real token count.
 
 How the context size is measured: the latest non-sidechain assistant record in the transcript tail carries
 `message.usage`; input_tokens + cache_read_input_tokens + cache_creation_input_tokens is the prompt size of
-that turn, i.e. the live context. Window: HANDOFF_NUDGE_WINDOW (or CLAUDE_CODE_AUTO_COMPACT_WINDOW) env
+that turn, i.e. the live context. Window: HANDOFF_NUDGE_WINDOW (or CLAUDE_CODE_MAX_CONTEXT_TOKENS / CLAUDE_CODE_AUTO_COMPACT_WINDOW) env
 override → model id containing "[1m]" → known 1M families (transcripts drop the "[1m]" suffix, so the id
 alone cannot tell; see KNOWN_1M) → observed tokens > 200k imply 1M → else 200k.
 
@@ -70,7 +70,7 @@ def is_main_assistant(rec):
 
 
 def resolve_window(model, tokens):
-    for key in ("HANDOFF_NUDGE_WINDOW", "CLAUDE_CODE_AUTO_COMPACT_WINDOW"):
+    for key in ("HANDOFF_NUDGE_WINDOW", "CLAUDE_CODE_MAX_CONTEXT_TOKENS", "CLAUDE_CODE_AUTO_COMPACT_WINDOW"):
         try:
             v = int(os.environ.get(key, ""))
             if v > 0:
@@ -178,7 +178,7 @@ def self_test():
     import tempfile
     tmp = tempfile.mkdtemp()
     os.environ["HANDOFF_NUDGE_DIR"] = tmp
-    for k in ("HANDOFF_NUDGE_WINDOW", "CLAUDE_CODE_AUTO_COMPACT_WINDOW", "HANDOFF_NUDGE_TIERS", "HANDOFF_NUDGE_1M_MODELS"):
+    for k in ("HANDOFF_NUDGE_WINDOW", "CLAUDE_CODE_MAX_CONTEXT_TOKENS", "CLAUDE_CODE_AUTO_COMPACT_WINDOW", "HANDOFF_NUDGE_TIERS", "HANDOFF_NUDGE_1M_MODELS"):
         os.environ.pop(k, None)
     tr = os.path.join(tmp, "t.jsonl")
 
@@ -195,6 +195,9 @@ def self_test():
     os.environ["HANDOFF_NUDGE_WINDOW"] = "400000"
     assert resolve_window("claude-opus-5-5", 1) == 400_000
     os.environ.pop("HANDOFF_NUDGE_WINDOW")
+    os.environ["CLAUDE_CODE_MAX_CONTEXT_TOKENS"] = "1000000"  # third-party model whose transcript id lost "[1m]"
+    assert resolve_window("spark-x2.6", 180_000) == LARGE_WINDOW
+    os.environ.pop("CLAUDE_CODE_MAX_CONTEXT_TOKENS")
     p = {"session_id": "s1", "transcript_path": tr, "hook_event_name": "PostToolUse"}
     write(70_000, "claude-sonnet-5")
     assert run(p) == (None, "")                       # 35% → nothing
