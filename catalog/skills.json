@@ -12,6 +12,7 @@
       "git-auto-push",
       "git-ops",
       "github-ops",
+      "grill-me",
       "huggingface-ops",
       "kaggle-ops",
       "keyboard-maestro",
@@ -73,7 +74,8 @@
         "fe-quality-ops",
         "git-auto-push",
         "git-ops",
-        "github-ops"
+        "github-ops",
+        "grill-me"
       ]
     },
     {
