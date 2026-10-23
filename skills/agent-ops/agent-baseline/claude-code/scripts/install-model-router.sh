@@ -49,7 +49,7 @@ fi
 if ! claude plugin list 2>/dev/null | grep -q "$PLUGIN"; then
   claude plugin install "$PLUGIN" >/dev/null
 elif [ "$changed" -eq 1 ]; then
-  bash "$DIR/../../plugins/scripts/refresh-local-plugin.sh" -p router-hook >/dev/null
+  bash "$DIR/../../plugins/scripts/refresh-local-plugin.sh" -p router -m claude-model-router-hook >/dev/null  # plugin "router", marketplace "claude-model-router-hook"
 fi
 
 # Superseded by the router: drop the earlier agent-model-guard hook if still registered.

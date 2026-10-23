@@ -133,7 +133,7 @@ index 7502daa..0a33c97 100644
        {
          "matcher": "Agent|Task",
 diff --git a/plugins/claude-model-router-hook/hooks/pre_tool_use.py b/plugins/claude-model-router-hook/hooks/pre_tool_use.py
-index 27533aa..11abbed 100644
+index 27533aa..69b9fcf 100644
 --- a/plugins/claude-model-router-hook/hooks/pre_tool_use.py
 +++ b/plugins/claude-model-router-hook/hooks/pre_tool_use.py
 @@ -5,7 +5,9 @@ Thin wiring only; all logic lives in the router package. Never denies:
@@ -157,7 +157,7 @@ index 27533aa..11abbed 100644
  GENERIC_TYPES = ("general-purpose", "default", "claude")
  
  
-@@ -65,6 +69,22 @@ def _resolve_variant(variant, cwd):
+@@ -65,6 +69,61 @@ def _resolve_variant(variant, cwd):
      return None
  
  
@@ -177,10 +177,49 @@ index 27533aa..11abbed 100644
 +    return None
 +
 +
++def _offload_agent(name, cwd):
++    """vft-kit patch: subagent_type for an offload agent name, or None. A file in this plugin's agents dir resolves as
++    "router:<name>" (shown next to the routed variants in the agent panel); otherwise a user/project agent, bare."""
++    name = name.split(":")[-1]
++    root = os.environ.get("CLAUDE_PLUGIN_ROOT")
++    if root and variants.is_installed(os.path.join(root, "agents"), name):
++        return PLUGIN_PREFIX + name
++    return name if _defined_model(name, cwd) else None
++
++
++def _offload_start(command, prompt, cwd):
++    """vft-kit patch: run the offload start_command with the prompt on stdin; its stdout (stripped) is the handle."""
++    import subprocess
++    try:
++        r = subprocess.run(command, shell=True, input=prompt, capture_output=True, text=True, timeout=20,
++                           cwd=cwd if os.path.isdir(cwd) else None,
++                           env={**os.environ, hookio.CHILD_ENV: "1"})
++    except (OSError, subprocess.SubprocessError):
++        return None
++    handle = r.stdout.strip().splitlines()[-1] if r.returncode == 0 and r.stdout.strip() else ""
++    return handle or None
++
++
++def _offload_target(cfg, klass, cwd):
++    """vft-kit patch: subagent_type to offload this class to, or None (switch off, class not listed, agent missing)."""
++    off = cfg.get("offload")
++    if not isinstance(off, dict) or klass not in (off.get("classes") or []):
++        return None
++    target, marker = off.get("subagent_type"), off.get("marker")
++    if not isinstance(target, str) or not isinstance(marker, str):
++        return None
++    # "{config_dir}" makes the switch per Claude Code instance: every instance reads the same ~/.claude/model-router.json,
++    # and an instance that is itself the offload backend must not offload to itself.
++    config_dir = os.environ.get("CLAUDE_CONFIG_DIR") or str(Path.home() / ".claude")
++    if not os.path.exists(os.path.expanduser(marker.replace("{config_dir}", config_dir))):
++        return None
++    return _offload_agent(target, cwd)  # must resolve to an agent file
++
++
  @hookio.fail_open
  def main():
      if hookio.is_child():
-@@ -80,13 +100,15 @@ def main():
+@@ -80,13 +139,15 @@ def main():
  
      subagent_type = tool_input.get("subagent_type")
      if isinstance(subagent_type, str) and (
@@ -198,10 +237,49 @@ index 27533aa..11abbed 100644
      enforcement = cfg.get("subagent_enforcement", "on")
      if enforcement == "off":
          sys.exit(0)
-@@ -104,6 +126,25 @@ def main():
+@@ -104,6 +165,64 @@ def main():
          prompt, target, cfg, delegated=bool(event.get("agent_id"))
      )
  
++    # vft-kit patch: offload. With config "offload": {"subagent_type": "<agent>", "classes": ["mechanical"],
++    # "marker": "<file>"} and the marker file present, a generic spawn of a listed class goes to that agent
++    # (e.g. a thin carrier that runs the task on a cheaper backend) instead of a routed variant. Marker absent,
++    # agent not found, a named agent or an explicit model: normal routing below, unchanged.
++    offload = _offload_target(cfg, decision.klass, cwd)
++    if (
++        tool_input.get("model") is not None
++        or (subagent_type and subagent_type not in GENERIC_TYPES)
++        or enforcement == "advisory"
++    ):
++        offload = None
++    if offload:
++        updated = dict(tool_input)
++        updated["subagent_type"] = offload
++        # Optional "start_command" + "prompt_template": the hook itself hands the prompt (stdin) to the backend and
++        # gives the subagent only "{handle}" to wait on, so a small carrier model never sees the task and cannot
++        # decide to do it itself. A failed start falls back to normal routing.
++        off = cfg["offload"]
++        if off.get("start_command"):
++            handle = _offload_start(off["start_command"], prompt, cwd)
++            if not handle:
++                hookio.log("SUBAGENT-OFFLOAD-FAILED", prompt, klass=decision.klass, model="", subagent_type=offload)
++                offload = None
++            else:
++                # "<handle> <agent>": the backend may name the carrier (e.g. after the model it picked), used only
++                # when that name resolves to an agent file.
++                handle, _, named = handle.partition(" ")
++                named = _offload_agent(named.strip(), cwd) if named.strip() else None
++                if named:
++                    offload = updated["subagent_type"] = named
++                updated["prompt"] = str(off.get("prompt_template") or "{handle}").replace("{handle}", handle)
++    if offload:
++        hookio.log("SUBAGENT-OFFLOAD", prompt, klass=decision.klass, model="", subagent_type=offload)
++        hookio.emit_pretooluse(
++            updated_input=updated,
++            system_message=f"Model router: offloaded this {decision.klass} subagent to {offload}.",
++        )
++        sys.exit(0)
++
 +    # vft-kit patch: a named agent keeps its own model. Leave it alone when its
 +    # definition pins one (e.g. a haiku carrier) or it is `fork`, and otherwise
 +    # only ever downgrade it to haiku, never inject a pricier tier.
@@ -224,7 +302,7 @@ index 27533aa..11abbed 100644
      explicit = tool_input.get("model")
      if explicit is not None:
          # Explicit caller model: NO injection, respect it (locked decision 4).
-@@ -160,6 +201,10 @@ def main():
+@@ -160,6 +279,10 @@ def main():
          warning = _env_model_warning(decision.model)
          if warning:
              messages.append(warning)
@@ -236,7 +314,7 @@ index 27533aa..11abbed 100644
          sys.exit(0)
  
 diff --git a/plugins/claude-model-router-hook/hooks/router/taxonomy.py b/plugins/claude-model-router-hook/hooks/router/taxonomy.py
-index f3dc941..dea6598 100644
+index f3dc941..91ef44f 100644
 --- a/plugins/claude-model-router-hook/hooks/router/taxonomy.py
 +++ b/plugins/claude-model-router-hook/hooks/router/taxonomy.py
 @@ -129,6 +129,22 @@ _KEYWORD_BAG_WORDS = frozenset(
@@ -249,7 +327,7 @@ index f3dc941..dea6598 100644
 +# signals). A CJK task verb counts as intent; two CJK characters count as one word.
 +_CJK_RE = re.compile(r"[\u3400-\u9fff]")
 +_CJK_TASK_RE = re.compile(
-+    r"下载|上传|校验|清理|删除|移动|搬运|归档|重命名|同步|轮询|等待|列出|统计|整理|抓取|"
++    r"下载|上传|校验|清理|删除|移动|搬运|归档|重命名|改名|批量|替换|复制|拷贝|按清单|同步|轮询|等待|列出|统计|整理|抓取|"
 +    r"实现|修复|新增|添加|编写|改写|翻译|总结|改造|重构|部署|测试|生成|运行|执行|检查|核对|"
 +    r"排查|调试|定位|复现|分析|调研|研究|评审|审查|审核|设计|规划|评估|对比|迁移"
 +)
