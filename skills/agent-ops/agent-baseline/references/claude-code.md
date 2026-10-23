@@ -117,7 +117,32 @@ cd ${CLAUDE_PLUGIN_ROOT}/skills/agent-ops/agent-baseline/claude-code/scripts
 for t in test-*.sh; do bash "$t" >/dev/null 2>&1 && echo "✓ $t" || echo "✗ $t"; done
 ```
 
-覆盖：`run.sh` 的安装顺序 / 参数转发 / 退出码传播、RTK 二进制与 hook 的幂等安装、Caveman 风格模式 hook（`test-caveman-default.sh`：只卸一次插件、接三条 hook、默认 full；`test-vendor-plugin-hooks.sh`：本地 git 夹具上验证接线幂等、其他 hook 保留、上游坏/拉取失败/自检失败保留旧版、插件在时不接线、用户级命令只覆盖受管文件）、codegraph 与 code-review-graph 与 Emil skills 的基线判定、RTK hook 缺失判为必需项、codegraph prompt-hook 过滤（新旧筛选逻辑、相关性门槛与摘要上限的 `--selftest`、幂等改写 settings 并设 timeout 10、影子与生效两种模式的日志）、handoff-nudge 与 reply-lang-pin（判定、每档只记一次、影子与生效两种输出；脚本在插件 `scripts/hooks/`）、`test-migrate-plugin-hooks.sh`（只删旧绝对路径条目、其他 hook 保留、写前备份、幂等、`CLAUDE_CONFIG_DIR` 与 `--dry-run`）。`test-mcp-pin-check.sh` 与 `test-skill-supply-scan.sh` 覆盖供应链两脚本的分类、不泄露 env 值、不写配置。
+覆盖：`run.sh` 的安装顺序 / 参数转发 / 退出码传播、RTK 二进制与 hook 的幂等安装、Caveman 风格模式 hook（`test-caveman-default.sh`：只卸一次插件、接三条 hook、默认 full；`test-vendor-plugin-hooks.sh`：本地 git 夹具上验证接线幂等、其他 hook 保留、上游坏/拉取失败/自检失败保留旧版、插件在时不接线、用户级命令只覆盖受管文件）、codegraph 与 code-review-graph 与 Emil skills 的基线判定、RTK hook 缺失判为必需项、codegraph prompt-hook 过滤（新旧筛选逻辑、相关性门槛与摘要上限的 `--selftest`、幂等改写 settings 并设 timeout 10、影子与生效两种模式的日志）、handoff-nudge 与 reply-lang-pin（判定、每档只记一次、影子与生效两种输出；脚本在插件 `scripts/hooks/`）、`test-migrate-plugin-hooks.sh`（只删旧绝对路径条目、其他 hook 保留、写前备份、幂等、`CLAUDE_CONFIG_DIR` 与 `--dry-run`）。`test-mcp-pin-check.sh` 与 `test-skill-supply-scan.sh` 覆盖供应链两脚本的分类、不泄露 env 值、不写配置。`test-cc-instance-flags.sh` 覆盖开关同步的排除与强制、保留其他配置键、源缺失、没变化不重写、拒绝主目录、并行运行。
+
+## 第三方网关实例：原生 Monitor 与开关同步
+
+用 `CLAUDE_CONFIG_DIR` 隔离、走 `ANTHROPIC_BASE_URL` 的实例，默认没有 Monitor 工具，其他行为也停在 CC 的旧默认值。原因是这类实例通常设 `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`，GrowthBook 被关掉，所有特性开关都取内置默认；Monitor 由开关 `tengu_amber_sentinel` 控制，默认为 false。外部版本不认 `CLAUDE_INTERNAL_FC_OVERRIDES`。
+
+做法：实例的启动器 export `CLAUDE_CODE_GB_DISK_CACHE_WHEN_TELEMETRY_OFF=1`（要求 provider 为 firstParty，走 `ANTHROPIC_BASE_URL` 也算），让 CC 读实例 `.claude.json` 里的 `cachedGrowthBookFeatures`；然后在 `exec claude` 前跑 `claude-code/scripts/cc-instance-flags.sh`。脚本把主 `~/.claude.json` 的开关缓存只读复制过去，排除官方账号专属和推广类（`CC_FLAGS_EXCLUDE`），再把 `CC_FLAGS_FORCE`（默认 `tengu_amber_sentinel`）强制设为 true；源缺失时只写强制项。内容没变化就不写，写入用每个进程独立的 tmp 文件，失败也退出 0，并行启动不会卡住启动器。`--dry-run` 只报数量和是否变化。
+
+- 不依赖官方账号：开关在本地缓存里，Monitor 在本机跑 shell，模型请求走网关。主 CC 如果换成未登录身份重新拉开关，缓存会变，实例下次启动也会跟着变，只有强制项不受影响。
+- 验收：`claude -p 'say ok' --output-format stream-json --verbose` 的 init 事件里 `tools` 包含 `Monitor`；交互模式下 Monitor 运行时状态栏显示 `1 monitor`。实例的 CLAUDE.md 如果写过「没有 Monitor」，要一起删掉，否则模型会拒绝调用。
+- CC 升级后 Monitor 消失：到 claude 二进制里搜 `userFacingName(){return"Monitor"}`，看旁边 `isEnabled` 用的新开关名，再改 `CC_FLAGS_FORCE`（2.1.280 实测）。
+
+## 第三方网关实例：多模型切换与规范继承
+
+一个实例经本地 LiteLLM 接多个后端，在会话里用 `/model` 切换。以下是 Claude Code 2.1.280 和 LiteLLM 1.106 上实测的通用做法和坑。个人的 key、端口、模型清单放在私有层。
+
+- **上下文窗口**：走第三方 `ANTHROPIC_BASE_URL` 时，不管是未知模型名还是 `claude-*`，Claude Code 都按 200k 算，这是客户端保守的默认值。模型名加 `[1m]` 后缀（如 `glm[1m]`、`claude-opus-5-5[1m]`）才按 1M 算，Claude Code 发请求前会去掉这个后缀。先实测网关能不能处理 200k 以上的输入，再开 1M。`[1m]` 在 zsh 里会被当成通配符，写进启动命令要加引号。
+- **`/model` 菜单**：user settings 里的 `modelPicker.options` 是 `[{model, label, description, behavesAs}]` 的数组。Claude Code 不认识的模型必须写 `behavesAs`（填一个它认识的模型 id），否则不会出现在菜单里。`replaceBuiltInOptions: true` 时菜单只剩 Default 和这些行，顺序按数组来。如果用同步脚本从主配置覆盖实例的 settings，要保留 `modelPicker`、`effortLevel` 这类实例自己的键。
+- **启动时的默认模型**：settings env 里的 `ANTHROPIC_MODEL` 优先于在菜单里按 Enter 存下的 `model`。要换开局模型，用 `--model`。
+- **LiteLLM fallback**：`router_settings.fallbacks` 的键按请求里的确切模型名匹配，写成 `claude-*` 这种通配键不生效（`router_utils/fallback_event_handlers.py`）。每个名字都要单独列一条，可以用 YAML 锚点复用后备列表。`CustomLogger.async_filter_deployments` 返回空列表时会触发 fallback。
+- **按 key 路由、记录 key**：同名部署有多个时，`async_filter_deployments` 可以按自定义请求头（Claude Code 用 `ANTHROPIC_CUSTOM_HEADERS` 发）挑出指定 key；冷却中的 key 不在候选里，会自动换另一个。`async_log_success_event` 里用 `kwargs['litellm_params']['proxy_server_request']['headers']` 拿 `x-claude-code-session-id`，用 `model_info.id` 拿实际部署 id，就能让状态栏显示本会话实际在用的 key。`session_affinity` 的绑定存在内存里，代理重启就丢。
+- **只回 SSE 的 OpenAI 中转**：有的中转不管是否流式，`/v1/responses` 都回 SSE。`openai/` 会走 Responses API，非流式请求解析失败，还会被 fallback 悄悄换成别的模型回答。改用 `hosted_vllm/` 走 chat completions。
+- **重启代理**：按端口找监听进程来杀（`lsof -tiTCP:<port> -sTCP:LISTEN`），不要按 pid 文件。启动失败的那次也会写 pid 文件，之后旧代理一直杀不掉，改了配置也不生效。
+- **记忆不共享**：实例读的是 `<CLAUDE_CONFIG_DIR>/projects/<cwd>/memory`，主配置的记忆不会自动过去。要单向同步：主配置的文件更新过才覆盖，实例自己写的不删，`MEMORY.md` 把实例自己的索引行合并在后面。`utimes` 只保留到毫秒，比较修改时间时留 1 ms 容差，否则每次都判定为有改动。
+- **本地目录插件是缓存副本**：`plugins/cache/<marketplace>/<plugin>/<version>` 是安装时复制的，版本号不变时 `claude plugin update` 认为已是最新，新加的 hook 不会生效。要在对应的 `CLAUDE_CONFIG_DIR` 下先 uninstall 再 install，然后检查缓存里的 `hooks/hooks.json`。
+- **按模型区分的规则**：只写在很长的 CLAUDE.md 末尾，模型容易套错，比如 Sonnet 把「Opus 自己做」套到自己身上，还认为自己是主会话。规则开头要写明「你就是这里说的实例，不管当前是什么模型」，再用 UserPromptSubmit hook 每轮注入当前模型和对应做法。当前模型可以从状态栏 stdin 的 `model.id` 记下来，也可以取会话记录里最后一条回复的 `message.model`，或者父进程的 `--model`。实测提醒之后 spark、gpt、glm 会照做，Sonnet 3/3 次仍不照做，这类模型不建议放进实例里。
 
 > 测试靠环境变量注入 mock（`RTK_SCRIPT` / `CAVEMAN_SCRIPT` / `CHECK_SCRIPT`），所以 `run.sh` 里这些路径变量（含 `CG_FILTER_SCRIPT`、`MR_SCRIPT`、`MIGRATE_SCRIPT`）**必须保持 `${VAR:-默认值}` 形式**；写成硬编码会让 mock 注入失效、测试报出误导性的「exit code not propagated」。
 
@@ -131,7 +156,7 @@ for t in test-*.sh; do bash "$t" >/dev/null 2>&1 && echo "✓ $t" || echo "✗ $
 - 只清理本次修改造成的孤儿 import、变量、函数、测试和引用。
 
 - CodeGraph 以 CLI 可执行为准；新项目用 `codegraph init`，增量刷新用 `codegraph sync`，完整重建用 `codegraph index -f`。
-- 多实例（`CLAUDE_CONFIG_DIR` 隔离的 cc1/cc2/cc3/cc-glm 等）对主 `~/.claude` **只读**：`CLAUDE_CONFIG_DIR` 只隔离 Claude Code 自身，不隔离实例会话里跑的命令。会写 `settings.json` 的工具（CC Switch 本地路由接管、改 env 的安装器）必须在目标实例的 `CLAUDE_CONFIG_DIR` 下执行，否则该实例的 provider env 会写进主配置，所有新会话被切走。主 `settings.json` 的 `env` 出现 `ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_MODEL` / `ANTHROPIC_DEFAULT_*_MODEL` 即泄漏（主配置走官方登录，本不该有），备份后删除；私有层 `sync-cc-profiles.mjs --check` 自带该检测。
+- 多实例（`CLAUDE_CONFIG_DIR` 隔离的第三方网关实例）对主 `~/.claude` **只读**：`CLAUDE_CONFIG_DIR` 只隔离 Claude Code 自身，不隔离实例会话里跑的命令。会写 `settings.json` 的工具（CC Switch 本地路由接管、改 env 的安装器）必须在目标实例的 `CLAUDE_CONFIG_DIR` 下执行，否则该实例的 provider env 会写进主配置，所有新会话被切走。主 `settings.json` 的 `env` 出现 `ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_MODEL` / `ANTHROPIC_DEFAULT_*_MODEL` 即泄漏（主配置走官方登录，本不该有），备份后删除；私有层 `sync-cc-profiles.mjs --check` 自带该检测。
 - 图工具分工：读代码、改代码、查调用链用 codegraph；代码审查用 code-review-graph。
 - 所有代码审查优先通过 code-review-graph MCP 获取最小上下文、影响半径和相关测试，再按结果读取源码；图谱首次建立或完整重建用 `code-review-graph build`，日常刷新用 `code-review-graph update`，状态检查用 `code-review-graph status`。
 - 插件检查读取 `installed_plugins.json`，覆盖 user、project 和 local scope；已装插件同时显示 `~/.claude/settings.json` 的 `enabledPlugins` 状态（已启用 / 已禁用 / 未登记），刻意禁用的插件仍记 ✓，看括号确认开关。
