@@ -1,6 +1,6 @@
 ---
 name: wechat-mp
-description: "公众号后台与微信开发者控制台：登录、草稿排版、发布、素材、IP 白名单、40164/48001；小程序：开发者工具 CLI、automator 自测、miniprogram-ci 上传体验版、提审发布、版本状态、广告分享规则、反编译 wxapkg 复刻样式。"
+description: "公众号后台与微信开发者控制台：登录、草稿排版、发布、素材、IP 白名单、40164/48001；小程序：开发者工具 CLI、automator 自测、miniprogram-ci 上传体验版、提审发布、版本状态、广告分享规则、反编译 wxapkg 复刻样式；TikTok Minis（tiktok.com/minis 链接）抓 H5 前端学习。"
 ---
 
 # 微信公众号 / 开发者平台自动化
@@ -59,4 +59,5 @@ description: "公众号后台与微信开发者控制台：登录、草稿排版
 | 小程序上传、预览、版本状态、提审 | [miniprogram-release.md](references/miniprogram-release.md) | `scripts/mp-ci.mjs`、`scripts/wxamp-version-status.mjs`、`scripts/wxamp-submit-audit-api.mjs`（兜底 `scripts/wxamp-submit-audit.mjs`） |
 | 小程序开发者工具 CLI、automator 自测、本地后端、广告与分享 | [miniprogram-devtools.md](references/miniprogram-devtools.md) | `scripts/miniprogram-automator-helpers.cjs` |
 | 反编译 wxapkg、还原 WXSS、复刻到 Taro | [wxapkg-unpack.md](references/wxapkg-unpack.md) | `scripts/wxapkg/wxapkg.sh`、`scripts/wxapkg/extract-wxss.mjs`、`scripts/wxapkg/split-service.mjs` |
+| TikTok Minis 链接抓 H5 前端产物学习 | [tiktok-minis.md](references/tiktok-minis.md) | `scripts/tiktok-minis/fetch.py` |
 | 全部文件说明 | [file-index.md](references/file-index.md) | — |

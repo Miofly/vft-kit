@@ -13,4 +13,6 @@
 - `scripts/mp-ci.mjs` — miniprogram-ci 上传 / 预览（无界面，带 `--selftest`）
 - `scripts/miniprogram-automator-helpers.cjs` — automator 测试公共函数：请求打桩、插屏计数、断言汇总（带 `--selftest`）
 - `references/wxapkg-unpack.md` — 小程序反编译：扫描缓存、定位 wxid、解包、还原 WXSS、复刻要点
+- `references/tiktok-minis.md` — TikTok Minis：link 接口取 minis_url、判断 H5 型、抓前端产物、读码要点与案例
 - `scripts/wxapkg/wxapkg.sh` — wxapkg 扫描 / 解包 CLI（带 `selftest`）；`scripts/wxapkg/extract-wxss.mjs` — 还原 WXSS；`scripts/wxapkg/split-service.mjs` — 拆 `app-service.js` 并导出数据 JSON（带 `--selftest`）
+- `scripts/tiktok-minis/fetch.py` — TikTok Minis H5 前端产物抓取（minis_url 或 link 接口 JSON 输入，`--pretty` 格式化）
