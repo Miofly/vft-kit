@@ -63,4 +63,46 @@ printf -- '---\nname: carrier\nmodel: haiku\n---\n' > "$tmp/home/.claude/agents/
 pre custom '下载 LoRA 并校验 sha256，列出大小' | grep -q '"model": "haiku"'   # named + mechanical: downgraded
 pre general-purpose '清理 other/temp 下的旧截图' | grep -q '"model": "haiku"'
 CLAUDE_PLUGIN_ROOT="$tmp/plugins/claude-model-router-hook" pre general-purpose '清理 other/temp 下的旧截图' | grep -q '"subagent_type": "router:haiku"'
+# offload: marker on -> mechanical generic spawns go to the named offload agent; off, other classes, or an instance
+# whose own config dir lacks the marker -> normal routing.
+printf -- '---\nname: cheap\nmodel: haiku\n---\n' > "$tmp/home/.claude/agents/cheap.md"
+python3 - "$tmp/home/.claude/model-router.json" <<'PY2'
+import json, sys
+p = sys.argv[1]; d = json.load(open(p))
+d["offload"] = {"subagent_type": "cheap", "classes": ["mechanical"], "marker": "{config_dir}/router-offload.ON"}
+json.dump(d, open(p, "w"))
+PY2
+pp(){ CLAUDE_PLUGIN_ROOT="$tmp/plugins/claude-model-router-hook" pre "$@"; }
+pp general-purpose '清理 other/temp 下的旧截图' | grep -q '"subagent_type": "router:haiku"'   # marker absent
+touch "$tmp/home/.claude/router-offload.ON"
+pp general-purpose '清理 other/temp 下的旧截图' | grep -q '"subagent_type": "cheap"'
+pp general-purpose '设计多租户计费服务的架构，比较事件溯源和 CRUD 的取舍' | grep -q '"subagent_type": "router:opus'
+CLAUDE_CONFIG_DIR="$tmp/home/.claude-other" pp general-purpose '清理 other/temp 下的旧截图' | grep -q '"subagent_type": "router:haiku"'
+[ -z "$(pp carrier '清理 other/temp 下的旧截图')" ]           # named agent with a pinned model: untouched
+# start_command: the hook starts the backend with the prompt on stdin and hands the agent only the template
+python3 - "$tmp/home/.claude/model-router.json" "$tmp" <<'PY2'
+import json, sys
+p, t = sys.argv[1], sys.argv[2]; d = json.load(open(p))
+d["offload"].update(start_command=f"cat > {t}/got.txt; echo job-42", prompt_template="wait {handle}")
+json.dump(d, open(p, "w"))
+PY2
+pp general-purpose '清理 other/temp 下的旧截图' | grep -q '"prompt": "wait job-42"'
+grep -q '清理 other/temp' "$tmp/got.txt"
+python3 - "$tmp/home/.claude/model-router.json" "$tmp" <<'PY2'
+import json, sys
+p, t = sys.argv[1], sys.argv[2]; d = json.load(open(p))
+d["offload"]["start_command"] = "cat >/dev/null; echo job-7 cheap-b"; json.dump(d, open(p, "w"))
+PY2
+printf -- '---\nname: cheap-b\nmodel: haiku\n---\n' > "$tmp/home/.claude/agents/cheap-b.md"
+out="$(pp general-purpose '清理 other/temp 下的旧截图')"
+echo "$out" | grep -q '"subagent_type": "cheap-b"' && echo "$out" | grep -q '"prompt": "wait job-7"'   # backend named the carrier
+rm "$tmp/home/.claude/agents/cheap-b.md"
+pp general-purpose '清理 other/temp 下的旧截图' | grep -q '"subagent_type": "cheap"'   # unknown name: default carrier
+printf -- '---\nname: cheap-b\nmodel: haiku\nrouter-generated: true\n---\n' > "$tmp/plugins/claude-model-router-hook/agents/cheap-b.md"
+pp general-purpose '清理 other/temp 下的旧截图' | grep -q '"subagent_type": "router:cheap-b"'   # in the plugin's agents dir: router: prefix
+python3 - "$tmp/home/.claude/model-router.json" <<'PY2'
+import json, sys
+p = sys.argv[1]; d = json.load(open(p)); d["offload"]["start_command"] = "exit 1"; json.dump(d, open(p, "w"))
+PY2
+pp general-purpose '清理 other/temp 下的旧截图' | grep -q '"subagent_type": "router:haiku"'   # start failed: normal routing
 echo 'PASS: model router patch'

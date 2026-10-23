@@ -1,5 +1,5 @@
 {
-  "description": "vft-kit 钩子：规则模块（按路径注入规范 + 保存后自动检查）+ agent-baseline 的 bash-prompt-guard / handoff-nudge / reply-lang-pin",
+  "description": "vft-kit 钩子：规则模块（按路径注入规范 + 保存后自动检查）+ agent-baseline 的 bash-prompt-guard / handoff-nudge / reply-lang-pin，以及只对 cc 实例生效的 stall-continue / repeat-error-guard / converge-guard",
   "hooks": {
     "PreToolUse": [
       {
@@ -43,6 +43,15 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/converge-guard.py\"",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "SessionStart": [
@@ -63,6 +72,28 @@
           {
             "type": "command",
             "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/reply-lang-pin.py\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/stall-continue-hook.py\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/repeat-error-guard.py\"",
             "timeout": 5
           }
         ]
