@@ -7,8 +7,8 @@ supplies one from the real token count.
 
 How the context size is measured: the latest non-sidechain assistant record in the transcript tail carries
 `message.usage`; input_tokens + cache_read_input_tokens + cache_creation_input_tokens is the prompt size of
-that turn, i.e. the live context. Window: HANDOFF_NUDGE_WINDOW (or CLAUDE_CODE_MAX_CONTEXT_TOKENS / CLAUDE_CODE_AUTO_COMPACT_WINDOW) env
-override → model id containing "[1m]" → known 1M families (transcripts drop the "[1m]" suffix, so the id
+that turn, i.e. the live context. Window: HANDOFF_NUDGE_WINDOW env override → HANDOFF_NUDGE_MODEL_WINDOWS ("regex=tokens;…", effective window for
+models that degrade early) → CLAUDE_CODE_MAX_CONTEXT_TOKENS / CLAUDE_CODE_AUTO_COMPACT_WINDOW → model id containing "[1m]" → known 1M families (transcripts drop the "[1m]" suffix, so the id
 alone cannot tell; see KNOWN_1M) → observed tokens > 200k imply 1M → else 200k.
 
 Tiers: 40%, then every +15% (55/70/85). Each session records each tier once.
@@ -69,15 +69,31 @@ def is_main_assistant(rec):
             and (rec.get("message") or {}).get("model") not in (None, "<synthetic>"))
 
 
+def env_window(key):
+    try:
+        v = int(os.environ.get(key, ""))
+        return v if v > 0 else None
+    except ValueError:
+        return None
+
+
 def resolve_window(model, tokens):
-    for key in ("HANDOFF_NUDGE_WINDOW", "CLAUDE_CODE_MAX_CONTEXT_TOKENS", "CLAUDE_CODE_AUTO_COMPACT_WINDOW"):
-        try:
-            v = int(os.environ.get(key, ""))
-            if v > 0:
-                return v
-        except ValueError:
-            pass
     model = model or ""
+    if env_window("HANDOFF_NUDGE_WINDOW"):
+        return env_window("HANDOFF_NUDGE_WINDOW")
+    # Effective window per model, "regex=tokens;regex=tokens": a model that degrades well before its nominal window
+    # (wrong reads, runaway thinking) gets nudged by where it degrades, not by the size it accepts. It beats the
+    # generic CC window envs below, which describe the nominal window (and leak in from a parent session's env).
+    for rule in (os.environ.get("HANDOFF_NUDGE_MODEL_WINDOWS") or "").split(";"):
+        pat, _, size = rule.rpartition("=")
+        try:
+            if pat and int(size) > 0 and re.search(pat, model):
+                return int(size)
+        except (ValueError, re.error):
+            pass
+    for key in ("CLAUDE_CODE_MAX_CONTEXT_TOKENS", "CLAUDE_CODE_AUTO_COMPACT_WINDOW"):
+        if env_window(key):
+            return env_window(key)
     if "[1m]" in model.lower():
         return LARGE_WINDOW
     if re.search(os.environ.get("HANDOFF_NUDGE_1M_MODELS") or KNOWN_1M, model):
@@ -192,6 +208,16 @@ def self_test():
     assert resolve_window("claude-sonnet-5", 1000) == STD_WINDOW
     assert resolve_window("claude-sonnet-5[1m]", 1000) == LARGE_WINDOW
     assert resolve_window("claude-sonnet-5", 250_000) == LARGE_WINDOW
+    os.environ["HANDOFF_NUDGE_MODEL_WINDOWS"] = "^(xf-)?spark=500000;bad[=x;^glm=300000"
+    assert resolve_window("xf-spark-x2.6", 1) == 500_000          # wins over "observed > 200k means 1M"
+    assert resolve_window("spark-x2.6", 600_000) == 500_000
+    assert resolve_window("glm-5.3", 1) == 300_000                # a broken rule is skipped, not fatal
+    assert resolve_window("claude-opus-5-5", 1) == LARGE_WINDOW
+    os.environ["CLAUDE_CODE_AUTO_COMPACT_WINDOW"] = "1000000"      # inherited from a parent session
+    assert resolve_window("xf-spark-x2.6", 1) == 500_000
+    assert resolve_window("claude-sonnet-5", 1) == 1_000_000
+    os.environ.pop("CLAUDE_CODE_AUTO_COMPACT_WINDOW")
+    os.environ.pop("HANDOFF_NUDGE_MODEL_WINDOWS")
     os.environ["HANDOFF_NUDGE_WINDOW"] = "400000"
     assert resolve_window("claude-opus-5-5", 1) == 400_000
     os.environ.pop("HANDOFF_NUDGE_WINDOW")

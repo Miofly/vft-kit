@@ -35,5 +35,6 @@ description: "Operate OpenI (openi.pcl.ac.cn, 启智): repos/issues via REST API
 |---|---|
 | 平台事实、算力单价、积分任务表 | [platform-points.md](references/platform-points.md) |
 | Gitea API、官方 SDK、浏览器兜底、API 化进度接口表 | [api.md](references/api.md) |
+| GPU 训练任务：挂模型/数据集、容器环境、HF 迁移、ComfyUI 坑 | [gpu-tasks.md](references/gpu-tasks.md) |
 
 本 skill 没有脚本；按 [api.md](references/api.md) 的接口直接发 HTTP 请求，SDK 用 venv 安装。
