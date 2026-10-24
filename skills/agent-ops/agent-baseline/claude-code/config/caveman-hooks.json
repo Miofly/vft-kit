@@ -1,5 +1,5 @@
 {
-  "_note": "Caveman 风格模式的用户级 hook（vendor-plugin-hooks.mjs 的配置）。只保留风格模式：SessionStart 注入规则、SubagentStart 给子 agent 注入、UserPromptSubmit 每轮提醒与 /caveman 切换。不装插件本体的 skill/agent。SubagentStart 用 commandOverrides 把 loadRuleset 置空，走上游自带的短版 fallback 规则（约 0.7KB，全文约 4.7KB）；会话模式判断仍走上游，stop caveman 不外泄。shortcut: 依赖上游 caveman-config.js 导出 loadRuleset 且 buildRuleset 调用时才读它，上游改名后退回全文（无害），届时改这里。",
+  "_note": "Caveman 风格模式的用户级 hook（vendor-plugin-hooks.mjs 的配置）。只保留风格模式：SessionStart 注入规则、SubagentStart 给子 agent 注入、UserPromptSubmit 每轮提醒与 /caveman 切换。不装插件本体的 skill/agent。SubagentStart 用 commandOverrides 把 loadRuleset 置空，走上游自带的短版 fallback 规则（约 0.7KB，全文约 4.7KB）；会话模式判断仍走上游，stop caveman 不外泄。shortcut: 依赖上游 caveman-config.js 导出 loadRuleset 且 buildRuleset 调用时才读它，上游改名后退回全文（无害），届时改这里。 SubagentStart 先读 payload，router:ccmax* 载体（只转述 ccmax 结果的 Haiku）不注入，否则它会改写转述内容；payload 只有 agent_type 等字段，不含任务正文。",
   "repo": "https://github.com/JuliusBrussee/caveman.git",
   "ref": "main",
   "vendor": "~/.cache/vft-kit/caveman",
@@ -20,7 +20,7 @@
     "UserPromptSubmit": "CAVEMAN MODE ACTIVE"
   },
   "commandOverrides": {
-    "SubagentStart": "command -v node >/dev/null 2>&1 || exit 0; node -e \"require('${CLAUDE_PLUGIN_ROOT}/src/hooks/caveman-config.js').loadRuleset=()=>null;process.argv.push('--subagent');require('${CLAUDE_PLUGIN_ROOT}/src/hooks/caveman-activate.js')\""
+    "SubagentStart": "command -v node >/dev/null 2>&1 || exit 0; p=$(cat); case \"$p\" in *router:ccmax*) exit 0 ;; esac; printf '%s' \"$p\" | node -e \"require('${CLAUDE_PLUGIN_ROOT}/src/hooks/caveman-config.js').loadRuleset=()=>null;process.argv.push('--subagent');require('${CLAUDE_PLUGIN_ROOT}/src/hooks/caveman-activate.js')\""
   },
   "skipIfPluginEnabled": "caveman@caveman",
   "commands": {

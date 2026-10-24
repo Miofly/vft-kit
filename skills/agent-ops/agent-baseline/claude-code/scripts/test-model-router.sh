@@ -63,6 +63,11 @@ printf -- '---\nname: carrier\nmodel: haiku\n---\n' > "$tmp/home/.claude/agents/
 pre custom '下载 LoRA 并校验 sha256，列出大小' | grep -q '"model": "haiku"'   # named + mechanical: downgraded
 pre general-purpose '清理 other/temp 下的旧截图' | grep -q '"model": "haiku"'
 CLAUDE_PLUGIN_ROOT="$tmp/plugins/claude-model-router-hook" pre general-purpose '清理 other/temp 下的旧截图' | grep -q '"subagent_type": "router:haiku"'
+# backend tag: the subagent model env picks the tagged variant, so the panel shows the backend that really runs it.
+! grep -q '^model:' "$tmp"/plugins/claude-model-router-hook/agents/xf-opus-high.md   # "model: opus" would run the main model
+CLAUDE_CODE_SUBAGENT_MODEL='xf-spark-x2.6[1m]' CLAUDE_PLUGIN_ROOT="$tmp/plugins/claude-model-router-hook" pre general-purpose '清理 other/temp 下的旧截图' | grep -q '"subagent_type": "router:xf-haiku"' && ! CLAUDE_CODE_SUBAGENT_MODEL=xf-spark-x2.6 CLAUDE_PLUGIN_ROOT="$tmp/plugins/claude-model-router-hook" pre general-purpose '清理 other/temp 下的旧截图' | grep -q '"model":'
+CLAUDE_CODE_SUBAGENT_MODEL='codex[1m]' CLAUDE_PLUGIN_ROOT="$tmp/plugins/claude-model-router-hook" pre general-purpose '实现 VideoTaskService 的重试逻辑' | grep -q '"subagent_type": "router:codex-opus-'
+CLAUDE_CODE_SUBAGENT_MODEL='claude-opus-5-5[1m]' CLAUDE_PLUGIN_ROOT="$tmp/plugins/claude-model-router-hook" pre general-purpose '实现 VideoTaskService 的重试逻辑' | grep -q '"subagent_type": "router:opus-'
 # offload: marker on -> mechanical generic spawns go to the named offload agent; off, other classes, or an instance
 # whose own config dir lacks the marker -> normal routing.
 printf -- '---\nname: cheap\nmodel: haiku\n---\n' > "$tmp/home/.claude/agents/cheap.md"
@@ -105,4 +110,16 @@ import json, sys
 p = sys.argv[1]; d = json.load(open(p)); d["offload"]["start_command"] = "exit 1"; json.dump(d, open(p, "w"))
 PY2
 pp general-purpose '清理 other/temp 下的旧截图' | grep -q '"subagent_type": "router:haiku"'   # start failed: normal routing
+# sample: listed classes offload on a random share with their own start_command; ratio 0 never, ratio 1 always
+python3 - "$tmp/home/.claude/model-router.json" <<'PY2'
+import json, sys
+p = sys.argv[1]; d = json.load(open(p))
+d["offload"]["sample"] = {"classes": ["implementation"], "ratio": 1, "start_command": "cat >/dev/null; echo job-9"}
+json.dump(d, open(p, "w"))
+PY2
+out="$(pp general-purpose '实现 VideoTaskService 的重试逻辑')"
+echo "$out" | grep -q '"subagent_type": "cheap"' && echo "$out" | grep -q '"prompt": "wait job-9"'
+pp general-purpose '评审执行者报告并写结论' | grep -q '"subagent_type": "router:opus'   # class not sampled
+sed -i.bak 's/"ratio": 1/"ratio": 0/' "$tmp/home/.claude/model-router.json"
+pp general-purpose '实现 VideoTaskService 的重试逻辑' | grep -q '"subagent_type": "router:opus'
 echo 'PASS: model router patch'
