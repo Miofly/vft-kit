@@ -22,6 +22,166 @@ index b59a6cf..cfaa0ff 100644
    "description": "Automatic model switching for Claude Code based on prompt complexity. No API key required.",
    "version": "2.1.0",
    "author": {
+diff --git a/plugins/claude-model-router-hook/agents/codex-haiku.md b/plugins/claude-model-router-hook/agents/codex-haiku.md
+new file mode 100644
+index 0000000..68abf83
+--- /dev/null
++++ b/plugins/claude-model-router-hook/agents/codex-haiku.md
+@@ -0,0 +1,10 @@
++---
++name: codex-haiku
++description: Router-internal; do not use.
++disallowedTools: Agent
++router-generated: true
++---
++
++Complete the delegated task exactly as prompted; return a concise report.
++
++Work directly and finish this narrow mechanical task yourself; do not delegate it.
+diff --git a/plugins/claude-model-router-hook/agents/codex-opus-high.md b/plugins/claude-model-router-hook/agents/codex-opus-high.md
+new file mode 100644
+index 0000000..f19ab20
+--- /dev/null
++++ b/plugins/claude-model-router-hook/agents/codex-opus-high.md
+@@ -0,0 +1,10 @@
++---
++name: codex-opus-high
++description: Router-internal; do not use.
++effort: high
++router-generated: true
++---
++
++Complete the delegated task exactly as prompted; return a concise report.
++
++Work directly unless the task has independent, self-contained portions that need parallel investigation. Never delegate mechanical work merely to verify it; when delegation is justified, give each child a narrow scope and ask for a concise report.
+diff --git a/plugins/claude-model-router-hook/agents/codex-opus-max.md b/plugins/claude-model-router-hook/agents/codex-opus-max.md
+new file mode 100644
+index 0000000..daff37b
+--- /dev/null
++++ b/plugins/claude-model-router-hook/agents/codex-opus-max.md
+@@ -0,0 +1,10 @@
++---
++name: codex-opus-max
++description: Router-internal; do not use.
++effort: max
++router-generated: true
++---
++
++Complete the delegated task exactly as prompted; return a concise report.
++
++Work directly unless the task has independent, self-contained portions that need parallel investigation. Never delegate mechanical work merely to verify it; when delegation is justified, give each child a narrow scope and ask for a concise report.
+diff --git a/plugins/claude-model-router-hook/agents/codex-opus-medium.md b/plugins/claude-model-router-hook/agents/codex-opus-medium.md
+new file mode 100644
+index 0000000..a118bd0
+--- /dev/null
++++ b/plugins/claude-model-router-hook/agents/codex-opus-medium.md
+@@ -0,0 +1,10 @@
++---
++name: codex-opus-medium
++description: Router-internal; do not use.
++effort: medium
++router-generated: true
++---
++
++Complete the delegated task exactly as prompted; return a concise report.
++
++Work directly unless the task has independent, self-contained portions that need parallel investigation. Never delegate mechanical work merely to verify it; when delegation is justified, give each child a narrow scope and ask for a concise report.
+diff --git a/plugins/claude-model-router-hook/agents/codex-opus-xhigh.md b/plugins/claude-model-router-hook/agents/codex-opus-xhigh.md
+new file mode 100644
+index 0000000..66f8af2
+--- /dev/null
++++ b/plugins/claude-model-router-hook/agents/codex-opus-xhigh.md
+@@ -0,0 +1,10 @@
++---
++name: codex-opus-xhigh
++description: Router-internal; do not use.
++effort: xhigh
++router-generated: true
++---
++
++Complete the delegated task exactly as prompted; return a concise report.
++
++Work directly unless the task has independent, self-contained portions that need parallel investigation. Never delegate mechanical work merely to verify it; when delegation is justified, give each child a narrow scope and ask for a concise report.
+diff --git a/plugins/claude-model-router-hook/agents/glm-haiku.md b/plugins/claude-model-router-hook/agents/glm-haiku.md
+new file mode 100644
+index 0000000..913c568
+--- /dev/null
++++ b/plugins/claude-model-router-hook/agents/glm-haiku.md
+@@ -0,0 +1,10 @@
++---
++name: glm-haiku
++description: Router-internal; do not use.
++disallowedTools: Agent
++router-generated: true
++---
++
++Complete the delegated task exactly as prompted; return a concise report.
++
++Work directly and finish this narrow mechanical task yourself; do not delegate it.
+diff --git a/plugins/claude-model-router-hook/agents/glm-opus-high.md b/plugins/claude-model-router-hook/agents/glm-opus-high.md
+new file mode 100644
+index 0000000..0e58e8e
+--- /dev/null
++++ b/plugins/claude-model-router-hook/agents/glm-opus-high.md
+@@ -0,0 +1,10 @@
++---
++name: glm-opus-high
++description: Router-internal; do not use.
++effort: high
++router-generated: true
++---
++
++Complete the delegated task exactly as prompted; return a concise report.
++
++Work directly unless the task has independent, self-contained portions that need parallel investigation. Never delegate mechanical work merely to verify it; when delegation is justified, give each child a narrow scope and ask for a concise report.
+diff --git a/plugins/claude-model-router-hook/agents/glm-opus-max.md b/plugins/claude-model-router-hook/agents/glm-opus-max.md
+new file mode 100644
+index 0000000..85c38ef
+--- /dev/null
++++ b/plugins/claude-model-router-hook/agents/glm-opus-max.md
+@@ -0,0 +1,10 @@
++---
++name: glm-opus-max
++description: Router-internal; do not use.
++effort: max
++router-generated: true
++---
++
++Complete the delegated task exactly as prompted; return a concise report.
++
++Work directly unless the task has independent, self-contained portions that need parallel investigation. Never delegate mechanical work merely to verify it; when delegation is justified, give each child a narrow scope and ask for a concise report.
+diff --git a/plugins/claude-model-router-hook/agents/glm-opus-medium.md b/plugins/claude-model-router-hook/agents/glm-opus-medium.md
+new file mode 100644
+index 0000000..7f97297
+--- /dev/null
++++ b/plugins/claude-model-router-hook/agents/glm-opus-medium.md
+@@ -0,0 +1,10 @@
++---
++name: glm-opus-medium
++description: Router-internal; do not use.
++effort: medium
++router-generated: true
++---
++
++Complete the delegated task exactly as prompted; return a concise report.
++
++Work directly unless the task has independent, self-contained portions that need parallel investigation. Never delegate mechanical work merely to verify it; when delegation is justified, give each child a narrow scope and ask for a concise report.
+diff --git a/plugins/claude-model-router-hook/agents/glm-opus-xhigh.md b/plugins/claude-model-router-hook/agents/glm-opus-xhigh.md
+new file mode 100644
+index 0000000..4fea2d6
+--- /dev/null
++++ b/plugins/claude-model-router-hook/agents/glm-opus-xhigh.md
+@@ -0,0 +1,10 @@
++---
++name: glm-opus-xhigh
++description: Router-internal; do not use.
++effort: xhigh
++router-generated: true
++---
++
++Complete the delegated task exactly as prompted; return a concise report.
++
++Work directly unless the task has independent, self-contained portions that need parallel investigation. Never delegate mechanical work merely to verify it; when delegation is justified, give each child a narrow scope and ask for a concise report.
 diff --git a/plugins/claude-model-router-hook/agents/routed-haiku.md b/plugins/claude-model-router-hook/agents/haiku.md
 similarity index 62%
 rename from plugins/claude-model-router-hook/agents/routed-haiku.md
@@ -102,6 +262,86 @@ index b94160d..5d999b7 100644
  model: opus
  effort: xhigh
  router-generated: true
+diff --git a/plugins/claude-model-router-hook/agents/xf-haiku.md b/plugins/claude-model-router-hook/agents/xf-haiku.md
+new file mode 100644
+index 0000000..01acbec
+--- /dev/null
++++ b/plugins/claude-model-router-hook/agents/xf-haiku.md
+@@ -0,0 +1,10 @@
++---
++name: xf-haiku
++description: Router-internal; do not use.
++disallowedTools: Agent
++router-generated: true
++---
++
++Complete the delegated task exactly as prompted; return a concise report.
++
++Work directly and finish this narrow mechanical task yourself; do not delegate it.
+diff --git a/plugins/claude-model-router-hook/agents/xf-opus-high.md b/plugins/claude-model-router-hook/agents/xf-opus-high.md
+new file mode 100644
+index 0000000..7295db5
+--- /dev/null
++++ b/plugins/claude-model-router-hook/agents/xf-opus-high.md
+@@ -0,0 +1,10 @@
++---
++name: xf-opus-high
++description: Router-internal; do not use.
++effort: high
++router-generated: true
++---
++
++Complete the delegated task exactly as prompted; return a concise report.
++
++Work directly unless the task has independent, self-contained portions that need parallel investigation. Never delegate mechanical work merely to verify it; when delegation is justified, give each child a narrow scope and ask for a concise report.
+diff --git a/plugins/claude-model-router-hook/agents/xf-opus-max.md b/plugins/claude-model-router-hook/agents/xf-opus-max.md
+new file mode 100644
+index 0000000..8da00e5
+--- /dev/null
++++ b/plugins/claude-model-router-hook/agents/xf-opus-max.md
+@@ -0,0 +1,10 @@
++---
++name: xf-opus-max
++description: Router-internal; do not use.
++effort: max
++router-generated: true
++---
++
++Complete the delegated task exactly as prompted; return a concise report.
++
++Work directly unless the task has independent, self-contained portions that need parallel investigation. Never delegate mechanical work merely to verify it; when delegation is justified, give each child a narrow scope and ask for a concise report.
+diff --git a/plugins/claude-model-router-hook/agents/xf-opus-medium.md b/plugins/claude-model-router-hook/agents/xf-opus-medium.md
+new file mode 100644
+index 0000000..39a1c0f
+--- /dev/null
++++ b/plugins/claude-model-router-hook/agents/xf-opus-medium.md
+@@ -0,0 +1,10 @@
++---
++name: xf-opus-medium
++description: Router-internal; do not use.
++effort: medium
++router-generated: true
++---
++
++Complete the delegated task exactly as prompted; return a concise report.
++
++Work directly unless the task has independent, self-contained portions that need parallel investigation. Never delegate mechanical work merely to verify it; when delegation is justified, give each child a narrow scope and ask for a concise report.
+diff --git a/plugins/claude-model-router-hook/agents/xf-opus-xhigh.md b/plugins/claude-model-router-hook/agents/xf-opus-xhigh.md
+new file mode 100644
+index 0000000..3115ff8
+--- /dev/null
++++ b/plugins/claude-model-router-hook/agents/xf-opus-xhigh.md
+@@ -0,0 +1,10 @@
++---
++name: xf-opus-xhigh
++description: Router-internal; do not use.
++effort: xhigh
++router-generated: true
++---
++
++Complete the delegated task exactly as prompted; return a concise report.
++
++Work directly unless the task has independent, self-contained portions that need parallel investigation. Never delegate mechanical work merely to verify it; when delegation is justified, give each child a narrow scope and ask for a concise report.
 diff --git a/plugins/claude-model-router-hook/hooks/hooks.json b/plugins/claude-model-router-hook/hooks/hooks.json
 index 7502daa..0a33c97 100644
 --- a/plugins/claude-model-router-hook/hooks/hooks.json
@@ -133,7 +373,7 @@ index 7502daa..0a33c97 100644
        {
          "matcher": "Agent|Task",
 diff --git a/plugins/claude-model-router-hook/hooks/pre_tool_use.py b/plugins/claude-model-router-hook/hooks/pre_tool_use.py
-index 27533aa..69b9fcf 100644
+index 27533aa..2318406 100644
 --- a/plugins/claude-model-router-hook/hooks/pre_tool_use.py
 +++ b/plugins/claude-model-router-hook/hooks/pre_tool_use.py
 @@ -5,7 +5,9 @@ Thin wiring only; all logic lives in the router package. Never denies:
@@ -157,7 +397,25 @@ index 27533aa..69b9fcf 100644
  GENERIC_TYPES = ("general-purpose", "default", "claude")
  
  
-@@ -65,6 +69,61 @@ def _resolve_variant(variant, cwd):
+@@ -31,6 +35,17 @@ def _env_model_warning(decision_model):
+     )
+ 
+ 
++def _backend_tag(cfg):
++    """vft-kit patch: tag of the backend CLAUDE_CODE_SUBAGENT_MODEL names, or None.
++
++    Only that env: a tagged agent file names no model, so the env is what runs it. Family = text before the first
++    "-" with any [1m] suffix dropped (xf-spark-x2.6[1m] -> xf); claude-* and tags not in variant_tags -> None.
++    """
++    real = os.environ.get("CLAUDE_CODE_SUBAGENT_MODEL") or ""
++    family = real.split("[")[0].strip().split("-")[0]
++    return family if family and family in (cfg.get("variant_tags") or []) else None
++
++
+ def _resolve_variant(variant, cwd):
+     """Subagent_type for a variant, or None when no usable agent file backs it.
+ 
+@@ -65,6 +80,76 @@ def _resolve_variant(variant, cwd):
      return None
  
  
@@ -201,25 +459,40 @@ index 27533aa..69b9fcf 100644
 +
 +
 +def _offload_target(cfg, klass, cwd):
-+    """vft-kit patch: subagent_type to offload this class to, or None (switch off, class not listed, agent missing)."""
++    """vft-kit patch: (subagent_type, start_command) to offload this class to, or (None, None) (switch off, class
++    not listed or not sampled, agent missing).
++
++    Optional "sample": {"classes": [...], "ratio": 0.5, "start_command": "..."} offloads those classes only on a
++    random share of spawns, with its own start_command (e.g. pinned to one backend); the rest route normally.
++    """
++    import random
 +    off = cfg.get("offload")
-+    if not isinstance(off, dict) or klass not in (off.get("classes") or []):
-+        return None
++    if not isinstance(off, dict):
++        return None, None
++    command = off.get("start_command")
++    if klass not in (off.get("classes") or []):
++        sample = off.get("sample")
++        if not isinstance(sample, dict) or klass not in (sample.get("classes") or []):
++            return None, None
++        ratio = sample.get("ratio", 0.5)
++        if not isinstance(ratio, (int, float)) or random.random() >= ratio:
++            return None, None
++        command = sample.get("start_command") or command
 +    target, marker = off.get("subagent_type"), off.get("marker")
 +    if not isinstance(target, str) or not isinstance(marker, str):
-+        return None
++        return None, None
 +    # "{config_dir}" makes the switch per Claude Code instance: every instance reads the same ~/.claude/model-router.json,
 +    # and an instance that is itself the offload backend must not offload to itself.
 +    config_dir = os.environ.get("CLAUDE_CONFIG_DIR") or str(Path.home() / ".claude")
 +    if not os.path.exists(os.path.expanduser(marker.replace("{config_dir}", config_dir))):
-+        return None
-+    return _offload_agent(target, cwd)  # must resolve to an agent file
++        return None, None
++    return _offload_agent(target, cwd), command  # must resolve to an agent file
 +
 +
  @hookio.fail_open
  def main():
      if hookio.is_child():
-@@ -80,13 +139,15 @@ def main():
+@@ -80,13 +165,15 @@ def main():
  
      subagent_type = tool_input.get("subagent_type")
      if isinstance(subagent_type, str) and (
@@ -237,7 +510,7 @@ index 27533aa..69b9fcf 100644
      enforcement = cfg.get("subagent_enforcement", "on")
      if enforcement == "off":
          sys.exit(0)
-@@ -104,6 +165,64 @@ def main():
+@@ -104,6 +191,64 @@ def main():
          prompt, target, cfg, delegated=bool(event.get("agent_id"))
      )
  
@@ -245,7 +518,7 @@ index 27533aa..69b9fcf 100644
 +    # "marker": "<file>"} and the marker file present, a generic spawn of a listed class goes to that agent
 +    # (e.g. a thin carrier that runs the task on a cheaper backend) instead of a routed variant. Marker absent,
 +    # agent not found, a named agent or an explicit model: normal routing below, unchanged.
-+    offload = _offload_target(cfg, decision.klass, cwd)
++    offload, start_command = _offload_target(cfg, decision.klass, cwd)
 +    if (
 +        tool_input.get("model") is not None
 +        or (subagent_type and subagent_type not in GENERIC_TYPES)
@@ -259,8 +532,8 @@ index 27533aa..69b9fcf 100644
 +        # gives the subagent only "{handle}" to wait on, so a small carrier model never sees the task and cannot
 +        # decide to do it itself. A failed start falls back to normal routing.
 +        off = cfg["offload"]
-+        if off.get("start_command"):
-+            handle = _offload_start(off["start_command"], prompt, cwd)
++        if start_command:
++            handle = _offload_start(start_command, prompt, cwd)
 +            if not handle:
 +                hookio.log("SUBAGENT-OFFLOAD-FAILED", prompt, klass=decision.klass, model="", subagent_type=offload)
 +                offload = None
@@ -302,7 +575,24 @@ index 27533aa..69b9fcf 100644
      explicit = tool_input.get("model")
      if explicit is not None:
          # Explicit caller model: NO injection, respect it (locked decision 4).
-@@ -160,6 +279,10 @@ def main():
+@@ -146,7 +291,15 @@ def main():
+     # Variant set comes from the configured class targets, so the hook can only
+     # ever select a variant this config declares (and install.sh generated).
+     declared = variants.variant_map(cfg).get((decision.model, decision.effort))
+-    variant = _resolve_variant(declared, cwd) if (generic and declared) else None
++    variant = None
++    if generic and declared:
++        tag = _backend_tag(cfg)
++        tagged = tag and _resolve_variant(tag + "-" + declared, cwd)
++        if tagged:
++            # An injected "opus" resolves to the main model whenever that behaves as opus (ccmax: codex) and
++            # outranks CLAUDE_CODE_SUBAGENT_MODEL; without it the env model is what runs.
++            updated.pop("model", None)
++        variant = tagged or _resolve_variant(declared, cwd)
+     uninstalled = declared if (generic and declared and not variant) else None
+     if variant:
+         updated["subagent_type"] = variant
+@@ -160,6 +313,10 @@ def main():
          warning = _env_model_warning(decision.model)
          if warning:
              messages.append(warning)
@@ -313,6 +603,19 @@ index 27533aa..69b9fcf 100644
          hookio.emit_pretooluse(system_message=" ".join(messages))
          sys.exit(0)
  
+diff --git a/plugins/claude-model-router-hook/hooks/router/config.py b/plugins/claude-model-router-hook/hooks/router/config.py
+index f128379..bf569a6 100644
+--- a/plugins/claude-model-router-hook/hooks/router/config.py
++++ b/plugins/claude-model-router-hook/hooks/router/config.py
+@@ -9,6 +9,8 @@ DEFAULTS = {
+     "version": 2,
+     "apply_mode": "warn",
+     "allow_fable_autoswitch": False,
++    # vft-kit patch: backend tags with their own variant copies (router:xf-opus-high); see variants.tagged_variants.
++    "variant_tags": ["xf", "codex", "glm"],
+     "subagent_enforcement": "on",
+     "classifier": {
+         "cli_fallback": True,
 diff --git a/plugins/claude-model-router-hook/hooks/router/taxonomy.py b/plugins/claude-model-router-hook/hooks/router/taxonomy.py
 index f3dc941..91ef44f 100644
 --- a/plugins/claude-model-router-hook/hooks/router/taxonomy.py
@@ -367,7 +670,7 @@ index f3dc941..91ef44f 100644
      scores["architecture"] += min(length_bonus, 2)  # hard cap +2 (FR-7)
  
 diff --git a/plugins/claude-model-router-hook/hooks/router/variants.py b/plugins/claude-model-router-hook/hooks/router/variants.py
-index ae7a053..a3d1583 100644
+index ae7a053..13de495 100644
 --- a/plugins/claude-model-router-hook/hooks/router/variants.py
 +++ b/plugins/claude-model-router-hook/hooks/router/variants.py
 @@ -24,7 +24,10 @@ from .ladder import EFFORTS, TIERS
@@ -391,7 +694,25 @@ index ae7a053..a3d1583 100644
  LEGACY_AGENT_BODY = "Complete the delegated task exactly as prompted; return a concise report."
  
  AGENT_BODY = (
-@@ -110,14 +115,12 @@ def variant_map(cfg):
+@@ -101,6 +106,17 @@ def target_variants(cfg):
+     ]
+ 
+ 
++def tagged_variants(cfg):
++    """vft-kit patch: target_variants plus one copy per backend tag in cfg["variant_tags"] (xf-opus-high, ...).
++
++    The router picks the tagged copy when CLAUDE_CODE_SUBAGENT_MODEL points at that backend, so the agent panel
++    shows router:xf-opus-high instead of an "opus" that is not what runs. variant_map stays untagged.
++    """
++    base = target_variants(cfg)
++    tags = [t for t in (cfg.get("variant_tags") or []) if isinstance(t, str) and t]
++    return base + [(t + "-" + n, m, e, c) for t in tags for n, m, e, c in base]
++
++
+ def variant_map(cfg):
+     """(model, effort) -> agent name for every variant the config declares."""
+     return {
+@@ -110,16 +126,17 @@ def variant_map(cfg):
  
  def agent_markdown(name, model, effort, classes):
      """Full agent file content for one variant."""
@@ -405,11 +726,17 @@ index ae7a053..a3d1583 100644
          "---",
          "name: " + name,
 -        "description: " + description,
+-        "model: " + model,
 +        "description: " + SHORT_DESCRIPTION,
-         "model: " + model,
      ]
++    # vft-kit patch: a backend-tagged copy names no model, so CLAUDE_CODE_SUBAGENT_MODEL runs it; "model: opus"
++    # would resolve to the main model whenever that behaves as opus.
++    if name == variant_name(model, effort):
++        lines.append("model: " + model)
      if effort is not None:
-@@ -211,7 +214,7 @@ def is_generated(text, filename=None):
+         lines.append("effort: " + effort)
+     if model == "haiku":
+@@ -211,7 +228,7 @@ def is_generated(text, filename=None):
          return False
  
      name = match.group("name")
@@ -418,6 +745,15 @@ index ae7a053..a3d1583 100644
          return False
      if filename is not None:
          if name != os.path.splitext(os.path.basename(filename))[0]:
+@@ -291,7 +308,7 @@ def missing_variants(cfg, agent_dirs):
+     never saw, or a declared name is occupied by something that is not a usable
+     generated agent file.
+     """
+-    declared = [name for name, _m, _e, _c in target_variants(cfg)]
++    declared = [name for name, _m, _e, _c in tagged_variants(cfg)]
+     installed = installed_names(agent_dirs, declared)
+     return [
+         name for name in declared if name not in installed
 diff --git a/plugins/claude-model-router-hook/hooks/session_brief.py b/plugins/claude-model-router-hook/hooks/session_brief.py
 new file mode 100755
 index 0000000..43adbc0
@@ -491,7 +827,7 @@ index 3854c55..e0cf52a 100755
  echo ""
  echo "Register the following in ~/.claude/settings.json:"
 diff --git a/scripts/generate_variants.py b/scripts/generate_variants.py
-index 79ec3df..8dfe654 100755
+index 79ec3df..2bdd7a1 100755
 --- a/scripts/generate_variants.py
 +++ b/scripts/generate_variants.py
 @@ -1,5 +1,5 @@
@@ -540,6 +876,15 @@ index 79ec3df..8dfe654 100755
      return found
  
  
+@@ -115,7 +125,7 @@ def main(argv):
+     agents_dir = args.agents_dir or os.path.join(_plugin_dir(), "agents")
+     cfg = _resolve_config(config, args.use_user_config)
+ 
+-    declared = variants.target_variants(cfg)
++    declared = variants.tagged_variants(cfg)
+     wanted = {}
+     for name, model, effort, classes in declared:
+         wanted[name + ".md"] = variants.agent_markdown(name, model, effort, classes)
 @@ -123,14 +133,14 @@ def main(argv):
      if not args.check:
          os.makedirs(agents_dir, exist_ok=True)
@@ -645,7 +990,7 @@ index c9af023..b8def1b 100644
      def test_every_default_target_has_matching_variant(self):
          classes = DEFAULTS["classes"]
 diff --git a/tests/test_variants.py b/tests/test_variants.py
-index b82473b..10192eb 100644
+index b82473b..d0cc782 100644
 --- a/tests/test_variants.py
 +++ b/tests/test_variants.py
 @@ -2,7 +2,7 @@
@@ -657,7 +1002,12 @@ index b82473b..10192eb 100644
    3. router.policy.apply_gates - the minimum tier for gated work
  
  The shared property under test: with a model absent from every configured
-@@ -281,11 +281,11 @@ class TestSessionInitUsesConfig(unittest.TestCase):
+@@ -277,15 +277,16 @@ class TestSessionInitUsesConfig(unittest.TestCase):
+         with tempfile.TemporaryDirectory() as home:
+             _write_home(home, {
+                 "version": 2,
++                "variant_tags": [],
+                 "classes": {
                      "implementation": {"target": {"model": "opus", "effort": "medium"}},
                      "debugging": {"target": {"model": "opus", "effort": "high"}},
                  },
@@ -674,7 +1024,7 @@ index b82473b..10192eb 100644
              context = self._context(home)
              self.assertNotIn("sonnet", context)
              self.assertIn("| implementation | opus | medium |", context)
-@@ -323,11 +323,11 @@ class TestSessionInitDivergenceWarning(unittest.TestCase):
+@@ -323,16 +324,16 @@ class TestSessionInitDivergenceWarning(unittest.TestCase):
                  "classes": {
                      "implementation": {"target": {"model": "opus", "effort": "medium"}},
                  },
@@ -689,7 +1039,13 @@ index b82473b..10192eb 100644
  
      def test_no_warning_when_every_declared_variant_is_installed(self):
          with tempfile.TemporaryDirectory() as home:
-@@ -356,11 +356,11 @@ class TestVariantMap(unittest.TestCase):
+             _write_home(home, {"version": 2}, agents=list(
+-                variants.target_variants(copy.deepcopy(DEFAULTS))
++                variants.tagged_variants(copy.deepcopy(DEFAULTS))
+             ))
+             self.assertNotIn("Routed variants out of date", self._context(home))
+ 
+@@ -356,11 +357,11 @@ class TestVariantMap(unittest.TestCase):
          self.assertEqual(
              variants.variant_map(copy.deepcopy(DEFAULTS)),
              {
@@ -706,7 +1062,7 @@ index b82473b..10192eb 100644
              },
          )
  
-@@ -374,12 +374,12 @@ class TestVariantMap(unittest.TestCase):
+@@ -374,12 +375,12 @@ class TestVariantMap(unittest.TestCase):
          """The (opus, medium) target had no shipped variant; config declares it."""
          self.assertEqual(
              variants.variant_map(_sonnet_free_cfg())[("opus", "medium")],
@@ -722,7 +1078,7 @@ index b82473b..10192eb 100644
  
      def test_unusable_target_is_skipped_not_raised(self):
          cfg = copy.deepcopy(DEFAULTS)
-@@ -423,7 +423,7 @@ class TestVariantClosure(unittest.TestCase):
+@@ -423,7 +424,7 @@ class TestVariantClosure(unittest.TestCase):
          )
          self.assertEqual(
              sorted(variants.variant_map(cfg).values()),
@@ -731,7 +1087,7 @@ index b82473b..10192eb 100644
          )
          self._closure_covers_gates(cfg)
  
-@@ -450,9 +450,9 @@ class TestVariantClosure(unittest.TestCase):
+@@ -450,9 +451,9 @@ class TestVariantClosure(unittest.TestCase):
          )
          declared = {name: classes for name, _m, _e, classes
                      in variants.target_variants(cfg)}
@@ -744,7 +1100,7 @@ index b82473b..10192eb 100644
  
  
  class TestAgentMarkdown(unittest.TestCase):
-@@ -468,7 +468,7 @@ class TestAgentMarkdown(unittest.TestCase):
+@@ -468,7 +469,7 @@ class TestAgentMarkdown(unittest.TestCase):
                  )
  
      def test_omits_effort_for_haiku(self):
@@ -753,7 +1109,7 @@ index b82473b..10192eb 100644
          self.assertNotIn("effort:", md)
          self.assertIn("model: haiku", md)
          self.assertIn("disallowedTools: Agent", md)
-@@ -476,22 +476,22 @@ class TestAgentMarkdown(unittest.TestCase):
+@@ -476,22 +477,22 @@ class TestAgentMarkdown(unittest.TestCase):
  
      def test_names_every_declaring_class(self):
          md = variants.agent_markdown(
@@ -782,7 +1138,7 @@ index b82473b..10192eb 100644
  
      def test_prose_quoting_the_description_is_not_owned(self):
          """The old marker sniff called this ours and deleted it."""
-@@ -503,14 +503,14 @@ class TestOwnershipBoundary(unittest.TestCase):
+@@ -503,14 +504,14 @@ class TestOwnershipBoundary(unittest.TestCase):
          self.assertFalse(variants.is_generated(text, "routed-zach-notes.md"))
  
      def test_hand_written_file_at_a_wanted_name_is_not_owned(self):
@@ -800,7 +1156,7 @@ index b82473b..10192eb 100644
              "description: Router-managed variant for architecture tasks. "
              "Spawned by the model router hook; do not invoke directly.\n"
              "model: opus\n"
-@@ -518,12 +518,12 @@ class TestOwnershipBoundary(unittest.TestCase):
+@@ -518,12 +519,12 @@ class TestOwnershipBoundary(unittest.TestCase):
              "---\n\n"
              "Complete the delegated task exactly as prompted; return a concise report.\n"
          )
@@ -815,7 +1171,7 @@ index b82473b..10192eb 100644
              "description: Router-managed variant for architecture tasks. "
              "Spawned by the model router hook; do not invoke directly.\n"
              "model: opus\n"
-@@ -531,12 +531,12 @@ class TestOwnershipBoundary(unittest.TestCase):
+@@ -531,12 +532,12 @@ class TestOwnershipBoundary(unittest.TestCase):
              "---\n\n"
              "Complete the delegated task exactly as prompted; return a concise report.\n"
          )
@@ -830,7 +1186,7 @@ index b82473b..10192eb 100644
              "description: Router-managed variant for architecture tasks. "
              "Spawned by the model router hook; do not invoke directly.\n"
              "model: opus\n"
-@@ -545,11 +545,11 @@ class TestOwnershipBoundary(unittest.TestCase):
+@@ -545,11 +546,11 @@ class TestOwnershipBoundary(unittest.TestCase):
              "Complete the delegated task exactly as prompted; return a concise report.\n"
              "\nAnd my own notes below.\n"
          )
@@ -844,7 +1200,7 @@ index b82473b..10192eb 100644
  
  
  class TestVariantGenerator(unittest.TestCase):
-@@ -570,10 +570,10 @@ class TestVariantGenerator(unittest.TestCase):
+@@ -570,13 +571,14 @@ class TestVariantGenerator(unittest.TestCase):
          with tempfile.TemporaryDirectory() as tmp:
              agents = os.path.join(tmp, "agents")
              os.makedirs(agents)
@@ -857,7 +1213,11 @@ index b82473b..10192eb 100644
  
              home = _write_home(os.path.join(tmp, "home"), {
                  "version": 2,
-@@ -587,17 +587,17 @@ class TestVariantGenerator(unittest.TestCase):
++                "variant_tags": [],
+                 "classes": {
+                     "implementation": {"target": {"model": "opus", "effort": "medium"}},
+                     "debugging": {"target": {"model": "opus", "effort": "high"}},
+@@ -587,17 +589,17 @@ class TestVariantGenerator(unittest.TestCase):
              self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
              self.assertEqual(
                  sorted(os.listdir(agents)),
@@ -880,7 +1240,7 @@ index b82473b..10192eb 100644
              with open(target, "w") as fh:
                  fh.write(original)
              proc = self._run("--agents-dir", agents)
-@@ -608,9 +608,9 @@ class TestVariantGenerator(unittest.TestCase):
+@@ -608,9 +610,9 @@ class TestVariantGenerator(unittest.TestCase):
  
      def test_force_overwrites_a_hand_written_file(self):
          with tempfile.TemporaryDirectory() as agents:
@@ -892,7 +1252,16 @@ index b82473b..10192eb 100644
              proc = self._run("--agents-dir", agents, "--force")
              self.assertEqual(proc.returncode, 0, proc.stdout)
              with open(target) as fh:
-@@ -677,14 +677,14 @@ class TestVariantGenerator(unittest.TestCase):
+@@ -659,7 +661,7 @@ class TestVariantGenerator(unittest.TestCase):
+             with open(stale, "w") as fh:
+                 fh.write(variants.agent_markdown(
+                     "routed-fable-high", "fable", "high", ("extreme",)))
+-            for name, model, effort, classes in variants.target_variants(
++            for name, model, effort, classes in variants.tagged_variants(
+                 copy.deepcopy(DEFAULTS)
+             ):
+                 with open(os.path.join(agents, name + ".md"), "w") as fh:
+@@ -677,14 +679,14 @@ class TestVariantGenerator(unittest.TestCase):
          with tempfile.TemporaryDirectory() as agents:
              proc = self._run("--check", "--agents-dir", agents)
              self.assertEqual(proc.returncode, 1)
@@ -910,7 +1279,15 @@ index b82473b..10192eb 100644
              proc = self._run("--check", "--agents-dir", agents)
              self.assertEqual(proc.returncode, 1, proc.stdout)
              self.assertIn("CONFLICT", proc.stdout)
-@@ -718,9 +718,9 @@ class TestInstallScript(unittest.TestCase):
+@@ -699,6 +701,7 @@ class TestInstallScript(unittest.TestCase):
+         with tempfile.TemporaryDirectory() as home:
+             _write_home(home, {
+                 "version": 2,
++                "variant_tags": [],
+                 "classes": {
+                     "implementation": {"target": {"model": "opus", "effort": "medium"}},
+                     "debugging": {"target": {"model": "opus", "effort": "high"}},
+@@ -718,9 +721,9 @@ class TestInstallScript(unittest.TestCase):
              installed = sorted(os.listdir(os.path.join(home, ".claude", "agents")))
              self.assertEqual(
                  installed,
@@ -923,7 +1300,7 @@ index b82473b..10192eb 100644
              )
  
      def test_generator_conflict_aborts_the_install(self):
-@@ -729,8 +729,8 @@ class TestInstallScript(unittest.TestCase):
+@@ -729,8 +732,8 @@ class TestInstallScript(unittest.TestCase):
              _write_home(home, {"version": 2})
              agents = os.path.join(home, ".claude", "agents")
              os.makedirs(agents)
@@ -934,7 +1311,15 @@ index b82473b..10192eb 100644
              with open(handwritten, "w") as fh:
                  fh.write(original)
              env = dict(os.environ)
-@@ -757,8 +757,8 @@ class TestInstallScript(unittest.TestCase):
+@@ -750,6 +753,7 @@ class TestInstallScript(unittest.TestCase):
+         with tempfile.TemporaryDirectory() as home:
+             _write_home(home, {
+                 "version": 2,
++                "variant_tags": [],
+                 "classes": {
+                     "implementation": {"target": {"model": "opus", "effort": "medium"}},
+                     "debugging": {"target": {"model": "opus", "effort": "high"}},
+@@ -757,8 +761,8 @@ class TestInstallScript(unittest.TestCase):
              })
              agents = os.path.join(home, ".claude", "agents")
              os.makedirs(agents)
@@ -945,7 +1330,7 @@ index b82473b..10192eb 100644
              env = dict(os.environ)
              env["HOME"] = home
              proc = subprocess.run(
-@@ -799,7 +799,7 @@ class TestPreToolUseVariantSelection(unittest.TestCase):
+@@ -799,7 +803,7 @@ class TestPreToolUseVariantSelection(unittest.TestCase):
                          agents=list(variants.target_variants(copy.deepcopy(DEFAULTS))))
              updated, _msg = self._spawn(home, self.MECH)
              self.assertEqual(updated.get("model"), "haiku")
@@ -954,7 +1339,7 @@ index b82473b..10192eb 100644
  
      def test_opus_medium_variant_is_selected_when_installed(self):
          with tempfile.TemporaryDirectory() as home:
-@@ -810,23 +810,23 @@ class TestPreToolUseVariantSelection(unittest.TestCase):
+@@ -810,23 +814,23 @@ class TestPreToolUseVariantSelection(unittest.TestCase):
                      "implementation": {"target": {"model": "opus", "effort": "medium"}},
                      "debugging": {"target": {"model": "opus", "effort": "high"}},
                  },
@@ -983,7 +1368,7 @@ index b82473b..10192eb 100644
  
      def test_nested_mechanical_spawn_is_gated_to_opus(self):
          with tempfile.TemporaryDirectory() as home:
-@@ -837,7 +837,7 @@ class TestPreToolUseVariantSelection(unittest.TestCase):
+@@ -837,7 +841,7 @@ class TestPreToolUseVariantSelection(unittest.TestCase):
              )
              updated, _msg = self._spawn(home, self.MECH, agent_id="agent-parent")
              self.assertEqual(updated.get("model"), "opus")
@@ -992,7 +1377,7 @@ index b82473b..10192eb 100644
  
      def test_declared_but_uninstalled_variant_degrades_and_says_so(self):
          """F7: never name a subagent_type with no agent file behind it."""
-@@ -853,7 +853,7 @@ class TestPreToolUseVariantSelection(unittest.TestCase):
+@@ -853,7 +857,7 @@ class TestPreToolUseVariantSelection(unittest.TestCase):
              self.assertEqual(updated.get("model"), "opus")
              self.assertEqual(updated.get("subagent_type"), "general-purpose")
              self.assertIn("declared by the config but not installed", message)
@@ -1001,7 +1386,7 @@ index b82473b..10192eb 100644
  
  
  # ── Change 3: gated tier floor follows the configured implementation target ──
-@@ -1146,7 +1146,7 @@ class TestNestedMalformedConfigNeverShutsRoutingDown(unittest.TestCase):
+@@ -1146,7 +1150,7 @@ class TestNestedMalformedConfigNeverShutsRoutingDown(unittest.TestCase):
                      capture_output=True, text=True, env=env,
                  )
                  self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
@@ -1010,7 +1395,7 @@ index b82473b..10192eb 100644
  
  
  class TestLegacyMatchIsByteEquality(unittest.TestCase):
-@@ -1154,7 +1154,7 @@ class TestLegacyMatchIsByteEquality(unittest.TestCase):
+@@ -1154,7 +1158,7 @@ class TestLegacyMatchIsByteEquality(unittest.TestCase):
  
      LEGACY = (
          "---\n"
@@ -1019,7 +1404,7 @@ index b82473b..10192eb 100644
          "description: Router-managed variant for architecture tasks. "
          "Spawned by the model router hook; do not invoke directly.\n"
          "model: opus\n"
-@@ -1164,51 +1164,51 @@ class TestLegacyMatchIsByteEquality(unittest.TestCase):
+@@ -1164,51 +1168,51 @@ class TestLegacyMatchIsByteEquality(unittest.TestCase):
      )
  
      def test_genuine_pre_key_rendering_is_owned(self):
@@ -1082,7 +1467,7 @@ index b82473b..10192eb 100644
              with open(path, "w") as fh:
                  fh.write(text)
              proc = subprocess.run(
-@@ -1232,70 +1232,70 @@ class TestInstalledMeansUsable(unittest.TestCase):
+@@ -1232,70 +1236,70 @@ class TestInstalledMeansUsable(unittest.TestCase):
      def test_directory_at_the_name_is_not_installed(self):
          with tempfile.TemporaryDirectory() as tmp:
              agents = self._agents(tmp)
@@ -1173,7 +1558,7 @@ index b82473b..10192eb 100644
              payload = json.dumps({
                  "tool_name": "Agent",
                  "tool_input": {"subagent_type": "general-purpose",
-@@ -1315,8 +1315,8 @@ class TestInstalledMeansUsable(unittest.TestCase):
+@@ -1315,8 +1319,8 @@ class TestInstalledMeansUsable(unittest.TestCase):
              _write_home(home, {"version": 2, "classifier": {"cli_fallback": False}})
              agent_dir = os.path.join(home, ".claude", "agents")
              os.makedirs(agent_dir)
@@ -1184,7 +1569,7 @@ index b82473b..10192eb 100644
              payload = json.dumps({
                  "tool_name": "Agent",
                  "tool_input": {"subagent_type": "general-purpose",
-@@ -1332,13 +1332,13 @@ class TestInstalledMeansUsable(unittest.TestCase):
+@@ -1332,13 +1336,13 @@ class TestInstalledMeansUsable(unittest.TestCase):
              _write_home(home, {"version": 2})
              agent_dir = os.path.join(home, ".claude", "agents")
              os.makedirs(agent_dir)
