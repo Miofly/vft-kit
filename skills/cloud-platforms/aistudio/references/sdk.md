@@ -20,6 +20,8 @@ Set `AISTUDIO_OWNER` to allow short repo names; otherwise transfers require `OWN
 
 2026-10-21 compatibility: newer BOS SDKs renamed `put_super_obejct_from_file` to `put_super_object_from_file`, while AI Studio still calls the legacy name. The launcher adds the alias only when the old method is absent; existing implementations remain unchanged. `self-check` covers both cases. Upload logs and a Git commit are insufficient: download the actual object and compare bytes/SHA-256. Use a recognized LFS extension such as `.bin` for large snapshot parts; `.part00` was classified as a normal file and hit the 500MB limit. `download-file` now fails if the SDK returns no file.
 
+2026-10-25 large LFS files: object-level check is `GET <git_host>/api/v1/repos/OWNER/REPO/media/<quote(path, safe='')>` with the token; a present object answers 303 to a presigned BOS URL (follow it and stream SHA-256). If it answers 200 with a ~130-byte body, only the pointer is committed and the object is missing. Raw `bj-gitea-online.bj.bcebos.com/lfs/...` URLs without the signature always return 400, and the batch STS credentials are put-only (HEAD is denied). A >5GB STS upload can leave a phantom oid: LFS batch `upload` returns `upload=false` (the SDK logs "already uploaded" and commits the pointer) while batch `download` returns 404. That oid cannot be re-uploaded; split the file into parts under 5GB with a `.bin` suffix (plain HTTP PUT, no BOS patch) and verify each part by downloading it.
+
 Official references:
 
 - Access token: <https://ai.baidu.com/ai-doc/AISTUDIO/slmkadt9z>
