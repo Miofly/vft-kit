@@ -1,0 +1,5 @@
+interface:
+  display_name: "vercel-ops"
+  short_description: "Vercel 项目、部署、域名与环境变量运维"
+policy:
+  allow_implicit_invocation: false
