@@ -8,7 +8,6 @@
   "skills": [
     "./skills/agent-ops/notify",
     "./skills/agent-ops/skill-creator",
-    "./skills/cloud-platforms/vercel-ops",
     "./skills/design-content/co-infographic-generator",
     "./skills/design-content/office-doc-rewrite",
     "./skills/dev-workflow/fe-quality-ops",

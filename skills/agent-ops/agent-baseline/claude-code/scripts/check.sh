@@ -459,7 +459,7 @@ else
 fi
 # anysearch 调用场景规范：条件必需——仅当 anysearch skill 已装时才要求（装了不告诉 CC 何时调 = 白装）；未装则无需配置。
 if skill_installed anysearch; then
-  claudemd_has_anysearch           && ok "全局规范含「anysearch 联网搜索优先」" || bad "anysearch 调用规范" $'printf \'\\n## 联网搜索优先走 anysearch\\n\\n需要联网检索（信息/新闻/当前数据/事实核查）优先用 anysearch skill，不可用时回退 WebSearch/WebFetch。\\n\' >> ~/.claude/CLAUDE.md'
+  claudemd_has_anysearch           && ok "全局规范含「anysearch 联网搜索优先」" || bad "anysearch 调用规范" $'printf \'\\n## 联网搜索优先走 anysearch\\n\\n联网检索（信息/新闻/当前数据/事实核查）和读网页（含用户贴的 URL、GitHub 仓库页）一律先用 anysearch skill（读 URL 用其 URL 内容提取），不可用时回退 WebSearch/WebFetch。\\n\' >> ~/.claude/CLAUDE.md'
 else
   ok "anysearch 调用规范（skill 未装，无需配置）"
 fi

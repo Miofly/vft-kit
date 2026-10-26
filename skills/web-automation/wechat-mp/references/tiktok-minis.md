@@ -34,6 +34,12 @@ python3 scripts/tiktok-minis/fetch.py <minis_url | link 接口 JSON 文件> <输
 - 宿主能力看 `TTMinis.*`（`init`、`pay`、`reportEvent`、`enableCapture`/`disableCapture` 防录屏、`getMenuButtonBoundingClientRect` 做自定义导航栏避让）。
 - 先用 `grep -ohE` 统计关键词频次定位重点页，再读 pretty 后的对应文件。
 
+## 照着复刻页面
+
+- 源码只能说明机制（路由、swiper、预加载），不能代替看页面。复刻前先在设备里打开对方小程序，进到目标页再截图；首页不能当详情页或播放页用。开了 `disableCapture` 的页面用 adb 截图是整屏全黑，要在宿主机截模拟器窗口（macOS 用 `screencapture -l <窗口 id>`）。
+- 截图文件名标明来源（`competitor-<页面>.png` 和 `ours-<页面>.png`）。用户贴的图先问清是哪一方的，再拿来对照。
+- 改之前先列对照表：先看区域结构（上下分区，还是浮层叠在视频上），再逐个控件记位置、尺寸、文字和显隐规则。改完截自己的同一页，和对方的图并排逐项核对。
+
 ## 案例：VesperDrama（短剧，token mN6Hn1SDJkj）
 
 uni-app H5，16 个页面：首页、剧集列表、播放、排行、搜索、收藏、记录、订单、个人中心、登录/注册、语言、设置、反馈、客服、政策。播放页主要靠 swiper 竖滑切集，用 m3u8 + mux.js 转封装，带 preload/autoplay；剧集解锁同时支持激励广告（rewarded）、金币和订阅（`/payment/create-subscription`、`/payment/tiktok/server-create-order`，走 `TTMinis.pay`），播放时开 `enableCapture` 防录屏。
