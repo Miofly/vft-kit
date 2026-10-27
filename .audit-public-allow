@@ -1,0 +1,7 @@
+# Reviewed fixed upstream dataset false positives; keep original source bytes.
+# These three rows describe a public shopping-list product category, not a private project.
+skills/design-content/frontend-design/search/data/colors.csv:107 private
+skills/design-content/frontend-design/search/data/products.csv:107 private
+skills/design-content/frontend-design/search/data/ui-reasoning.csv:107 private
+# Public negative example of a hard-coded Windows path, not a personal home directory.
+skills/design-content/frontend-design/search/data/stacks/avalonia.csv:21 path.home

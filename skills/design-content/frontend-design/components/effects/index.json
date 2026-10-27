@@ -1,0 +1,865 @@
+{
+ "source": "magicuidesign/magicui@efe76fc5755eca1142dd4f74c1d6f0ace2887e3c (MIT)",
+ "aliases": {
+  "@/lib/utils": "lib/utils.ts",
+  "@/components/ui/*": "ui/*",
+  "@/registry/magicui/*": "magicui/*"
+ },
+ "keyframes": "globals.css",
+ "categories": {
+  "product-frame-or-integration": 13,
+  "svg-beam": 2,
+  "text": 20,
+  "background": 11,
+  "content": 7,
+  "interaction": 10,
+  "scroll-reveal": 4,
+  "border-and-button": 7,
+  "canvas-webgl": 5
+ },
+ "components": [
+  {
+   "name": "android",
+   "category": "product-frame-or-integration",
+   "file": "magicui/android.tsx",
+   "docs": "docs/android.mdx",
+   "externalPackages": {
+    "react": "19.1.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "animated-beam",
+   "category": "svg-beam",
+   "file": "magicui/animated-beam.tsx",
+   "docs": "docs/animated-beam.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "motion": "^12.23.12"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "animated-circular-progress-bar",
+   "category": "svg-beam",
+   "file": "magicui/animated-circular-progress-bar.tsx",
+   "docs": "docs/animated-circular-progress-bar.mdx",
+   "externalPackages": {},
+   "registryDependencies": []
+  },
+  {
+   "name": "animated-gradient-text",
+   "category": "text",
+   "file": "magicui/animated-gradient-text.tsx",
+   "docs": "docs/animated-gradient-text.mdx",
+   "externalPackages": {
+    "react": "19.1.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "animated-grid-pattern",
+   "category": "background",
+   "file": "magicui/animated-grid-pattern.tsx",
+   "docs": "docs/animated-grid-pattern.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "motion": "^12.23.12"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "animated-list",
+   "category": "content",
+   "file": "magicui/animated-list.tsx",
+   "docs": "docs/animated-list.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "motion": "^12.23.12"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "animated-shiny-text",
+   "category": "text",
+   "file": "magicui/animated-shiny-text.tsx",
+   "docs": "docs/animated-shiny-text.mdx",
+   "externalPackages": {
+    "react": "19.1.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "animated-subscribe-button",
+   "category": "interaction",
+   "file": "magicui/animated-subscribe-button.tsx",
+   "docs": null,
+   "externalPackages": {
+    "react": "19.1.1",
+    "motion": "^12.23.12"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "animated-theme-toggler",
+   "category": "interaction",
+   "file": "magicui/animated-theme-toggler.tsx",
+   "docs": "docs/animated-theme-toggler.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "lucide-react": "^0.544.0",
+    "react-dom": "19.1.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "aurora-text",
+   "category": "text",
+   "file": "magicui/aurora-text.tsx",
+   "docs": "docs/aurora-text.mdx",
+   "externalPackages": {
+    "react": "19.1.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "avatar-circles",
+   "category": "content",
+   "file": "magicui/avatar-circles.tsx",
+   "docs": "docs/avatar-circles.mdx",
+   "externalPackages": {},
+   "registryDependencies": []
+  },
+  {
+   "name": "backlight",
+   "category": "product-frame-or-integration",
+   "file": "magicui/backlight.tsx",
+   "docs": "docs/backlight.mdx",
+   "externalPackages": {
+    "react": "19.1.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "bento-grid",
+   "category": "content",
+   "file": "magicui/bento-grid.tsx",
+   "docs": "docs/bento-grid.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "@radix-ui/react-icons": "^1.3.2"
+   },
+   "registryDependencies": [
+    "button"
+   ]
+  },
+  {
+   "name": "blur-fade",
+   "category": "scroll-reveal",
+   "file": "magicui/blur-fade.tsx",
+   "docs": "docs/blur-fade.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "motion": "^12.23.12"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "border-beam",
+   "category": "border-and-button",
+   "file": "magicui/border-beam.tsx",
+   "docs": "docs/border-beam.mdx",
+   "externalPackages": {
+    "motion": "^12.23.12"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "client-tweet-card",
+   "category": "product-frame-or-integration",
+   "file": "magicui/client-tweet-card.tsx",
+   "docs": null,
+   "externalPackages": {
+    "react-tweet": "^3.2.2"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "code-comparison",
+   "category": "product-frame-or-integration",
+   "file": "magicui/code-comparison.tsx",
+   "docs": "docs/code-comparison.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "@shikijs/transformers": "^2.5.0",
+    "lucide-react": "^0.544.0",
+    "next-themes": "^0.4.6"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "comic-text",
+   "category": "text",
+   "file": "magicui/comic-text.tsx",
+   "docs": "docs/comic-text.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "motion": "^12.23.12"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "confetti",
+   "category": "product-frame-or-integration",
+   "file": "magicui/confetti.tsx",
+   "docs": "docs/confetti.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "canvas-confetti": "^1.9.3"
+   },
+   "registryDependencies": [
+    "button"
+   ]
+  },
+  {
+   "name": "cool-mode",
+   "category": "interaction",
+   "file": "magicui/cool-mode.tsx",
+   "docs": "docs/cool-mode.mdx",
+   "externalPackages": {
+    "react": "19.1.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "dia-text-reveal",
+   "category": "text",
+   "file": "magicui/dia-text-reveal.tsx",
+   "docs": "docs/dia-text-reveal.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "motion": "^12.23.12"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "dock",
+   "category": "interaction",
+   "file": "magicui/dock.tsx",
+   "docs": "docs/dock.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "class-variance-authority": "^0.7.1",
+    "motion": "^12.23.12"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "dot-pattern",
+   "category": "background",
+   "file": "magicui/dot-pattern.tsx",
+   "docs": "docs/dot-pattern.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "motion": "^12.23.12"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "dotted-map",
+   "category": "product-frame-or-integration",
+   "file": "magicui/dotted-map.tsx",
+   "docs": "docs/dotted-map.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "svg-dotted-map": "^2.0.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "file-tree",
+   "category": "content",
+   "file": "magicui/file-tree.tsx",
+   "docs": "docs/file-tree.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "@radix-ui/react-accordion": "^1.2.12",
+    "lucide-react": "^0.544.0"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "flickering-grid",
+   "category": "canvas-webgl",
+   "file": "magicui/flickering-grid.tsx",
+   "docs": "docs/flickering-grid.mdx",
+   "externalPackages": {
+    "react": "19.1.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "floating-3d-particles",
+   "category": "canvas-webgl",
+   "file": "magicui/floating-3d-particles.tsx",
+   "docs": "docs/floating-3d-particles.mdx",
+   "externalPackages": {
+    "react": "19.1.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "glare-hover",
+   "category": "product-frame-or-integration",
+   "file": "magicui/glare-hover.tsx",
+   "docs": "docs/glare-hover.mdx",
+   "externalPackages": {
+    "react": "19.1.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "globe",
+   "category": "canvas-webgl",
+   "file": "magicui/globe.tsx",
+   "docs": "docs/globe.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "cobe": "^0.6.4",
+    "motion": "^12.23.12"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "glyph-matrix",
+   "category": "product-frame-or-integration",
+   "file": "magicui/glyph-matrix.tsx",
+   "docs": "docs/glyph-matrix.mdx",
+   "externalPackages": {
+    "react": "19.1.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "grid-pattern",
+   "category": "background",
+   "file": "magicui/grid-pattern.tsx",
+   "docs": "docs/grid-pattern.mdx",
+   "externalPackages": {
+    "react": "19.1.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "hero-video-dialog",
+   "category": "product-frame-or-integration",
+   "file": "magicui/hero-video-dialog.tsx",
+   "docs": "docs/hero-video-dialog.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "lucide-react": "^0.544.0",
+    "motion": "^12.23.12"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "hexagon-pattern",
+   "category": "background",
+   "file": "magicui/hexagon-pattern.tsx",
+   "docs": "docs/hexagon-pattern.mdx",
+   "externalPackages": {
+    "react": "19.1.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "highlighter",
+   "category": "text",
+   "file": "magicui/highlighter.tsx",
+   "docs": "docs/highlighter.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "motion": "^12.23.12",
+    "rough-notation": "^0.5.1"
+   },
+   "registryDependencies": [
+    "https://magicui.design/r/highlighter"
+   ]
+  },
+  {
+   "name": "hyper-text",
+   "category": "text",
+   "file": "magicui/hyper-text.tsx",
+   "docs": "docs/hyper-text.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "motion": "^12.23.12"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "icon-cloud",
+   "category": "canvas-webgl",
+   "file": "magicui/icon-cloud.tsx",
+   "docs": "docs/icon-cloud.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "lucide-react": "^0.544.0",
+    "react-dom": "19.1.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "interactive-grid-pattern",
+   "category": "background",
+   "file": "magicui/interactive-grid-pattern.tsx",
+   "docs": "docs/interactive-grid-pattern.mdx",
+   "externalPackages": {
+    "react": "19.1.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "interactive-hover-button",
+   "category": "interaction",
+   "file": "magicui/interactive-hover-button.tsx",
+   "docs": "docs/interactive-hover-button.mdx",
+   "externalPackages": {
+    "lucide-react": "^0.544.0"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "iphone",
+   "category": "product-frame-or-integration",
+   "file": "magicui/iphone.tsx",
+   "docs": "docs/iphone.mdx",
+   "externalPackages": {
+    "react": "19.1.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "kinetic-text",
+   "category": "text",
+   "file": "magicui/kinetic-text.tsx",
+   "docs": "docs/kinetic-text.mdx",
+   "externalPackages": {
+    "react": "19.1.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "lens",
+   "category": "interaction",
+   "file": "magicui/lens.tsx",
+   "docs": "docs/lens.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "motion": "^12.23.12"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "light-rays",
+   "category": "product-frame-or-integration",
+   "file": "magicui/light-rays.tsx",
+   "docs": "docs/light-rays.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "motion": "^12.23.12"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "line-shadow-text",
+   "category": "text",
+   "file": "magicui/line-shadow-text.tsx",
+   "docs": "docs/line-shadow-text.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "motion": "^12.23.12"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "magic-card",
+   "category": "interaction",
+   "file": "magicui/magic-card.tsx",
+   "docs": "docs/magic-card.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "motion": "^12.23.12",
+    "next-themes": "^0.4.6"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "marquee",
+   "category": "content",
+   "file": "magicui/marquee.tsx",
+   "docs": "docs/marquee.mdx",
+   "externalPackages": {
+    "react": "19.1.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "meteors",
+   "category": "background",
+   "file": "magicui/meteors.tsx",
+   "docs": "docs/meteors.mdx",
+   "externalPackages": {
+    "react": "19.1.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "morphing-text",
+   "category": "text",
+   "file": "magicui/morphing-text.tsx",
+   "docs": "docs/morphing-text.mdx",
+   "externalPackages": {
+    "react": "19.1.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "neon-gradient-card",
+   "category": "border-and-button",
+   "file": "magicui/neon-gradient-card.tsx",
+   "docs": "docs/neon-gradient-card.mdx",
+   "externalPackages": {
+    "react": "19.1.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "noise-texture",
+   "category": "background",
+   "file": "magicui/noise-texture.tsx",
+   "docs": "docs/noise-texture.mdx",
+   "externalPackages": {
+    "react": "19.1.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "number-ticker",
+   "category": "text",
+   "file": "magicui/number-ticker.tsx",
+   "docs": "docs/number-ticker.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "motion": "^12.23.12"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "orbiting-circles",
+   "category": "content",
+   "file": "magicui/orbiting-circles.tsx",
+   "docs": "docs/orbiting-circles.mdx",
+   "externalPackages": {
+    "react": "19.1.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "particles",
+   "category": "canvas-webgl",
+   "file": "magicui/particles.tsx",
+   "docs": "docs/particles.mdx",
+   "externalPackages": {
+    "react": "19.1.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "pixel-image",
+   "category": "scroll-reveal",
+   "file": "magicui/pixel-image.tsx",
+   "docs": "docs/pixel-image.mdx",
+   "externalPackages": {
+    "react": "19.1.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "pointer",
+   "category": "interaction",
+   "file": "magicui/pointer.tsx",
+   "docs": "docs/pointer.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "motion": "^12.23.12"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "progressive-blur",
+   "category": "scroll-reveal",
+   "file": "magicui/progressive-blur.tsx",
+   "docs": "docs/progressive-blur.mdx",
+   "externalPackages": {
+    "react": "19.1.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "pulsating-button",
+   "category": "border-and-button",
+   "file": "magicui/pulsating-button.tsx",
+   "docs": "docs/pulsating-button.mdx",
+   "externalPackages": {
+    "react": "19.1.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "rainbow-button",
+   "category": "border-and-button",
+   "file": "magicui/rainbow-button.tsx",
+   "docs": "docs/rainbow-button.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "@radix-ui/react-slot": "^1.2.3",
+    "class-variance-authority": "^0.7.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "retro-grid",
+   "category": "background",
+   "file": "magicui/retro-grid.tsx",
+   "docs": "docs/retro-grid.mdx",
+   "externalPackages": {
+    "react": "19.1.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "ripple-button",
+   "category": "interaction",
+   "file": "magicui/ripple-button.tsx",
+   "docs": "docs/ripple-button.mdx",
+   "externalPackages": {
+    "react": "19.1.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "ripple",
+   "category": "background",
+   "file": "magicui/ripple.tsx",
+   "docs": "docs/ripple.mdx",
+   "externalPackages": {
+    "react": "19.1.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "safari",
+   "category": "product-frame-or-integration",
+   "file": "magicui/safari.tsx",
+   "docs": "docs/safari.mdx",
+   "externalPackages": {
+    "react": "19.1.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "scroll-based-velocity",
+   "category": "text",
+   "file": "magicui/scroll-based-velocity.tsx",
+   "docs": "docs/scroll-based-velocity.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "motion": "^12.23.12"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "scroll-progress",
+   "category": "scroll-reveal",
+   "file": "magicui/scroll-progress.tsx",
+   "docs": "docs/scroll-progress.mdx",
+   "externalPackages": {
+    "motion": "^12.23.12"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "shimmer-button",
+   "category": "border-and-button",
+   "file": "magicui/shimmer-button.tsx",
+   "docs": "docs/shimmer-button.mdx",
+   "externalPackages": {
+    "react": "19.1.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "shine-border",
+   "category": "border-and-button",
+   "file": "magicui/shine-border.tsx",
+   "docs": "docs/shine-border.mdx",
+   "externalPackages": {
+    "react": "19.1.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "shiny-button",
+   "category": "border-and-button",
+   "file": "magicui/shiny-button.tsx",
+   "docs": "docs/shiny-button.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "motion": "^12.23.12"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "smooth-cursor",
+   "category": "interaction",
+   "file": "magicui/smooth-cursor.tsx",
+   "docs": "docs/smooth-cursor.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "motion": "^12.23.12"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "sparkles-text",
+   "category": "text",
+   "file": "magicui/sparkles-text.tsx",
+   "docs": "docs/sparkles-text.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "motion": "^12.23.12"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "spinning-text",
+   "category": "text",
+   "file": "magicui/spinning-text.tsx",
+   "docs": "docs/spinning-text.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "motion": "^12.23.12"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "striped-pattern",
+   "category": "background",
+   "file": "magicui/striped-pattern.tsx",
+   "docs": "docs/striped-pattern.mdx",
+   "externalPackages": {
+    "react": "19.1.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "terminal",
+   "category": "content",
+   "file": "magicui/terminal.tsx",
+   "docs": "docs/terminal.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "motion": "^12.23.12"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "text-3d-flip",
+   "category": "text",
+   "file": "magicui/text-3d-flip.tsx",
+   "docs": "docs/text-3d-flip.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "motion": "^12.23.12"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "text-animate",
+   "category": "text",
+   "file": "magicui/text-animate.tsx",
+   "docs": "docs/text-animate.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "motion": "^12.23.12"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "text-reveal",
+   "category": "text",
+   "file": "magicui/text-reveal.tsx",
+   "docs": "docs/text-reveal.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "motion": "^12.23.12"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "tweet-card",
+   "category": "product-frame-or-integration",
+   "file": "magicui/tweet-card.tsx",
+   "docs": "docs/tweet-card.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "react-tweet": "^3.2.2"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "typing-animation",
+   "category": "text",
+   "file": "magicui/typing-animation.tsx",
+   "docs": "docs/typing-animation.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "motion": "^12.23.12"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "video-text",
+   "category": "text",
+   "file": "magicui/video-text.tsx",
+   "docs": "docs/video-text.mdx",
+   "externalPackages": {
+    "react": "19.1.1"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "warp-background",
+   "category": "background",
+   "file": "magicui/warp-background.tsx",
+   "docs": "docs/warp-background.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "motion": "^12.23.12"
+   },
+   "registryDependencies": []
+  },
+  {
+   "name": "word-rotate",
+   "category": "text",
+   "file": "magicui/word-rotate.tsx",
+   "docs": "docs/word-rotate.mdx",
+   "externalPackages": {
+    "react": "19.1.1",
+    "motion": "^12.23.12"
+   },
+   "registryDependencies": []
+  }
+ ]
+}
