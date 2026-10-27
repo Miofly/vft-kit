@@ -1,6 +1,6 @@
 # Extract and apply a compact design specification
 
-Structure informed by the Clay and Linear `DESIGN.md` community analyses in awesome-design-md; rewritten and extended by VFT contributors on 2026-10-27. License: [THIRD_PARTY_NOTICES](../THIRD_PARTY_NOTICES.md). This is a working specification method, not a bundled brand theme.
+结构参考 awesome-design-md 中 Clay 与 Linear 的 `DESIGN.md` 社区分析。License: [THIRD_PARTY_NOTICES](../THIRD_PARTY_NOTICES.md). This is a working specification method, not a bundled brand theme.
 
 ## Read before writing
 
@@ -85,7 +85,7 @@ Both examples use YAML role tokens (`colors`, `typography`, `rounded`, `spacing`
 
 Important limitations in the actual snapshots:
 
-- **Clay:** cream canvas, saturated feature-card roles, display/body split, 4px spacing scale, radius roles, and 3→2→1 grid behavior are the analysis's brand-specific observations. Its Known Gaps excludes animation timings, most validation states, and the in-app data/editor surface. Do not infer these from its marketing page. The source says “Never document hover”; this unified skill deliberately does **not** adopt that instruction—hover, keyboard focus, pending, and error behavior must be specified where relevant.
+- **Clay:** cream canvas, saturated feature-card roles, display/body split, 4px spacing scale, radius roles, and 3→2→1 grid behavior are the analysis's brand-specific observations. Its Known Gaps excludes animation timings, most validation states, and the in-app data/editor surface. Do not infer these from its marketing page. The source says “Never document hover”; this skill does **not** adopt that rule—hover, keyboard focus, pending, and error behavior must be specified where relevant.
 - **Linear:** surface ladder, scarce accent, display/text/mono roles, component variants, and responsive comparison collapse show how a coherent system can be described. Its Known Gaps excludes validation styling and the richer in-product tag palette. Statements calling extracted values “canonical” are the community author's assertions, not independent official verification. Its `npx` lint suggestion is not authorization to fetch or execute a package; use only approved existing project tooling.
 - The two files differ in brand rules and do not establish universal font, radius, palette, light/dark, hover, or illustration bans. Custom fonts and commissioned images remain separately licensed. Test copied foreground/background pairs and focus indicators yourself; a role name or community claim does not guarantee contrast.
 

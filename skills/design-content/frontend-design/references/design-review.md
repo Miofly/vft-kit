@@ -1,6 +1,6 @@
 # Evidence-led design review and refinement
 
-Adapted and substantially rewritten by VFT contributors on 2026-10-27 from Impeccable's Apache-2.0 design workflows. License and NOTICE: [THIRD_PARTY_NOTICES](../THIRD_PARTY_NOTICES.md). This is guidance inside `frontend-design`, not a new command, plugin, detector, or installation step.
+源自 Impeccable 的设计工作流（Apache-2.0）。License and NOTICE: [THIRD_PARTY_NOTICES](../THIRD_PARTY_NOTICES.md). This is guidance inside `frontend-design`, not a new command, plugin, detector, or installation step.
 
 ## Establish the task and constraints
 
