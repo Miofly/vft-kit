@@ -45,7 +45,7 @@ node scripts/audit-public.mjs
 | Agent 运维 (`agent-ops`) | Claude Code、Codex、CC Switch、插件缓存、通知与 skill 编写 | `agent-baseline` · `email-ops` · `notify` · `ollama-local` · `skill-creator` |
 | 云平台 (`cloud-platforms`) | 云服务、模型托管、部署平台和账号资源 | `aistudio` · `cloudflare-ops` · `huggingface-ops` · `kaggle-ops` · `modelscope-studio` · `vercel-ops` |
 | 开发工作流 (`dev-workflow`) | 数据库工具、前端质量、Git、代码托管、Vue 配置和方案逼问 | `dbx` · `fe-quality-ops` · `git-auto-push` · `git-ops` · `github-ops` · `grill-me` |
-| 设计与内容 (`design-content`) | 信息图、Office 文档、视觉内容和中文去 AI 味 | `co-infographic-generator` · `mastergo-mcp` · `office-doc-rewrite` · `zh-humanizer` |
+| 设计与内容 (`design-content`) | 前端视觉设计与风格迁移、信息图、Office 文档和中文去 AI 味 | `co-infographic-generator` · `frontend-design` · `mastergo-mcp` · `office-doc-rewrite` · `zh-humanizer` |
 | 工作台工具 (`workplace-tools`) | Lark/飞书文档、表格、云盘、任务和知识库 | `lark-cli` |
 | Web 与自动化 (`web-automation`) | 浏览器发布、网页抓取、Android 与 macOS 自动化 | `android-ui-automation` · `chrome-web-store-publish` · `keyboard-maestro` · `qr-login` · `temp-mail` · `web-scrape` · `wechat-mp` |
 
@@ -58,6 +58,8 @@ node scripts/validate-skill-catalog.mjs
 校验器保证每个已跟踪 skill 恰好属于一个分类，并具有有效的 frontmatter `name`。插件 skill 的调用名允许与目录名不同。未跟踪的开发中 skill 只提示，不阻塞验证。
 
 `agent-baseline` 按需加载装配核对、插件刷新、[CC 备份恢复 / 清理](skills/agent-ops/agent-baseline/references/backup.md)与 [CC Switch 供应商配置](skills/agent-ops/agent-baseline/references/cc-switch.md)。恢复或供应商配置不会顺带运行完整装配维护。清理保留交互确认，供应商写库前备份且默认不切换当前供应商。
+
+`frontend-design` 以 Anthropic 官方技能为主线，按功能组织：`search/` 风格、配色、字体与 UX 本地检索；`components/ui`、`components/motion`、`components/effects` 分别是基础组件与布局、动效组件、视觉效果的可许可源码；`recipes/` 动效配方与可运行示例；`extract/` 样式提取纯模块；三个整页案例、应用界面、设计审查与 Geist 中英字体规范按任务加载。React Bits / Animate UI 只给独立分析与许可边界，不分发其源码。Claude Code 用 `/vft-kit:frontend-design`，Codex 用 `$frontend-design`；详见[前端设计与风格迁移](skills/design-content/frontend-design/SKILL.md)及[第三方许可](skills/design-content/frontend-design/THIRD_PARTY_NOTICES.md)。字体保留 SIL OFL 1.1。
 
 ## Agents
 

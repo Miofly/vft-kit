@@ -1,0 +1,12 @@
+# Fixed upstream public dataset false positives, reviewed 2026-10-27.
+# Row 106 describes an ordinary shopping-list product category, not a private project.
+# Match both a skill-root audit and a repository-root audit, with exact file/line/rule.
+search/data/colors.csv:107 private
+search/data/products.csv:107 private
+search/data/ui-reasoning.csv:107 private
+skills/design-content/frontend-design/search/data/colors.csv:107 private
+skills/design-content/frontend-design/search/data/products.csv:107 private
+skills/design-content/frontend-design/search/data/ui-reasoning.csv:107 private
+# Upstream negative example of a hard-coded Windows path, not a personal home directory.
+search/data/stacks/avalonia.csv:21 path.home
+skills/design-content/frontend-design/search/data/stacks/avalonia.csv:21 path.home

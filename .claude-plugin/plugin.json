@@ -9,6 +9,7 @@
     "./skills/agent-ops/notify",
     "./skills/agent-ops/skill-creator",
     "./skills/design-content/co-infographic-generator",
+    "./skills/design-content/frontend-design",
     "./skills/design-content/office-doc-rewrite",
     "./skills/dev-workflow/fe-quality-ops",
     "./skills/web-automation/android-ui-automation",

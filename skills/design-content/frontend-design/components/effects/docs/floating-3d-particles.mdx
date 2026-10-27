@@ -1,0 +1,76 @@
+---
+title: Floating 3D Particles
+date: 2026-08-16
+description: A canvas-based pseudo-3D particle field with perspective projection, continuous rotation, buoyant drift and depth-aware rendering.
+author: Miles
+published: true
+---
+
+<ComponentPreview name="floating-3d-particles-demo" />
+
+## Installation
+
+<Tabs defaultValue="cli">
+
+<TabsList>
+  <TabsTrigger value="cli">CLI</TabsTrigger>
+  <TabsTrigger value="manual">Manual</TabsTrigger>
+</TabsList>
+<TabsContent value="cli">
+
+```bash
+npx shadcn@latest add @magicui/floating-3d-particles
+```
+
+</TabsContent>
+
+<TabsContent value="manual">
+
+<Steps>
+
+<Step>Copy and paste the following code into your project.</Step>
+
+<ComponentSource name="floating-3d-particles" />
+
+<Step>Update the import paths to match your project setup.</Step>
+
+</Steps>
+
+</TabsContent>
+
+</Tabs>
+
+## Examples
+
+### Plain Background
+
+<ComponentPreview name="floating-3d-particles-demo-2" />
+
+## Usage
+
+`Floating3DParticles` renders an absolutely positioned `canvas` (`inset-0`, `pointer-events-none`). Place it inside a `relative` container and layer any foreground content above it with `z-10`.
+
+```tsx showLineNumbers
+import { Floating3DParticles } from "@/components/ui/floating-3d-particles"
+```
+
+```tsx showLineNumbers
+<div className="relative flex h-[500px] w-full items-center justify-center overflow-hidden rounded-lg border">
+  <Floating3DParticles color="#8B5CF6" quantity={400} />
+  <div className="relative z-10 text-center">
+    <h2 className="text-3xl font-bold">Build Something Magical</h2>
+  </div>
+</div>
+```
+
+## Props
+
+| Prop        | Type     | Default     | Description                                                                                               |
+| ----------- | -------- | ----------- | --------------------------------------------------------------------------------------------------------- |
+| `className` | `string` | `-`         | Additional CSS classes for the canvas element.                                                            |
+| `quantity`  | `number` | `400`       | Number of particles on desktop viewports. Automatically scales down to 20% on mobile screens (< 768px).   |
+| `color`     | `string` | `"#8B5CF6"` | Particle color (supports 3-digit or 6-digit hex).                                                         |
+| `size`      | `number` | `5`         | Mean particle radius in px. Each particle varies within ±40% of this value.                               |
+| `opacity`   | `number` | `0.3`       | Mean particle opacity (0–1). Each particle varies within ±0.2, clamped to [0, 1].                         |
+| `drift`     | `number` | `0.8`       | Vertical floating speed in px per frame. Positive drifts upward, negative downward.                       |
+| `depth`     | `number` | `0.5`       | 3D depth intensity (0–1). `0` = flat 2D plane; `1` = strong perspective with pronounced near/far scaling. |

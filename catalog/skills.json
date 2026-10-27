@@ -61,6 +61,7 @@
       "description": "设计还原、信息图、Office 文档和视觉内容生产。",
       "skills": [
         "co-infographic-generator",
+        "frontend-design",
         "mastergo-mcp",
         "office-doc-rewrite",
         "zh-humanizer"

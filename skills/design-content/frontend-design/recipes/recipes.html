@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VFT 动效配方：可操作叠卡与图片开窗</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #183134; background: #eef4f0; font: 1rem/1.6 system-ui, sans-serif; }
+    main { max-width: 64rem; margin: auto; padding: 2rem 1rem; }
+    h1 { font-size: clamp(2rem, 5vw, 4rem); line-height: 1.15; }
+    h2 { margin-block: 3rem 1rem; }
+    button { font: inherit; padding: .75rem 1rem; color: inherit; background: #fff; border: 2px solid currentColor; cursor: pointer; }
+    button:focus-visible { outline: 3px solid #815219; outline-offset: 4px; }
+    button[aria-disabled="true"] { cursor: wait; }
+    .deck { margin-top: 5rem; }
+    .cards { position: relative; }
+    .cards article { padding: 1.5rem; margin-block: 1rem; background: #d6e7dc; border: 2px solid currentColor; border-radius: 1rem; }
+    .cards article:nth-child(2) { background: #e5deb9; }
+    .cards article:nth-child(3) { background: #c7dfeb; }
+    .cards article:nth-child(4) { background: #e5d8e9; }
+    .is-enhanced .cards { height: 18rem; margin-top: 4rem; }
+    .is-enhanced .cards article { position: absolute; inset: 0; margin: 0; transform-origin: top center; pointer-events: none; }
+    .cards h3 { font-size: 2rem; margin-block: .5rem; }
+    .diagram { display: flex; gap: .5rem; height: 5rem; align-items: end; }
+    .diagram span { flex: 1; background: currentColor; opacity: .35; }
+    .diagram span:nth-child(1) { height: 35%; }
+    .diagram span:nth-child(2) { height: 60%; }
+    .diagram span:nth-child(3) { height: 90%; }
+    .opening { margin-block: 2rem; }
+    .opening-stage { overflow: clip; }
+    .opening-art { padding: 3rem 1rem; background: #c7dfeb; text-align: center; }
+    .opening-art svg { width: min(100%, 30rem); height: auto; }
+    .opening-art p { color: #183134; }
+    @supports (animation-timeline: view()) {
+      @media (min-width: 48rem) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+        .opening { height: 180svh; view-timeline-name: --opening; }
+        .opening-stage { position: sticky; top: 0; min-height: 100svh; display: grid; align-items: center; animation: open-window linear both; animation-timeline: --opening; animation-range: contain 0% contain 75%; }
+      }
+    }
+    @keyframes open-window { from { clip-path: inset(18% 20%); } to { clip-path: inset(0%); } }
+    footer { padding-block: 2rem; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>内容先可读，动效再增强</h1>
+  <p>这是本地自绘配方，不是 Taste 展示站组件源码。无字体、图片、CDN、安装或网络请求。没有 JavaScript 时全部卡片仍可阅读；减少动效时按钮立即换卡。</p>
+  <section class="deck" data-example-stack aria-labelledby="deck-title">
+    <h2 id="deck-title">点击切换案例叠卡</h2>
+    <div class="cards">
+      <article data-card><h3>主题与证据</h3><p>从真实产物、受众与任务决定构图。</p><div class="diagram" aria-hidden="true"><span></span><span></span><span></span></div></article>
+      <article data-card><h3>内容与布局</h3><p>先确认阅读顺序与静态构图，再加入运动。</p><div class="diagram" aria-hidden="true"><span></span><span></span><span></span></div></article>
+      <article data-card><h3>交互与反馈</h3><p>键盘与触屏都通过相同按钮切换。</p><div class="diagram" aria-hidden="true"><span></span><span></span><span></span></div></article>
+      <article data-card><h3>状态与清理</h3><p>切换、减少动效与卸载后不留下半透明状态。</p><div class="diagram" aria-hidden="true"><span></span><span></span><span></span></div></article>
+    </div>
+    <p data-status role="status" aria-live="polite">全部四个说明在上方。</p>
+    <button data-next type="button" hidden>下一个案例</button>
+  </section>
+  <h2>CSS 开窗：滚动是进度，不是被截获的输入</h2>
+  <p>支持滚动时间线且使用精细指针的宽屏可见开窗。触屏、窄屏、减少动效或不支持时显示完整静态图形。这里用自绘示意，不需要授权照片。</p>
+  <section class="opening" aria-label="自绘工艺图形的开窗展示">
+    <div class="opening-stage">
+      <div class="opening-art">
+        <svg viewBox="0 0 600 380" role="img" aria-label="桌面、木料和工具的简化几何示意">
+          <rect x="50" y="220" width="500" height="28" fill="#183134"/>
+          <path d="M90 248v100m420-100v100" stroke="#183134" stroke-width="20"/>
+          <rect x="150" y="160" width="270" height="60" rx="8" fill="#9a632f"/>
+          <path d="M180 180h210m-210 20h210" stroke="#e5deb9" stroke-width="4"/>
+          <path d="M340 90l100 70" stroke="#183134" stroke-width="16"/>
+          <rect x="298" y="65" width="70" height="30" fill="#815219"/>
+        </svg>
+        <p>一张图承载一个主题。运动不遮住正文或主操作。</p>
+      </div>
+    </div>
+  </section>
+  <footer>检查终态、原生滚动、Tab/Enter/Space、快速点击、减少动效动态切换与返回页面；不能仅以静态语法通过宣布视觉验收。</footer>
+</main>
+<script type="module">
+  import { mountExampleStack } from './recipes.mjs';
+  const root = document.querySelector('[data-example-stack]');
+  const next = root.querySelector('[data-next]');
+  let cleanup;
+  const mount = () => { if (!cleanup) { cleanup = mountExampleStack(root); next.hidden = false; } };
+  const unmount = () => { cleanup?.(); cleanup = undefined; next.hidden = true; };
+  mount();
+  addEventListener('pagehide', unmount);
+  addEventListener('pageshow', mount);
+</script>
+</body>
+</html>
