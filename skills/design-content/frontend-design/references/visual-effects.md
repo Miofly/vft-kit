@@ -81,7 +81,7 @@ React Bits 的知识提炼不含复制实现：
 
 | 位置（Magic UI canonical 内） | 现象与所需补齐 |
 | --- | --- |
-| `particles.tsx` 的 initCanvas/resizeCanvas/drawParticles | resizeCanvas 已清空并生成 quantity，随后 drawParticles 再追加 quantity；初始数组可能为 2×quantity。应在目标确保初始化只建一次，并断言实际粒子数；本轮未运行 Canvas 验证 |
+| `particles.tsx` 的 initCanvas/resizeCanvas/drawParticles | resizeCanvas 已清空并生成 quantity，随后 drawParticles 再追加 quantity；初始数组可能为 2×quantity。应在目标确保初始化只建一次，并断言实际粒子数； |
 | `hyper-text.tsx` view observer 回调 | 创建 delay timeout 没保存/清掉；离开或卸载可残留回调。加所有者与取消；已有 rAF cleanup 不代替 timeout cleanup |
 | `globe.tsx` effect | `setTimeout` 读 `canvasRef.current!` 未回收；卸载/重挂要防空 ref。需要粗指针/键盘、reduce、context lost、离屏成本策略 |
 | `text-animate.tsx` | initial hidden 且未见局部 useReducedMotion；主标题不能依赖 JS 显示。按字切 UTF-16 会拆 emoji/组合字符；改目标分段不改变真实文本 |
@@ -120,4 +120,4 @@ React Bits 的知识提炼不含复制实现：
 - Transpile 只证明语法可转换，不证明类型、依赖版本、React渲染、shader编译、视觉/a11y或移动性能。未运行别写“可直接上线”。
 - 真验收用已有授权预览，按 [motion.md](motion.md) 浏览器规则，至少桌面/窄屏、键盘/触屏、初始与动态 reduced、无JS、失败/空/加载、卸载重挂/快速输入、后台/离屏、WebGL失效；记录开始/中间/终态和控制台。
 - 字体另核覆盖字符、字重、真实载入、CLS、失败fallback；不能动效拆字改变标题、读序或把真实数字交给插值替代。
-- 本轮仅源码/许可/索引与静态小测，没有安装依赖、启动服务、运行组件浏览器、模型、build/commit/push/部署。不要把先前 Taste 自绘配方浏览器通过算成 Magic/React Bits 组件运行通过。
+- 本层验证只有源码/许可/索引与静态小测；没有安装依赖、启动服务、运行组件浏览器。不要把 Taste 自绘配方的浏览器通过算成 Magic/React Bits 组件运行通过。

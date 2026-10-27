@@ -1,6 +1,6 @@
 # Extract observed design evidence without installing an extension
 
-Adapted by VFT contributors on 2026-10-27 from bergside/design-md-chrome at `8e07614fb18752ab1ee14dd65a8ff93e63c9b13b`. License: MIT, see [THIRD_PARTY_NOTICES](../THIRD_PARTY_NOTICES.md). This reference extends the existing `frontend-design` skill; it does not install a Chrome extension or another skill.
+源自 bergside/design-md-chrome，固定 commit `8e07614fb18752ab1ee14dd65a8ff93e63c9b13b`。License: MIT, see [THIRD_PARTY_NOTICES](../THIRD_PARTY_NOTICES.md). 不安装 Chrome 扩展或其他 skill。
 
 Use this when an approved public reference or the user's own non-sensitive page must become a usable design specification. Read the existing project `DESIGN.md`, tokens, and component system first; apply [design-spec.md](design-spec.md), [style-migration.md](style-migration.md), and [design-review.md](design-review.md) as appropriate. Existing design-system authority and accessibility outrank scraped guesses. Do not overwrite an existing specification or create a new one unless requested or required by the project.
 
@@ -50,7 +50,7 @@ validateMarkdownOutput("design" | "skill", markdown)
   extract/lib/validate.mjs
 ```
 
-The skill generator is preserved for fidelity/tests only; this integration does not create or register another `SKILL.md`. Use the design generator only when a draft is useful and the output format matches the task. Its TypeUI-oriented eleven-heading blueprint is not a universal DESIGN.md schema or a substitute for an existing project's format.
+The skill generator is preserved only for fidelity/tests; it does not create or register another `SKILL.md` here. Use the design generator only when a draft is useful and the output format matches the task. Its TypeUI-oriented eleven-heading blueprint is not a universal DESIGN.md schema or a substitute for an existing project's format.
 
 ### 1. Acquire a minimal, consented observation payload
 
@@ -167,4 +167,4 @@ node "${FRONTEND_DESIGN_DIR:?Set the loaded skill absolute root}/extract/tests/r
 node "${FRONTEND_DESIGN_DIR:?Set the loaded skill absolute root}/extract/tests/local-boundaries.mjs"
 ```
 
-The first is unchanged upstream fixture coverage; the second is VFT-added characterization of known defects plus corrected in-memory draft generation. Passing defect assertions means the limitations remain present, **not repaired**. Real-page extraction, privacy-minimized browser acquisition, interactive/visual fidelity, extension runtime, and external Claude Design workflows remain unverified until separately authorized and actually exercised.
+前者是上游 fixture 覆盖，后者是对已知缺陷的特征化测试与修正后的内存草稿生成。 Passing defect assertions means the limitations remain present, **not repaired**. Real-page extraction, privacy-minimized browser acquisition, interactive/visual fidelity, extension runtime, and external Claude Design workflows remain unverified until separately authorized and actually exercised.

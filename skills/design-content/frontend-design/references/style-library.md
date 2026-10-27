@@ -1,6 +1,6 @@
 # 风格检索库：把方向落成可复用的设计系统
 
-此层融合 UI UX Pro Max 的结构化检索与设计系统流程，不安装第二个插件，也不替换 frontend-design 的创作判断。先理解任务与品牌，再查少量相关资料，形成一套明确视觉语言；不要把整库读入上下文，也不要把检索排名当设计结论。
+此层提供 UI UX Pro Max 的结构化检索与设计系统流程；不安装第二个插件。先理解任务与品牌，再查少量相关资料，形成一套明确视觉语言；不要把整库读入上下文，也不要把检索排名当设计结论。
 
 ## 来源、范围与边界
 
@@ -8,7 +8,6 @@
 - 本地目录：本 skill 的 `search/`；`data/` 为数据，`scripts/` 为搜索、设计系统生成、校验与测试；MIT 见 [THIRD_PARTY_NOTICES](../THIRD_PARTY_NOTICES.md)。
 - 保留完整结构化数据、原版 BM25 搜索、行业规则推理、设计系统生成器、数据校验器与相关回归测试。无需 pip 依赖，不请求模型，不联网查询。
 - 本版本有 **88 条风格记录**：50 active、29 supplemental、9 deprecated；前两类共 79 条可按身份检索，不等于 79 个互不重叠的基础风格。普通模糊搜索只推荐 active，supplemental 用准确名称/别名/ID 定位，deprecated 解析为 canonical 或跨域重定向。
-- 还有 192 套语义配色、74 组字体搭配、119 条 UX 指南、192 行产品分类与对应行业推理规则、34 种落地页结构、25 种图表建议、105 条图标条目、17 条 GSAP 模式、1934 个字体元数据及 22 种 stack 指南。数量只描述这个固定快照。
 - 数据中的性能、可访问性、明暗模式字段是风险提示和实施条件，不是实测评分或 WCAG 合规认证。字体目录是元数据，不含字体二进制；图标代码也不等于已安装对应包。
 
 ## 1. 先锁定设计契约
@@ -111,7 +110,7 @@ python3 -B "$UUPM_SEARCH" "luxury ecommerce editorial photography" \
 
 1. 独立精确查询用户指定风格，如 `Glassmorphism --domain style -n 1 --json`，取完整材料、效果、风险和实现字段。没有指定时才在行业候选中选择。
 2. 先读现有设计系统/品牌 tokens。将自动候选分为“沿用”“补全空缺”“拒绝”三类；有品牌时只填空，不换主色与字体。
-3. 形成**最终决策表**：每一项写采用值、来源（用户/项目/检索/本次设计判断）、覆盖原因。风格覆盖同时检查阴影、边框、圆角、色板模式、字体、动效和反模式，不只改标题中的风格名。
+3. 形成**最终决策表**：每一项写采用值、来源（用户/项目/检索/设计判断）、覆盖原因。风格覆盖同时检查阴影、边框、圆角、色板模式、字体、动效和反模式，不只改标题中的风格名。
 4. 对 `liquid-glass` 核对平台：原生 Apple material 使用平台 API/规范；普通 web 的半透明 blur 明确叫 frosted glass/glassmorphism，不承诺光学折射或系统级动态材质。网页项目不可仅因“luxury”自动换成 Apple 材质。
 5. 自由混搭最多一主一辅，并说明各自作用范围。例如 clay 卡片配少量硬阴影按钮，不把整站叫“纯软黏土”。
 6. 在实现前检查决策表与用户输入逐项重合，再把最终系统交给组件与页面。确认后才持久化。
@@ -125,7 +124,7 @@ python3 -B "$UUPM_SEARCH" "luxury ecommerce editorial photography" \
 | web luxury + glassmorphism | 聚合可能是 liquid-glass；精确是 glassmorphism | 明确采用 web glassmorphism，拒绝原生材质误称 |
 | 已有品牌 `#123456`/项目字体 + 用户要 Brutalism | luxury 聚合仍可能推荐 liquid-glass/Cormorant | 保留品牌 tokens，精确采用 brutalism，候选不得反向覆盖 |
 
-最后一行是覆盖工作流的验收契约，不是声称上游 CLI 会自动识别任意品牌色或保留项目文件。
+上游 CLI 不会自动识别任意品牌色或保留项目文件；最终值以决策表为准。
 
 ## 4. 分层 tokens 与组件，不做一页贴皮
 
@@ -168,7 +167,7 @@ python3 -B "$UUPM_SEARCH" "educational platform course detail enrollment" \
 
 ## 6. 三个真实案例：事实、可借鉴点与改写边界
 
-以下为 2026-10-27 对公开演示页的浏览器只读观察与 computed styles 记录。不是上游库自动生成的效果，不代表已复刻整站。数字仅说明案例，**不是新项目的默认 tokens**。未查明照片和整站源码复用授权，因此只保留 URL 与分析，不复制图片、源码或 premium 资源。
+以下为对公开演示页的浏览器只读观察与 computed styles 记录。不是上游库自动生成的效果，不代表已复刻整站。数字仅说明案例，**不是新项目的默认 tokens**。未查明照片和整站源码复用授权，因此只保留 URL 与分析，不复制图片、源码或 premium 资源。
 
 ### A. 教育平台：clay 标签下的硬阴影混合语言
 
@@ -204,7 +203,7 @@ python3 -B "$UUPM_SEARCH" "educational platform course detail enrollment" \
 
 **复刻到新需求的方法**：先用获授权商品图建立摄影构图与版式，再把 frosted glass 仅用于导航或少量叠层；明确前景/背景对比，遇复杂照片增加实底。无 blur 时保留几乎不透明背景、边界、导航功能和品牌层级。
 
-**别混淆**：class 名叫 `.liquid-glass` 不证明实现了 Apple 的光学折射/动态平台 material。观察到的是普通 web frosted glass；不能因此推荐原生 API，也不能拿截图证明流体动画。未做帧级动效验证。
+**别混淆**：class 名叫 `.liquid-glass` 不证明实现了 Apple 的光学折射/动态平台 material。观察到的是普通 web frosted glass；不能因此推荐原生 API，也不能拿截图证明流体动画。
 
 ### 同类不等于同版：案例对照
 
@@ -238,6 +237,6 @@ TMPDIR="$DESIGN_TEST_TMPDIR" PYTHONDONTWRITEBYTECODE=1 python3 -B -m unittest di
   -s "$FRONTEND_DESIGN_DIR/search/scripts/tests" -v
 ```
 
-上游保留 9 组相关测试，覆盖检索、缓存/并发持久化、颜色/明暗模式、栈优先级、taxonomy、数据契约、文字布局与 stack 新鲜度。测试是快照回归，不保证最新框架/API；遇版本差异再查官方资料。
+测试是快照回归，不保证最新框架/API；遇版本差异再查官方资料。
 
-不采用整套安装器、重复 `.claude`/CLI 打包副本、其他 skills、营销图片/premium 内容，也不自动下载字体或图标。环境安装和默认 html-tailwind 路线不移植，沿用真实项目栈与环境；动效建议、示例配色与审美口号不升级为全局强制规则，功能和用户方向优先。该改动不修第三方生成器，保持上游脚本/数据字节一致；“行业默认压过显式风格”的已复现限制通过第 3 节强制覆盖流程规避。
+不采用整套安装器、重复 `.claude`/CLI 打包副本、其他 skills、营销图片/premium 内容，也不自动下载字体或图标。环境安装和默认 html-tailwind 路线不移植，沿用真实项目栈与环境；动效建议、示例配色与审美口号不升级为全局强制规则，功能和用户方向优先。不修第三方生成器，保持上游脚本/数据字节一致；“行业默认压过显式风格”的已复现限制通过第 3 节强制覆盖流程规避。

@@ -16,7 +16,7 @@
 | 新配方的小测 | `recipes/recipes.test.mjs` |
 | 展示站真实叠卡观察 | [case-studies.md 参考站观察](case-studies.md) |
 
-Taste 此固定版本**尚未发布** `library/scenes.json`、每场景 JS/CSS 与 demo 目录；原文 scenes 第 1 节已说明缺库时不抽场景。不能把目录描述当成已交付文件。本集成保留真实 stage 和完整文字配方，并提供明确标为本地改写的可执行示例；不是声称复用了不存在的相机飞行/叠卡组件。
+此固定版本**尚未发布** `library/scenes.json`、每场景 JS/CSS 与 demo 目录；不能把目录描述当成已交付文件。本地保留真实 stage 和完整文字配方，并提供明确标为本地改写的可执行示例；不声称复用了不存在的相机飞行/叠卡组件。
 
 ## 2. 动效预算和工具选择
 
@@ -37,7 +37,7 @@ Taste 此固定版本**尚未发布** `library/scenes.json`、每场景 JS/CSS �
 
 ## 3. 配方 A：按钮驱动的案例叠卡
 
-可执行文件：`recipes/recipes.html` 与 `recipes.mjs`。它是根据可见行为与上游运动原则写的本地参考，不是 `tasteskill.dev` 组件逐字镜像；案例文字与图形自绘，无站点截图/照片拷贝。
+可执行文件：`recipes/recipes.html` 与 `recipes.mjs`。它不是 `tasteskill.dev` 组件逐字镜像；案例文字与图形自绘，无站点截图/照片拷贝。
 
 **静态结构**：一个标题、四张说明卡、状态文本和真实 `button`。卡片不含可聚焦后代；无 JS 时四张卡全部按文档流展示。`mountExampleStack(root)` 挂载后叠放，返回 cleanup。
 
@@ -51,7 +51,7 @@ Taste 此固定版本**尚未发布** `library/scenes.json`、每场景 JS/CSS �
 
 在原项目挂载生命周期调用 `mountExampleStack`，卸载调用返回值；SSR 只导入模块，不在服务端调用挂载。模块导入本身不读取 DOM。示例 HTML 使用模块，本机 `file://` 可能限制模块导入，需在**已存在或获授权**预览中看，不要擅自起服务来规避。
 
-观察页的 240/450/550/650ms 多轨、三层比例及减少动效限制见 [case-studies.md 参考站观察](case-studies.md)。本配方选 450/550ms 是简化实现，不冒充逐帧完全一致，也未将站点仍有 200–300ms 动画视为减少动效通过。
+观察页的 240/450/550/650ms 多轨、三层比例及减少动效限制见 [case-studies.md 参考站观察](case-studies.md)。本配方选 450/550ms 是简化实现，不声称与参考站逐帧一致；站点在减少动效下仍报告 `200–300ms` 动画，不能据此判减少动效通过。
 
 ## 4. 配方 B：原生滚动图片开窗
 
@@ -109,10 +109,10 @@ const cleanup = mountOpeningScene(sceneRoot);
 ## 7. 验收：不只一张终态截图
 
 1. 先静态、键盘、触屏与真实业务路径，再启用动效；保留改前行为。用已有最小 lint/type/test，不默认 build。
-2. 浏览器优先规则与 [style-migration.md](style-migration.md) 一致：先 `command -v ego-browser`，有则 ego-lite 独立 taskSpace、打印 spaceId、结束 finish；无才 Playwright。未授权不启动服务。本轮主控在 ego-lite `about:blank` 离线注入本地模板，已检查叠卡点击、Space 键焦点保留和动态减少动效（切换后卡片动画数为零）；这是配方冒烟，不是产品路由或 GSAP 场景完整视觉验收，详细记录见 [case-studies.md 参考站观察](case-studies.md)。
+2. 浏览器优先规则与 [style-migration.md](style-migration.md) 一致：先 `command -v ego-browser`，有则 ego-lite 独立 taskSpace、打印 spaceId、结束 finish；无才 Playwright。未授权不启动服务。
 3. 以至少开始/中间/结束状态看动画，叠卡另测快速点击、标签页切换、返回、卸载/重挂。滚动场景逐 0/25/50/75/100% 看遮挡、裁切、可读性和结束后滚动，不能仅确认元素存在。
 4. 桌面、390px 附近与项目窄屏、coarse pointer、减少动效初始/动态切换、无 JS/依赖失败均看内容和操作；静态 fallback 是正常设计，不以“没有动”一概失败。
 5. 核查控制台、布局跳动、卡顿和长任务；若报“更快”须同批至少三次且差异超过平台波动，不能把一次 headless 帧间隔当真机性能结论。
 6. Node 小测只验证状态与清理，不证明视觉流畅/无障碍完整合规。技能根目录下可运行 `node recipes/recipes.test.mjs`。
 
-保留的上游 `scripts/scenes.mjs` 是原始取样工具而非默认浏览器路线：它会自行开 Chromium，对本地文件还会起 HTTP 服务；本次不运行。它采样 0–100% 并汇总桌面/手机/减少动效，相关 `lib/cdp.mjs` 依赖已保留，可参考其取样法移植到已授权的 ego-lite/Playwright 环境。上游 `lint.mjs` 含字体/颜色等 house-style 硬禁，不能把它的失败直接视为本地项目失败。
+上游 `scripts/scenes.mjs` 是原始取样工具而非默认浏览器路线：它会自行开 Chromium，对本地文件还会起 HTTP 服务，不在此运行。它采样 0–100% 并汇总桌面/手机/减少动效，相关 `lib/cdp.mjs` 依赖已保留，可参考其取样法移植到已授权的 ego-lite/Playwright 环境。上游 `lint.mjs` 含字体/颜色等 house-style 硬禁，不能把它的失败直接视为本地项目失败。

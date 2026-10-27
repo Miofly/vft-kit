@@ -1,6 +1,6 @@
 # 组件系统：把设计方向接到可工作的状态与布局
 
-这里融合 shadcn/ui 的开放源码、组合式 primitive、语义 tokens 与完整 blocks，不安装新插件、不自动执行 CLI、不把项目整体换成 shadcn。源码在本 skill 的 `components/ui/`，MIT 许可见 [THIRD_PARTY_NOTICES](../THIRD_PARTY_NOTICES.md)。
+源码在本 skill 的 `components/ui/`（shadcn/ui 的开放源码、组合式 primitive、语义 tokens 与完整 blocks），MIT 许可见 [THIRD_PARTY_NOTICES](../THIRD_PARTY_NOTICES.md)。不安装新插件、不自动执行 CLI、不把项目整体换成 shadcn。
 
 ## 1. 先选落地路径，不先选库
 
@@ -14,7 +14,7 @@
 
 shadcn 的价值不只是默认外观，而是把可修改源码放在项目中：组件用 `React.ComponentProps` 透传底层 API，`data-slot` 标记解剖位置，`data-state`/`aria-*` 驱动状态，`cva` 管理变体，语义 CSS 变量统一主题。可以调整视觉，不必 fork 整套框架；也因此引入后项目要对改动和升级负责。
 
-本次固定 `8f04138777c1b6996e709993362a7b0a12888ecf`，只选 new-york-v4 一套完整 UI，不拼接其他 base 的同名组件。
+固定源 commit `8f04138777c1b6996e709993362a7b0a12888ecf`，只选 new-york-v4 一套完整 UI，不拼接其他 base 的同名组件。
 
 本地布局：`components/ui/ui/`（61 个 UI TSX 与 `_registry.ts` 依赖表）、`hooks/`、`lib/`、`blocks/`（dashboard-01、sidebar-07、login-01 与 `_registry.ts`）、`examples/`（RHF 与 Next 复杂表单、combobox）、`packages/react/`（message-scroller、use-render 源）、`globals.css`/`tailwind.css`（主题 token 与 data-state 动画）、`docs/`（安装、主题、Tailwind v4、React 19、表单与 12 篇组件文档）。
 
@@ -33,7 +33,7 @@ shadcn 的价值不只是默认外观，而是把可修改源码放在项目中�
 | `cssVars`/CSS/theme | surface/foreground、sidebar、chart、radius 等 | 合入已有 semantic tokens，不整份覆盖全局主题 |
 | aliases | 源码的 `@/registry/new-york-v4/*` | 重写为目标 alias 或设置明确映射。本地源码保留原 import：`@/registry/new-york-v4/*` → `components/ui/*`，`@shadcn/react/*` → `components/ui/packages/react/*` |
 
-上游顶层 `registry.json` 有旧的单包 `@radix-ui/*` 与 HSL sidebar 元数据，已不保留；以真实源码 imports 和 `ui/_registry.ts`、`blocks/_registry.ts` 为准。
+上游顶层 `registry.json` 的单包 `@radix-ui/*` 与 HSL sidebar 元数据已过时；以真实源码 imports 和 `ui/_registry.ts`、`blocks/_registry.ts` 为准。
 
 固定源的 `cn` 是外部包 `cn`（package 范围 `^0.2.2`），`lib/utils.ts` 也只是 re-export，不是本地 `clsx/tailwind-merge` 的实现。项目有自己的 `cn` 时核对输入合并/冲突规则后显式接线，不假称“拷贝 utils 就零依赖”。
 
@@ -153,4 +153,4 @@ Next 示例用 `useActionState`、`next/form`、server action 和独立 schema�
 - Table 的数据量、排序/分页/选择、权限和服务端结果；Login 的真实认证结果；Form 的服务端验证与保存，而不只看 toast。
 - 按实际项目最小测试/静态检查执行；用户没要求 build 时不额外打包，不启动本地服务代替验收。
 
-本地源码只经过本地 import 闭包与（可选）TypeScript 语法核验（`tests/integration.test.mjs`）；未安装依赖、未把 alias 接进业务项目、未跑完整 TypeScript 类型解析/浏览器运行/a11y/SSR/RTL。原始 imports 保持一致，不能将“参考闭包完整”说成“目标项目开箱即跑”。
+原始 imports 保持一致；本地 import 闭包与（可选）TypeScript 语法核验（`tests/integration.test.mjs`）不证明类型正确、依赖已装或浏览器运行通过，不能将“参考闭包完整”说成“目标项目开箱即跑”。

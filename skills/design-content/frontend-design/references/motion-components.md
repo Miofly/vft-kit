@@ -87,7 +87,7 @@
 
 ## 4. Animate UI：官方包产品内使用，不分发受限实现
 
-固定 SHA 的 React 包并非只用 Radix，也有 Base UI、React Aria；Vue 包真实存在，使用 Vue 3 + Reka UI + Motion for Vue。其原码和移植版均未放进本 skill。React 包 `@animate-ui/react@2.3.0`（React 19、Motion 14，Radix 1.6 / Base UI 1.8 / React Aria Components 1.21 按需 peer）；Vue 包 `@animate-ui/vue@2.3.0`（Vue 3.5、motion-v 2.8、reka-ui 2.11）。以下是独立状态/集成规范，不是被省略的实现承诺。
+固定 SHA 的 React 包并非只用 Radix，也有 Base UI、React Aria；Vue 包真实存在，使用 Vue 3 + Reka UI + Motion for Vue。其原码和移植版均未放进本 skill。React 包 `@animate-ui/react@2.3.0`（React 19、Motion 14，Radix 1.6 / Base UI 1.8 / React Aria Components 1.21 按需 peer）；Vue 包 `@animate-ui/vue@2.3.0`（Vue 3.5、motion-v 2.8、reka-ui 2.11）。以下是独立状态规范；受限原码未打包，不构成实现承诺。
 
 ### 框架与依赖边界
 
