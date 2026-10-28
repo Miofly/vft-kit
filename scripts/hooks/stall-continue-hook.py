@@ -38,6 +38,10 @@ REASON = ('你刚才说了下一步要做的事，但没有调用任何工具就
           '如果任务其实已经完成，就给出最终答复。')
 ASK = re.compile(r'(要不要我|要的话我|需要的话我|要我[^。\n]{0,40}[吗？?]|需要我[^。\n]{0,40}[吗？?]|还是[^。\n]{0,60}[？?]'
                  r'|你(来)?定[。.！!]?\s*$|请(你)?选择|是否需要|待你定|你定下一步|先说清再)')  # 待你定/先说清再: menu-and-stop seen in 936561bc #3022, 1b6363a7 #210
+LOOP = '[loop-guard]'  # written by the ccmax LiteLLM proxy (cc-as/tool_text_hook.py LoopGuard) when it cuts a repeat loop
+LOOP_REASON = ('上一次回复的推理陷入复读，被代理中断了，这一轮没有任何产出。不要沿用刚才的思路，也不要解释这次中断：'
+               '直接调用下一个工具继续原任务；如果任务其实已经完成，就给出最终答复。')
+QUESTION = re.compile(r'(吗|么|呢|对不对|是不是|哪个|哪些|什么|怎么|为什么|多少|几个)\s*[？?]?\s*$|[？?]\s*$')
 IRREVERSIBLE = re.compile(r'commit|push|merge|提交|推送|删除|删掉|清空|付费|花钱|积分|外发|发布|部署|上线|拍板|业务')
 ASK_REASON = ('你在结尾把选择题丢给了用户。用户多次要求「自己决定、别老问我」：选你推荐的那项，直接做完、核实后再汇报。'
               '只有不可逆或外发的动作（commit/push/删除/花钱/发布）和业务取舍才问；如果用户这次只要方案或解释，'
@@ -78,7 +82,9 @@ def turn_tail(path):
         final = (c if isinstance(c, list) else [{'type': 'text', 'text': c}]) + final
     prev = rows[-1]['message'].get('content') if rows else None
     after_tool = isinstance(prev, list) and any(isinstance(b, dict) and b.get('type') == 'tool_result' for b in prev)
-    return final, after_tool
+    prompt = '' if after_tool else prev if isinstance(prev, str) else ''.join(
+        b.get('text', '') for b in prev or [] if isinstance(b, dict) and b.get('type') == 'text')
+    return final, after_tool, prompt.strip()
 
 
 def edited_unverified(path):
@@ -106,7 +112,7 @@ def decide(payload, env):
         return None
     if payload.get('stop_hook_active') or not payload.get('transcript_path'):
         return None
-    final, after_tool = turn_tail(payload['transcript_path'])
+    final, after_tool, prompt = turn_tail(payload['transcript_path'])
     if any(b.get('type') == 'tool_use' for b in final if isinstance(b, dict)):
         return None
     text = ''.join(b.get('text', '') for b in final if isinstance(b, dict) and b.get('type') == 'text').strip()
@@ -114,9 +120,13 @@ def decide(payload, env):
     # payload's last_assistant_message is authoritative.
     text = (payload.get('last_assistant_message') or text).strip()
     tail = text[-200:]
+    if LOOP in text:
+        return {'decision': 'block', 'reason': LOOP_REASON}
     if env.get('CLAUDE_CODE_ENTRYPOINT') == 'sdk-cli' and (payload.get('background_tasks') or WAIT.search(tail)):
         return {'decision': 'block', 'reason': WAIT_REASON}
-    if ASK.search(tail) and not IRREVERSIBLE.search(tail):
+    # A plain question answered without tools ("能看到图片吗") may end with an offer; pushing it only buys a
+    # pointless extra round (2026-10-28 ccmax spark-x2.6 replied "能看到，确认完毕。").
+    if ASK.search(tail) and not IRREVERSIBLE.search(tail) and not QUESTION.search(prompt):
         return {'decision': 'block', 'reason': ASK_REASON}
     if THEORY.search(text):
         return {'decision': 'block', 'reason': THEORY_REASON}
@@ -133,8 +143,8 @@ def decide(payload, env):
 
 def self_test():
     import tempfile
-    def run(final_text, prev_is_tool=True, active=False, cfg='/u/.claude-as', tool_use=False, entry='cli', tools=(), **extra):
-        prev = [{'type': 'tool_result', 'content': 'x'}] if prev_is_tool else '用户问题'
+    def run(final_text, prev_is_tool=True, active=False, cfg='/u/.claude-as', tool_use=False, entry='cli', tools=(), prompt='用户问题', **extra):
+        prev = [{'type': 'tool_result', 'content': 'x'}] if prev_is_tool else prompt
         final = [{'type': 'thinking', 'thinking': '...'}, {'type': 'text', 'text': final_text}]
         if tool_use: final.append({'type': 'tool_use', 'name': 'Bash', 'input': {}})
         earlier = [{'type': 'user', 'message': {'content': '修一下'}}] + [
@@ -154,6 +164,10 @@ def self_test():
         (run('Let me check the logs.'), S),
         (run(report + '要不要我先测这一条？还是先写回 skill？'), A),          # long report ending in options
         (run(report + '沉淀建议写进 startup-bench.md，要的话我顺手加。', prev_is_tool=False), A),
+        (run('[loop-guard] 上游推理陷入复读，代理已中断本次回复。'), LOOP_REASON[:4]),
+        (run('[loop-guard] 上游推理陷入复读，代理已中断本次回复。', active=True), False),  # pushes once only
+        (run('能看到，图里是标题。要我做这件事吗？', prev_is_tool=False,
+             prompt=[{'type': 'image'}, {'type': 'text', 'text': '能看到图片吗'}]), False),  # plain question, no tools
         (run(report + '改动未 commit。要我现在 commit 吗？'), False),        # irreversible: asking is right
         (run(report + '要不要我继续？', active=True), False),
         (run(report + '监控挂着，等 run2 跑完后回报。', entry='sdk-cli'), W),
