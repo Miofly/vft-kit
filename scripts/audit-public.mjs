@@ -7,7 +7,7 @@
 //   node scripts/audit-public.mjs                 # audit this repo (git-aware)
 //   node scripts/audit-public.mjs --root <dir>    # audit another directory
 //   options: --json  --strict (warnings fail too)  --all-files (ignore .gitignore)
-//            --max-binary <n> (default 20)  --allowlist <file>
+//            --max-binary <n> (default 60)  --allowlist <file>
 //            --selftest [dir]  (build fixtures with fake secrets and assert detection)
 // Exit codes: 0 pass, 1 findings, 2 usage/internal error.
 //
@@ -274,7 +274,8 @@ export function audit(root, opts = {}) {
     });
   }
   const knownCount = res.binary.knownFiles.length;
-  const maxBinary = opts.maxBinary ?? 20;
+  // 20 基准 + hallmark 主题整页示例图 50 张 jpeg（见 THIRD_PARTY_NOTICES.md hallmark 行）。
+  const maxBinary = opts.maxBinary ?? 60;
   const failing = res.findings.filter((f) => f.sev !== 'warn' || opts.strict);
   res.gate = {
     failingFindings: failing.length,
@@ -405,7 +406,7 @@ function selftest(dirArg) {
 
 // ---- cli ----
 function main(argv) {
-  const opts = { root: defaultRoot, json: false, strict: false, allFiles: false, maxBinary: 20, allowlist: null, listBinary: false };
+  const opts = { root: defaultRoot, json: false, strict: false, allFiles: false, maxBinary: 60, allowlist: null, listBinary: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--root') opts.root = path.resolve(argv[++i] || '');

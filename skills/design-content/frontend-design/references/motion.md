@@ -14,6 +14,7 @@
 | 动作索引与适用主题 | `recipes/motions.json`（完整，不是只有名字） |
 | 可直接移植的无依赖示例 | `recipes/recipes.html`、`recipes.mjs` |
 | 新配方的小测 | `recipes/recipes.test.mjs` |
+| Apple 式区块分级淡入（实测参数） | 本文「配方 D」 |
 | 展示站真实叠卡观察 | [case-studies.md 参考站观察](case-studies.md) |
 
 此固定版本**尚未发布** `library/scenes.json`、每场景 JS/CSS 与 demo 目录；不能把目录描述当成已交付文件。本地保留真实 stage 和完整文字配方，并提供明确标为本地改写的可执行示例；不声称复用了不存在的相机飞行/叠卡组件。
@@ -96,6 +97,56 @@ const cleanup = mountOpeningScene(sceneRoot);
 本地适配使用 `Stage.scene`：hold=1，scrub=true，phone='rest'；图像从 `clipPath: inset(20% 28%), scale:1.08` 至完整图，占 timeline 前 .75，余 .25 停留。`stage.js` 的 `gsap.matchMedia` 负责宽度和减少动效切换；cleanup 对该次 matchMedia `revert` 并移出 `Stage.scenes`，不触碰其他场景。图片/字体加载后的 `Stage.ready()` 仅在页面仍挂载时刷新，异步任务需按项目取消标识防止卸载后写 DOM。
 
 **底座限制**：原始 Stage 是页面级 IIFE，不是现成 SPA 插件。`Stage.smooth()` 注册匿名 ticker 且无统一 destroy，`Stage.split()` 不返回 SplitText 的 revert 句柄，`Stage.init()` 使用 `__scene` 哨兵。此适配不调用 smooth/split/init，只直接挂载自身 scene。别在 SPA 反复注入全局脚本；如确需这些功能，复用项目已有可清理集成，追踪实例/ticker/拆字还原，不用 `killAll()` 清掉别人的动画。
+
+## 5.5 配方 D：Apple 式区块分级淡入上移
+
+来源：2026-10-28 读 `apple.com.cn/mac` 线上 CSS/JS（`StaggeredFadeIn`、`animationDefaults`、`SectionHeader` 模块）得出的参数，不是逐帧录屏。它是 `recipes/motion-recipes.md`「Reveal on scroll (once)」的具体调参，区别在**按区块触发、区块内按阅读顺序错开**，不是每张卡各自观察。
+
+| 项 | Apple 实值 |
+| --- | --- |
+| 初态 | `opacity:0; transform:translateY(30px)`，只在增强态挂；`html.no-js` 与非增强态直接 `opacity:1` |
+| 触发 | 区块顶部到达视口 85%（`a0t - 85vh`）时**一次**播放；回滚不重放、不反向淡出 |
+| 驱动 | 按时间播放，不随滚动 scrub |
+| 时长 | opacity 0→1 用 900ms；位移 30px→0 用 700ms（先落位，再亮足） |
+| 缓动 | `easeInOutQuad`，即 `cubic-bezier(.45,0,.55,1)` |
+| 错开 | 区块头 tagline→标题→说明→链接各隔 150ms；内容卡片在区块头之后起步，按序号每张再隔 150ms |
+| will-change | 接近视口才加 `opacity, transform`，播完移除 |
+
+```css
+@media (prefers-reduced-motion: no-preference) {
+  .reveal-ready [data-stagger] > * {
+    opacity: 0;
+    transform: translateY(30px);
+    transition:
+      opacity 900ms cubic-bezier(.45,0,.55,1) calc(var(--i, 0) * 150ms),
+      transform 700ms cubic-bezier(.45,0,.55,1) calc(var(--i, 0) * 150ms);
+  }
+  .reveal-ready [data-stagger].is-in > * { opacity: 1; transform: none; }
+}
+```
+
+```js
+// 挂载后再加 reveal-ready；返回 cleanup。区块头与卡片放同一个 [data-stagger] 下即按 DOM 顺序错开。
+export function mountStaggerReveal(root = document) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return () => {};
+  const groups = [...root.querySelectorAll('[data-stagger]')];
+  groups.forEach((g) => [...g.children].forEach((el, i) => el.style.setProperty('--i', i)));
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) if (e.isIntersecting) { e.target.classList.add('is-in'); io.unobserve(e.target); }
+  }, { rootMargin: '0px 0px -15% 0px' });
+  groups.forEach((g) => io.observe(g));
+  document.documentElement.classList.add('reveal-ready');
+  return () => { io.disconnect(); document.documentElement.classList.remove('reveal-ready'); };
+}
+```
+
+用法与限制：
+
+- 每个区块一个 `[data-stagger]`，直接子元素就是播放顺序；子项超过约 6 个时把 `--i` 封顶（如 `Math.min(i, 5)`），否则最后一张要等 1s 以上。
+- 首屏区块不挂，首屏标题与主操作必须一开始可读；只用于第二屏起的介绍区块，和 [SKILL.md](../SKILL.md) 的「不要每块都 fade-up」一致：Apple 也只在营销区块头和卡片组上用，导航、表单、价格表不用。
+- `reveal-ready` 由 JS 成功挂载后加上，失败或无 JS 时全部可见；减少动效直接返回，不加初态。
+- 已有 GSAP/Motion 项目用其 timeline 实现同一组参数，不另加 IntersectionObserver；同一元素 transform 只有一个所有者。
+- 验收：慢速滚动看区块头→卡片的先后顺序，快速滚到底再回滚确认不重放，减少动效与无 JS 确认无空白区块。
 
 ## 6. 通用质量底线
 

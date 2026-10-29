@@ -135,7 +135,7 @@ for t in test-*.sh; do bash "$t" >/dev/null 2>&1 && echo "✓ $t" || echo "✗ $
 
 - **上下文窗口**：走第三方 `ANTHROPIC_BASE_URL` 时，不管是未知模型名还是 `claude-*`，Claude Code 都按 200k 算，这是客户端保守的默认值。模型名加 `[1m]` 后缀（如 `glm[1m]`、`claude-opus-5-5[1m]`）才按 1M 算，Claude Code 发请求前会去掉这个后缀。先实测网关能不能处理 200k 以上的输入，再开 1M。`[1m]` 在 zsh 里会被当成通配符，写进启动命令要加引号。
 - **`/model` 菜单**：user settings 里的 `modelPicker.options` 是 `[{model, label, description, behavesAs}]` 的数组。Claude Code 不认识的模型必须写 `behavesAs`（填一个它认识的模型 id），否则不会出现在菜单里。`replaceBuiltInOptions: true` 时菜单只剩 Default 和这些行，顺序按数组来。如果用同步脚本从主配置覆盖实例的 settings，要保留 `modelPicker`、`effortLevel` 这类实例自己的键。
-- **启动时的默认模型**：settings env 里的 `ANTHROPIC_MODEL` 优先于在菜单里按 Enter 存下的 `model`。要换开局模型，用 `--model`。
+- **启动时的默认模型**：settings env 里的 `ANTHROPIC_MODEL` 优先于在菜单里按 Enter 存下的 `model`。要换开局模型，用 `--model`。如果启动器支持按编号固定后端 key，应在启动器参数层完成（例如 `ccmax gpt2`），不要在 LiteLLM 代理里按请求随机切换，否则首帧状态和会话粘性无法可靠记录。
 - **LiteLLM fallback**：`router_settings.fallbacks` 的键按请求里的确切模型名匹配，写成 `claude-*` 这种通配键不生效（`router_utils/fallback_event_handlers.py`）。每个名字都要单独列一条，可以用 YAML 锚点复用后备列表。`CustomLogger.async_filter_deployments` 返回空列表时会触发 fallback。
 - **按 key 路由、记录 key**：同名部署有多个时，`async_filter_deployments` 可以按自定义请求头（Claude Code 用 `ANTHROPIC_CUSTOM_HEADERS` 发）挑出指定 key；冷却中的 key 不在候选里，会自动换另一个。`async_log_success_event` 里用 `kwargs['litellm_params']['proxy_server_request']['headers']` 拿 `x-claude-code-session-id`，用 `model_info.id` 拿实际部署 id，就能让状态栏显示本会话实际在用的 key。`session_affinity` 的绑定存在内存里，代理重启就丢。
 - **只回 SSE 的 OpenAI 中转**：有的中转不管是否流式，`/v1/responses` 都回 SSE。`openai/` 会走 Responses API，非流式请求解析失败，还会被 fallback 悄悄换成别的模型回答。改用 `hosted_vllm/` 走 chat completions。
