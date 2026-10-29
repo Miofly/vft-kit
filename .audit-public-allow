@@ -5,3 +5,7 @@ skills/design-content/frontend-design/search/data/products.csv:107 private
 skills/design-content/frontend-design/search/data/ui-reasoning.csv:107 private
 # Public negative example of a hard-coded Windows path, not a personal home directory.
 skills/design-content/frontend-design/search/data/stacks/avalonia.csv:21 path.home
+# hallmark 上游主题文案里的普通英文词（食品杂货类主题的反模板描述）撞私有标识词表；保留上游原句。
+skills/design-content/frontend-design/hallmark/references/themes/squeeze.md:17 private
+# hallmark brand-truth.md 的安全清单：列出应拒绝的私网/回环网段，是文档不是真实内网地址。
+skills/design-content/frontend-design/hallmark/references/brand-truth.md:7 pii.private-ip

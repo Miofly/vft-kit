@@ -13,6 +13,7 @@
 | 审查、精修、适配与稳健性方法（改写进 `design-review.md`） | `references/` | pbakaus/impeccable `0468fc19` | Apache-2.0 — [许可正文](#impeccable-apache-2.0)，上游 NOTICE 见 [许可正文](#impeccable-notice) |
 | Clay、Linear DESIGN.md 分析示例（原文未改）及 `design-spec.md` 结构 | `examples/design-md/` | VoltAgent/awesome-design-md `3b605329` | MIT，© 2026 VoltAgent — [许可正文](#awesome-design-md-mit)；品牌名与素材不随此授权 |
 | 样式采集脚本与纯规范化/生成/校验模块（原文件未改）；`extract/tests/local-boundaries.mjs` 为本地新增 | `extract/` | bergside/design-md-chrome `8e07614f` | MIT，© 2026 Bergside — [许可正文](#design-md-chrome-mit) |
+| 整页反模板设计体系：Floor/Reflex/Finish 门槛、50 个材料主题（含整页示例图）、21 种版式骨架、sloplint 可执行检查与 deal/scaffold 脚本、开放许可照片索引 `photos.json`（原文件未改） | `hallmark/` | Nutlope/hallmark `8f6969f8` | MIT，© 2026 Hallmark contributors — [许可正文](#hallmark-mit) |
 | Geist Sans / Mono 可变 WOFF2（未修改、未子集化） | `assets/fonts/geist/` | vercel/geist-font `b5d164a0` | SIL OFL 1.1 — 复制字体时一并复制 `OFL-1.1.txt` |
 
 ## 未分发的受限库
@@ -635,6 +636,34 @@ SOFTWARE.
 MIT License
 
 Copyright (c) 2024 Next Level Builder
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+<a id="hallmark-mit"></a>
+
+## hallmark-MIT.txt
+
+```text
+MIT License
+
+Copyright (c) 2026 Hallmark contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

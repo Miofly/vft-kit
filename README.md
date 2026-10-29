@@ -59,7 +59,7 @@ node scripts/validate-skill-catalog.mjs
 
 `agent-baseline` 按需加载装配核对、插件刷新、[CC 备份恢复 / 清理](skills/agent-ops/agent-baseline/references/backup.md)与 [CC Switch 供应商配置](skills/agent-ops/agent-baseline/references/cc-switch.md)。恢复或供应商配置不会顺带运行完整装配维护。清理保留交互确认，供应商写库前备份且默认不切换当前供应商。
 
-`frontend-design` 以 Anthropic 官方技能为主线，按功能组织：`search/` 风格、配色、字体与 UX 本地检索；`components/ui`、`components/motion`、`components/effects` 分别是基础组件与布局、动效组件、视觉效果的可许可源码；`recipes/` 动效配方与可运行示例；`extract/` 样式提取纯模块；三个整页案例、应用界面、设计审查与 Geist 中英字体规范按任务加载。React Bits / Animate UI 只给独立分析与许可边界，不分发其源码。Claude Code 用 `/vft-kit:frontend-design`，Codex 用 `$frontend-design`；详见[前端设计与风格迁移](skills/design-content/frontend-design/SKILL.md)及[第三方许可](skills/design-content/frontend-design/THIRD_PARTY_NOTICES.md)。字体保留 SIL OFL 1.1。
+`frontend-design` 以 Anthropic 官方技能为主线，按功能组织：`search/` 风格、配色、字体与 UX 本地检索；`components/ui`、`components/motion`、`components/effects` 分别是基础组件与布局、动效组件、视觉效果的可许可源码；`recipes/` 动效配方与可运行示例；`extract/` 样式提取纯模块；`hallmark/` 整页反 AI 模板体系（Floor 门槛、50 个材料主题、21 种版式骨架、sloplint 可执行检查）；三个整页案例、应用界面、设计审查与 Geist 中英字体规范按任务加载。React Bits / Animate UI 只给独立分析与许可边界，不分发其源码。Claude Code 用 `/vft-kit:frontend-design`，Codex 用 `$frontend-design`；详见[前端设计与风格迁移](skills/design-content/frontend-design/SKILL.md)及[第三方许可](skills/design-content/frontend-design/THIRD_PARTY_NOTICES.md)。字体保留 SIL OFL 1.1。
 
 ## Agents
 
