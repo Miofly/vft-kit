@@ -22,6 +22,11 @@ Two more one-shot pushes (same instance / stop_hook_active / no-tool_use gates, 
     conclusions overturned by data; 1b6363a7 called a winner at n=3).
   - FIXED: "已修复 / 验证通过" when no command ran after the last Edit/Write this turn (xf AutoJs runs: 0 of 5
     code-changing rounds ran the fix on the phone; glm declared "全链路验证通过" on 1 sample).
+Explicit next-action tails ("下一步开始最小改动…") also push once in long progress replies or after a user
+follow-up; the old short/tool-result-only gate missed these. Real blockers, user stop/plan-only requests,
+and irreversible next steps are left alone. CCMAX_FREE_CONTINUE=1 also requests a one-shot checklist review
+when free claims completion; a completed task may answer once more. This is not a task-completion oracle
+or an unlimited loop.
 Fail-open: any error prints nothing. Self-test: python3 stall-continue-hook.py --self-test
 """
 import json
@@ -30,6 +35,9 @@ import re
 import sys
 
 MAX_TEXT = 300
+# Explicit next-action tails also occur in long progress reports answering a user's follow-up.
+NEXT_ACTION = re.compile(r'(?:^|\n)\s*(?:下一步|接下来|现在)(?:我)?(?:直接|开始|继续|先|就|将|会|要)?\s*(?:最小改动|改|修|执行|运行|调用|读|查|跑|验证|处理|完成|抓|写|整理|核实)')
+BLOCKED = re.compile(r'需要用户|等待用户|等你|请先|无法继续|权限不足|验证码|人机验证|额度耗尽|免费池耗尽|需要授权|需要确认|先确认|未授权')
 ANNOUNCE = re.compile(
     r'(?:^|[。！；，,.!\n])\s*(?:我|我先|我来|让我|现在|接着|然后|下一步|先|再|改用|改走|直接|开始)?\s*'
     r'(?:抓|查|看|跑|读|执行|调用|运行|拿|取|改|写|装|试|搜|拉|下载|解析|验证|确认)'
@@ -120,6 +128,11 @@ def decide(payload, env):
     # payload's last_assistant_message is authoritative.
     text = (payload.get('last_assistant_message') or text).strip()
     tail = text[-200:]
+    action = NEXT_ACTION.search(tail)
+    action_text = tail[action.start():] if action else tail
+    if (BLOCKED.search(text) or IRREVERSIBLE.search(action_text)
+            or re.search(r'只[要做看].{0,8}(方案|计划|解释)|不[要做].{0,8}(改动|修改|执行)|^(?:请)?(?:停止|暂停|先停|别继续|不要继续|stop\b)', prompt, re.I)):
+        return None
     if LOOP in text:
         return {'decision': 'block', 'reason': LOOP_REASON}
     if env.get('CLAUDE_CODE_ENTRYPOINT') == 'sdk-cli' and (payload.get('background_tasks') or WAIT.search(tail)):
@@ -136,6 +149,13 @@ def decide(payload, env):
         return {'decision': 'block', 'reason': OVERCLAIM_REASON}
     if FIXED.search(text) and edited_unverified(payload['transcript_path']):
         return {'decision': 'block', 'reason': FIXED_REASON}
+    if NEXT_ACTION.search(tail):
+        return {'decision': 'block', 'reason': REASON}
+    if env.get('CCMAX_FREE_CONTINUE') == '1' and re.search(r'已完成|全部完成|已修复|修复完成|\bdone\b|\bcompleted\b', text, re.I):
+        return {'decision': 'block', 'reason': (
+            '结束前核对本轮用户明确授权的任务清单与验收：是否只完成一个阶段、遗漏修复或测试？'
+            '有未完成且能执行的项，直接调用工具继续；全部已完成则给最终结果，不为复核重复整读源码。'
+            '不要擅自部署、提交、付费，不接管别的会话；真实受阻则报告具体原因。')}
     if not after_tool or not text or len(text) > MAX_TEXT or not ANNOUNCE.search(text):
         return None
     return {'decision': 'block', 'reason': REASON}
@@ -143,7 +163,7 @@ def decide(payload, env):
 
 def self_test():
     import tempfile
-    def run(final_text, prev_is_tool=True, active=False, cfg='/u/.claude-as', tool_use=False, entry='cli', tools=(), prompt='用户问题', **extra):
+    def run(final_text, prev_is_tool=True, active=False, cfg='/u/.claude-as', tool_use=False, entry='cli', tools=(), prompt='用户问题', free=False, **extra):
         prev = [{'type': 'tool_result', 'content': 'x'}] if prev_is_tool else prompt
         final = [{'type': 'thinking', 'thinking': '...'}, {'type': 'text', 'text': final_text}]
         if tool_use: final.append({'type': 'tool_use', 'name': 'Bash', 'input': {}})
@@ -153,7 +173,8 @@ def self_test():
         with tempfile.NamedTemporaryFile('w', suffix='.jsonl', delete=False) as f:
             f.write('\n'.join(json.dumps(r, ensure_ascii=False) for r in rows))
         out = decide({'transcript_path': f.name, 'stop_hook_active': active, **extra},
-                     {'CLAUDE_CONFIG_DIR': cfg, 'CLAUDE_CODE_ENTRYPOINT': entry})
+                     {'CLAUDE_CONFIG_DIR': cfg, 'CLAUDE_CODE_ENTRYPOINT': entry,
+                      'CCMAX_FREE_CONTINUE': '1' if free else '0'})
         os.unlink(f.name)
         return out['reason'][:4] if out else False
     A, W, S = ASK_REASON[:4], WAIT_REASON[:4], REASON[:4]
@@ -188,6 +209,21 @@ def self_test():
         (run(report + '已修复，验证通过。', tools=('Read', 'Edit')), FIXED_REASON[:4]),     # edited, never ran
         (run(report + '已修复，验证通过。', tools=('Edit', 'Bash')), False),
         (run(report + '已修复。', tools=('Edit', 'Read')), FIXED_REASON[:4]),
+        (run(report + '\n下一步开始最小改动：先改卡片，再修链接。', prev_is_tool=False, prompt='怎么样了'), S),
+        (run('git status 有未提交改动，非本次修改。\n下一步开始最小改动：先改卡片。', prev_is_tool=False, prompt='怎么样了'), S),
+        (run(report + '\n下一步开始最小改动：先改卡片。', active=True), False),
+        (run('需要用户授权，无法继续。\n下一步修链接。'), False),
+        (run('等待用户完成验证码。\n下一步修链接。'), False),
+        (run('下一步执行部署。'), False),
+        (run('下一步修链接。', prev_is_tool=False, prompt='停止'), False),
+        (run('下一步修链接。', prev_is_tool=False, prompt='Stop now'), False),
+        (run('免费池耗尽，无法继续。\n下一步修链接。'), False),
+        (run('下一步修改卡片。', prev_is_tool=False, prompt='只要方案，不要修改'), False),
+        (run('全部完成，测试 20/20 通过。'), False),
+        (run('Phase 1 done: tests pass.', free=True), '结束前核'),
+        (run('全部完成，测试通过。', free=True, active=True), False),
+        (run('已完成。', free=True, prev_is_tool=False, prompt='停止'), False),
+        (run('额度耗尽，无法继续；阶段已完成。', free=True), False),
         (run('t1'), False),                                          # short final answer
         (run('直接抓 raw README。', prev_is_tool=False), False),       # answering the user, not mid-task
         (run('直接抓 raw README。', active=True), False),              # already pushed once
