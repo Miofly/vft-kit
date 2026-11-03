@@ -67,6 +67,13 @@ description: "SEO 审计与优化：在 Claude Code 中用 claude-seo 插件做�
 
 参考：[Google SEO 入门指南](https://developers.google.com/search/docs/fundamentals/seo-starter-guide?hl=zh-cn)、[标题最佳实践](https://developers.google.com/search/docs/appearance/title-link)、[关键词堆砌政策](https://developers.google.com/search/docs/essentials/spam-policies#keyword-stuffing)。
 
+## 技术博客批量优化
+
+- 摘要提取使用项目已装的 Markdown/YAML 解析器，不用正则删除行内代码；`Object.defineProperty`、`effect` 等 API 名是正文语义，不是应该丢掉的代码块。围栏代码、脚本、图片地址与目录指令不进入摘要。
+- 关键词以手写词、文章标题、实际小节和有主题证据的别名合并去重；不因正文偶尔出现某个品牌就给整篇扩品牌词，不给文章统一加“免费工具”。空 frontmatter 数组不应覆盖生成词。
+- 相关文章须有具体词或细分主题关联，不用“前端/开发工具”泛分类强凑。没有可靠匹配时给文章归档入口即可。推荐链接必须 SSR 输出，不把整张文章表静态打入首屏。
+- Article/BlogPosting 日期来自原文，明确写作时区；没有更新时间就不伪造今天。全量校验每篇源文与生成数据一致、摘要唯一、推荐无自链死链，并分别报告模板 SSR 与浏览器整页验收范围。
+
 ## 与 fe-quality-ops 的分工
 
 - `fe-quality-ops`：代码改动后的静态收尾（lint/tsc）+ 页面渲染/控制台/Lighthouse/SEO/hydration 验证
