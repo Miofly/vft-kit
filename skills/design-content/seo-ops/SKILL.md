@@ -56,6 +56,16 @@ description: "SEO 审计与优化：在 Claude Code 中用 claude-seo 插件做�
 - 数据送 Anthropic（与 Claude Code 一致），报告落本地；第三方 SEO 服务仅在装扩展时接入
 - Pro 版（AI Marketing Hub 成员）有早期内测特性，安装源不同
 
+## 工具站扩词与竞品对照
+
+- 先看真实输入、输出、限制、处理位置与收费/登录规则，再扩正式名、口语别名、英文词、格式词和使用场景。免费不等于无限额、免登录、离线或不上传，不能按分类批量承诺。
+- 对照公开页面的标题、主标题、用途、步骤、FAQ 与相关工具链接；不复制竞品正文、不冒用评分。可参考 iLoveIMG 的格式词分组、PDF24 的免费与限制说明、123apps 的剪歌曲/铃声等场景词，以及 BeJSON 的相关能力导航。竞品写出的格式与功能不能直接当作本站支持。
+- 核心词放在自然、独立的标题；长尾词写进可阅读用途与问答，邻近需求通过真实相关工具内链承接。Google 不用 `meta keywords` 排名，反复堆同义词反而触及垃圾内容政策；不为每个别名制造重复 URL。
+- 摘要优先本页真实导语、用途和限制；不为凑 150–160 字套“全格式/批量/本地/不上传”句池。结构化数据必须与可见正文一致；不要把 FAQ/HowTo 标记或关键词数量当成富结果、收录或排名保证，展示资格以当前官方文档为准。
+- 验收原始 HTML 与水合后页面两端：标题、canonical、正文、可访问内链和指南展开均正确。SSR 直出不代表已有说明；全屏与 client-only 页要检查指南是否被布局条件漏掉。无 Search Console 数据时，不能声称已提升曝光、点击或排名。
+
+参考：[Google SEO 入门指南](https://developers.google.com/search/docs/fundamentals/seo-starter-guide?hl=zh-cn)、[标题最佳实践](https://developers.google.com/search/docs/appearance/title-link)、[关键词堆砌政策](https://developers.google.com/search/docs/essentials/spam-policies#keyword-stuffing)。
+
 ## 与 fe-quality-ops 的分工
 
 - `fe-quality-ops`：代码改动后的静态收尾（lint/tsc）+ 页面渲染/控制台/Lighthouse/SEO/hydration 验证

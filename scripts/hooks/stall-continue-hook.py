@@ -24,9 +24,17 @@ Two more one-shot pushes (same instance / stop_hook_active / no-tool_use gates, 
     code-changing rounds ran the fix on the phone; glm declared "全链路验证通过" on 1 sample).
 Explicit next-action tails ("下一步开始最小改动…") also push once in long progress replies or after a user
 follow-up; the old short/tool-result-only gate missed these. Real blockers, user stop/plan-only requests,
-and irreversible next steps are left alone. CCMAX_FREE_CONTINUE=1 also requests a one-shot checklist review
+and irreversible next steps are left alone. Bare user continuation prompts also count as mid-task;
+English "Now reading/writing" progress is an action, not a completed result (f2827b95, 2026-11-02).
+CCMAX_FREE_CONTINUE=1 also requests a one-shot checklist review
 when free claims completion; a completed task may answer once more. This is not a task-completion oracle
 or an unlimited loop.
+CCMAX_AS_CONTINUE=1 allows up to three consecutive no-progress recovery pushes even when stop_hook_active;
+tool results or a new user turn reset that budget. A completion claim gets one checklist review.
+AS_STALLED is a visible terminal notice, not a successful task result. State under CLAUDE_CONFIG_DIR/as-recovery
+covers Stop firing before transcript flush; quoted code examples are not action announcements.
+AS empty/punctuation-only output (e06f9866: just ".") also recovers. last_assistant_message, including an empty
+string, outranks stale tool_use blocks in the transcript. Duplicate feedback for one assistant is counted once.
 Fail-open: any error prints nothing. Self-test: python3 stall-continue-hook.py --self-test
 """
 import json
@@ -36,12 +44,15 @@ import sys
 
 MAX_TEXT = 300
 # Explicit next-action tails also occur in long progress reports answering a user's follow-up.
-NEXT_ACTION = re.compile(r'(?:^|\n)\s*(?:下一步|接下来|现在)(?:我)?(?:直接|开始|继续|先|就|将|会|要)?\s*(?:最小改动|改|修|执行|运行|调用|读|查|跑|验证|处理|完成|抓|写|整理|核实)')
+NEXT_ACTION = re.compile(
+    r'(?:^|[。！？；.!?;\n])\s*(?:下一步|接下来|现在)(?:我)?(?:直接|开始|继续|先|就|将|会|要)?\s*(?:最小改动|重写|重构|改|修|执行|运行|调用|读|查|跑|验证|处理|完成|抓|写|整理|核实)'
+    r'|(?:^|[.!?\n])\s*Now (?:reading|writing|running|checking|calling|executing|editing)\b', re.I)
+CONTINUE_PROMPT = re.compile(r'^(?:继续|继续做|继续执行|接着做|接着干|continue|go on)[。！.!\s]*$', re.I)
 BLOCKED = re.compile(r'需要用户|等待用户|等你|请先|无法继续|权限不足|验证码|人机验证|额度耗尽|免费池耗尽|需要授权|需要确认|先确认|未授权')
 ANNOUNCE = re.compile(
     r'(?:^|[。！；，,.!\n])\s*(?:我|我先|我来|让我|现在|接着|然后|下一步|先|再|改用|改走|直接|开始)?\s*'
     r'(?:抓|查|看|跑|读|执行|调用|运行|拿|取|改|写|装|试|搜|拉|下载|解析|验证|确认)'
-    r'|\b(?:let me|i\'ll|i will|next,? i|now i)\b', re.I)
+    r'|\b(?:let me|i\'ll|i will|next,? i|now i|now (?:reading|writing|running|checking|calling|executing|editing))\b', re.I)
 REASON = ('你刚才说了下一步要做的事，但没有调用任何工具就结束了这一轮。现在直接调用工具去执行；'
           '如果任务其实已经完成，就给出最终答复。')
 ASK = re.compile(r'(要不要我|要的话我|需要的话我|要我[^。\n]{0,40}[吗？?]|需要我[^。\n]{0,40}[吗？?]|还是[^。\n]{0,60}[？?]'
@@ -79,10 +90,14 @@ FIXED_REASON = ('你说已修复 / 验证通过，但最后一次改文件之后
 def turn_tail(path):
     """-> (final assistant blocks, whether the message before them is a tool_result)."""
     rows = []
-    with open(path) as f:
-        for line in f.readlines()[-400:]:
-            try: rows.append(json.loads(line))
-            except ValueError: pass
+    try:
+        with open(path) as f:
+            lines = f.readlines()[-400:]
+    except FileNotFoundError:
+        lines = []  # Stop may arrive before the first transcript flush; use its payload instead.
+    for line in lines:
+        try: rows.append(json.loads(line))
+        except ValueError: pass
     rows = [r for r in rows if r.get('type') in ('user', 'assistant') and not r.get('isMeta')]
     final = []
     while rows and rows[-1]['type'] == 'assistant':
@@ -98,10 +113,14 @@ def turn_tail(path):
 def edited_unverified(path):
     """True when, since the user's last prompt, a file was edited and no tool other than reading ran after the last edit."""
     rows = []
-    with open(path) as f:
-        for line in f.readlines()[-400:]:
-            try: rows.append(json.loads(line))
-            except ValueError: pass
+    try:
+        with open(path) as f:
+            lines = f.readlines()[-400:]
+    except FileNotFoundError:
+        lines = []  # Stop may arrive before the first transcript flush; use its payload instead.
+    for line in lines:
+        try: rows.append(json.loads(line))
+        except ValueError: pass
     tools = []
     for r in rows:
         c = (r.get('message') or {}).get('content')
@@ -114,25 +133,94 @@ def edited_unverified(path):
     return last >= 0 and not any(t not in EDIT_TOOLS | {'Read', 'Grep', 'Glob', 'TodoWrite'} for t in tools[last + 1:])
 
 
+def as_recovery(payload, env):
+    """AS may stop again after recovery; tool results reset the bounded no-progress budget."""
+    rows = []
+    try:
+        with open(payload['transcript_path']) as f:
+            lines = f.readlines()[-400:]
+    except FileNotFoundError:
+        lines = []
+    for line in lines:
+        try: rows.append(json.loads(line))
+        except ValueError: pass
+    pushes, feedback_turns, assistant_id = 0, set(), None
+    for index, row in enumerate(rows):
+        if row.get('type') == 'assistant':
+            assistant_id = row.get('uuid') or index
+        if row.get('type') != 'user':
+            continue
+        content = (row.get('message') or {}).get('content', '')
+        if not row.get('isMeta'):
+            pushes, feedback_turns = 0, set()
+        elif isinstance(content, str) and content.startswith('Stop hook feedback:') and assistant_id not in feedback_turns:
+            feedback_turns.add(assistant_id)
+            pushes += 1
+    # Stop can run before the transcript flushes; a per-session counter bounds retries even with stale history.
+    import fcntl
+    import hashlib
+    key = str(payload.get('session_id') or payload['transcript_path'])
+    directory = os.path.join(os.path.expanduser(env['CLAUDE_CONFIG_DIR']), 'as-recovery')
+    os.makedirs(directory, mode=0o700, exist_ok=True)
+    state_path = os.path.join(directory, hashlib.sha256(key.encode()).hexdigest() + '.json')
+    with open(state_path, 'a+') as state:
+        fcntl.flock(state, fcntl.LOCK_EX)
+        state.seek(0)
+        try: saved = json.load(state)
+        except ValueError: saved = {}
+        progress = next((row for row in reversed(rows) if row.get('type') == 'user' and not row.get('isMeta')), {})
+        checkpoint = hashlib.sha256(json.dumps(progress, sort_keys=True).encode()).hexdigest()
+        if payload.get('stop_hook_active') and saved.get('checkpoint') == checkpoint:
+            pushes = max(pushes, saved.get('pushes', 0))
+        state.seek(0)
+        state.truncate()
+        json.dump({'pushes': pushes + 1, 'checkpoint': checkpoint}, state)
+    if pushes >= 3:
+        return {'systemMessage': 'AS_STALLED：连续 3 次自动续跑仍无工具进展，已停止重试；任务未完成，不是后台仍在执行。'}
+    return {'decision': 'block', 'reason': (
+        f'[AS_CONTINUE {pushes + 1}/3] 回复结束不等于任务完成。'
+        '核对本轮用户授权清单和实际工具结果；还有未完成且可执行的项，立即调用工具，不要再宣布计划。'
+        '不得模拟调用或把未执行的操作说成成功。全部完成才最终答复；'
+        '用户要求停止、权限/额度/验证码受阻或需确认的不可逆动作则明确说明并停止。')}
+
+
 def decide(payload, env):
+    if env.get('CCMAX_TASK_GATE') == '1':
+        return None  # Explicit lifecycle receipts replace reply-text heuristics in opted-in sessions.
     cfg = env.get('CLAUDE_CONFIG_DIR', '')
     if not cfg or os.path.normpath(os.path.expanduser(cfg)) == os.path.expanduser('~/.claude'):
         return None
-    if payload.get('stop_hook_active') or not payload.get('transcript_path'):
+    as_mode = env.get('CCMAX_AS_CONTINUE') == '1'
+    if not payload.get('transcript_path') or (payload.get('stop_hook_active') and not as_mode):
         return None
     final, after_tool, prompt = turn_tail(payload['transcript_path'])
-    if any(b.get('type') == 'tool_use' for b in final if isinstance(b, dict)):
+    if 'last_assistant_message' not in payload and any(b.get('type') == 'tool_use' for b in final if isinstance(b, dict)):
         return None
     text = ''.join(b.get('text', '') for b in final if isinstance(b, dict) and b.get('type') == 'text').strip()
     # The final reply is often not yet flushed to the transcript when Stop fires (seen in `claude -p`); the
     # payload's last_assistant_message is authoritative.
-    text = (payload.get('last_assistant_message') or text).strip()
+    text = payload.get('last_assistant_message', text).strip()
     tail = text[-200:]
     action = NEXT_ACTION.search(tail)
     action_text = tail[action.start():] if action else tail
     if (BLOCKED.search(text) or IRREVERSIBLE.search(action_text)
             or re.search(r'只[要做看].{0,8}(方案|计划|解释)|不[要做].{0,8}(改动|修改|执行)|^(?:请)?(?:停止|暂停|先停|别继续|不要继续|stop\b)', prompt, re.I)):
         return None
+    if as_mode:
+        # Quoted examples describe actions; only unquoted progress is a recovery signal.
+        progress = re.sub(r'```.*?```|`[^`\n]*`', '', text, flags=re.S)
+        pending = (not any(char.isalnum() for char in text)
+                   or re.search(r'(?:继续|接着)(?:第\s*\d+\s*次)?\s*(?:调用|执行|运行|写|读|查|验证)', progress[-200:])
+                   or LOOP in progress or NEXT_ACTION.search(progress[-200:])
+                   or (len(progress) <= MAX_TEXT and ANNOUNCE.search(progress)
+                       and (after_tool or CONTINUE_PROMPT.fullmatch(prompt))))
+        if pending:
+            return as_recovery(payload, env)
+        if not payload.get('stop_hook_active') and re.search(r'已完成|全部完成|已修复|修复完成|\bdone\b|\bcompleted\b', progress, re.I):
+            return as_recovery(payload, env)
+        if payload.get('stop_hook_active'):
+            return None
+        text, tail = progress, progress[-200:]
     if LOOP in text:
         return {'decision': 'block', 'reason': LOOP_REASON}
     if env.get('CLAUDE_CODE_ENTRYPOINT') == 'sdk-cli' and (payload.get('background_tasks') or WAIT.search(tail)):
@@ -156,33 +244,45 @@ def decide(payload, env):
             '结束前核对本轮用户明确授权的任务清单与验收：是否只完成一个阶段、遗漏修复或测试？'
             '有未完成且能执行的项，直接调用工具继续；全部已完成则给最终结果，不为复核重复整读源码。'
             '不要擅自部署、提交、付费，不接管别的会话；真实受阻则报告具体原因。')}
-    if not after_tool or not text or len(text) > MAX_TEXT or not ANNOUNCE.search(text):
+    if not (after_tool or CONTINUE_PROMPT.fullmatch(prompt)) or not text or len(text) > MAX_TEXT or not ANNOUNCE.search(text):
         return None
     return {'decision': 'block', 'reason': REASON}
 
 
 def self_test():
     import tempfile
-    def run(final_text, prev_is_tool=True, active=False, cfg='/u/.claude-as', tool_use=False, entry='cli', tools=(), prompt='用户问题', free=False, **extra):
+    def run(final_text, prev_is_tool=True, active=False, cfg='/u/.claude-as', tool_use=False, entry='cli', tools=(), prompt='用户问题', free=False, as_mode=False, pushes=0, **extra):
         prev = [{'type': 'tool_result', 'content': 'x'}] if prev_is_tool else prompt
         final = [{'type': 'thinking', 'thinking': '...'}, {'type': 'text', 'text': final_text}]
         if tool_use: final.append({'type': 'tool_use', 'name': 'Bash', 'input': {}})
         earlier = [{'type': 'user', 'message': {'content': '修一下'}}] + [
             {'type': 'assistant', 'message': {'content': [{'type': 'tool_use', 'name': t, 'input': {}}]}} for t in tools]
-        rows = earlier + [{'type': 'user', 'message': {'content': prev}}] + [{'type': 'assistant', 'message': {'content': [b]}} for b in final]
+        feedback = [row for i in range(pushes) for row in (
+            {'type': 'assistant', 'uuid': f'push-{i}', 'message': {'content': [{'type': 'text', 'text': final_text}]}},
+            {'type': 'user', 'isMeta': True, 'message': {'content': 'Stop hook feedback:\n[AS_CONTINUE]'}})]
+        rows = earlier + [{'type': 'user', 'message': {'content': prev}}] + feedback + [{'type': 'assistant', 'message': {'content': [b]}} for b in final]
         with tempfile.NamedTemporaryFile('w', suffix='.jsonl', delete=False) as f:
             f.write('\n'.join(json.dumps(r, ensure_ascii=False) for r in rows))
-        out = decide({'transcript_path': f.name, 'stop_hook_active': active, **extra},
-                     {'CLAUDE_CONFIG_DIR': cfg, 'CLAUDE_CODE_ENTRYPOINT': entry,
-                      'CCMAX_FREE_CONTINUE': '1' if free else '0'})
+        with tempfile.TemporaryDirectory() as config_dir:
+            out = decide({'transcript_path': f.name, 'stop_hook_active': active, **extra},
+                         {'CLAUDE_CONFIG_DIR': config_dir if as_mode else cfg, 'CLAUDE_CODE_ENTRYPOINT': entry,
+                          'CCMAX_FREE_CONTINUE': '1' if free else '0', 'CCMAX_AS_CONTINUE': '1' if as_mode else '0'})
         os.unlink(f.name)
-        return out['reason'][:4] if out else False
+        return (out.get('reason') or out.get('systemMessage'))[:4] if out else False
     A, W, S = ASK_REASON[:4], WAIT_REASON[:4], REASON[:4]
     report = '## 结论\n' + '数据' * 300
     cases = [
         (run('索引里没 README 正文，直接抓 raw README。'), S),
         (run('仓库信息拿到了。抓 README 和文件结构看实现。'), S),
         (run('Let me check the logs.'), S),
+        (run('Now reading reference files for the refactor.'), S),
+        (run('All references read. Now writing the completely rewritten SCSS.\n\nThis is a large file. Writing in one shot.'), S),
+        (run(report + '\nNow writing the SCSS.', prev_is_tool=False, prompt='继续'), S),
+        (run('写 SCSS 重构。5 套独立设计，每套暗/明也是独立设计。', prev_is_tool=False, prompt='继续'), S),
+        (run('写 SCSS 重构。', prev_is_tool=False, prompt='Continue.'), S),
+        (run('Now reading reference files.', prev_is_tool=False, prompt='停止'), False),
+        (run('需要用户授权。\nNow writing deployment scripts.'), False),
+        (run('写 SCSS 重构。', prev_is_tool=False, prompt='继续', active=True), False),
         (run(report + '要不要我先测这一条？还是先写回 skill？'), A),          # long report ending in options
         (run(report + '沉淀建议写进 startup-bench.md，要的话我顺手加。', prev_is_tool=False), A),
         (run('[loop-guard] 上游推理陷入复读，代理已中断本次回复。'), LOOP_REASON[:4]),
@@ -224,6 +324,31 @@ def self_test():
         (run('全部完成，测试通过。', free=True, active=True), False),
         (run('已完成。', free=True, prev_is_tool=False, prompt='停止'), False),
         (run('额度耗尽，无法继续；阶段已完成。', free=True), False),
+        (run('Now writing the SCSS.', as_mode=True, active=True, pushes=1), '[AS_'),
+        (run('Now writing the SCSS.', as_mode=True, active=True, pushes=2), '[AS_'),
+        (run('Now writing the SCSS.', as_mode=True, active=True, pushes=3), 'AS_S'),
+        (run('全部完成，文件已核实。', as_mode=True), '[AS_'),
+        (run('全部完成，文件已核实。', as_mode=True, active=True, pushes=1), False),
+        (run('需要用户授权。Now writing files.', as_mode=True, active=True), False),
+        (run('Now writing files.', as_mode=True, active=True, prev_is_tool=False, prompt='停止'), False),
+        (run('解释示例：`Now writing the SCSS.` 不是工具调用。', as_mode=True), False),
+        (run('.', as_mode=True, prev_is_tool=False, prompt='使用 skill 重构页面'), '[AS_'),
+        (run('。…', as_mode=True), '[AS_'),
+        (run('', as_mode=True, active=True), '[AS_'),
+        (run('.', as_mode=True, active=True, pushes=3), 'AS_S'),
+        (run('.', as_mode=True, prev_is_tool=False, prompt='停止'), False),
+        (run('示例文本', as_mode=True, last_assistant_message=''), '[AS_'),
+        (run('.', as_mode=False), False),
+        (run('42', as_mode=True), False),
+        (run('studio.scss 动效系统已追加。现在重写 video-trim.vue 加入动效编排。', as_mode=True), '[AS_'),
+        (run('样式已追加；接下来重构模板。', as_mode=True, active=True, pushes=1), '[AS_'),
+        (run('样式已追加。现在重写模板。', as_mode=True, active=True, pushes=3), 'AS_S'),
+        (run('样式已追加。现在重写模板。', as_mode=True, prev_is_tool=False, prompt='停止'), False),
+        (run('示例：`现在重写模板` 不是实际调用。', as_mode=True), False),
+        (run('样式已追加。现在部署生产。', as_mode=True), False),
+        (run('继续第 5 次调用。', as_mode=True), '[AS_'),
+        (run('旧回复', as_mode=True, tool_use=True, last_assistant_message='Now writing the SCSS.'), '[AS_'),
+        (run('旧回复', as_mode=True, tool_use=True, last_assistant_message='.'), '[AS_'),
         (run('t1'), False),                                          # short final answer
         (run('直接抓 raw README。', prev_is_tool=False), False),       # answering the user, not mid-task
         (run('直接抓 raw README。', active=True), False),              # already pushed once
@@ -231,6 +356,27 @@ def self_test():
         (run('直接抓 raw README。', cfg=os.path.expanduser('~/.claude')), False),  # main session
         (run('看' + '长' * 400), False),                              # long reply = real answer
     ]
+    with tempfile.TemporaryDirectory() as directory:
+        payload = {'session_id': 'unflushed', 'transcript_path': os.path.join(directory, 'missing.jsonl'),
+                   'last_assistant_message': 'Now writing the SCSS.', 'stop_hook_active': False}
+        env = {'CLAUDE_CONFIG_DIR': directory, 'CCMAX_AS_CONTINUE': '1'}
+        assert decide(payload, env)['decision'] == 'block'
+        payload.update(last_assistant_message='.', stop_hook_active=True)
+        assert decide(payload, env)['decision'] == 'block'
+    # Stop payload may lead the transcript; retries still stop at three and reset after actual tool progress.
+    with tempfile.TemporaryDirectory() as directory:
+        transcript = os.path.join(directory, 'turn.jsonl')
+        with open(transcript, 'w') as f:
+            f.write(json.dumps({'type': 'user', 'message': {'content': '继续'}}) + '\n')
+        payload = {'transcript_path': transcript, 'stop_hook_active': True}
+        env = {'CLAUDE_CONFIG_DIR': directory}
+        for _ in range(3):
+            assert as_recovery(payload, env).get('decision') == 'block'
+        assert 'AS_STALLED' in as_recovery(payload, env).get('systemMessage', '')
+        with open(transcript, 'a') as f:
+            f.write(json.dumps({'type': 'user', 'uuid': 'tool-result-1', 'message': {
+                'content': [{'type': 'tool_result', 'content': 'step 1 done'}]}}) + '\n')
+        assert '[AS_CONTINUE 1/3]' in as_recovery(payload, env)['reason']
     bad = [i for i, (got, want) in enumerate(cases) if got != want]
     print('self-test ' + ('FAIL cases ' + repr(bad) if bad else 'ok'))
     return 1 if bad else 0
