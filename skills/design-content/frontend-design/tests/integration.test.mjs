@@ -42,8 +42,8 @@ test('every route and local link resolves, and every reference is reachable', ()
 
 test('functional layout only: no repository mirrors, provenance dumps, or personal paths', () => {
   const all = files(skill);
-  // hallmark/ 是整体引入的上游 skill（MIT，见 THIRD_PARTY_NOTICES.md），自带 SKILL.md，属已登记的嵌套体系。
-  assert.deepEqual(all.filter((file) => path.basename(file) === 'SKILL.md'), [at('SKILL.md'), at('hallmark/SKILL.md')]);
+  // hallmark/、anatomy/ 是整体引入的上游 skill（MIT，见 THIRD_PARTY_NOTICES.md），自带 SKILL.md，属已登记的嵌套体系。
+  assert.deepEqual(all.filter((file) => path.basename(file) === 'SKILL.md'), [at('SKILL.md'), at('anatomy/SKILL.md'), at('hallmark/SKILL.md')]);
   assert.deepEqual(all.filter((file) => /(?:\.pyc$|\/__pycache__\/|\.DS_Store$)/.test(file)), []);
   for (const gone of ['vendor', 'third-party', 'SOURCES.md']) assert.ok(!existsSync(at(gone)), gone);
   assert.deepEqual(all.filter((file) => /(?:UPSTREAM|SOURCE-MANIFEST|sources-[\w-]+\.md$|verify\.mjs$)/.test(file)), []);
@@ -136,7 +136,7 @@ test('restricted libraries are documented boundaries, never bundled source', () 
 
 test('consolidated notices preserve original license texts and attribution', () => {
   const notices = text(at('THIRD_PARTY_NOTICES.md'));
-  for (const dir of ['search/', 'components/motion/', 'components/ui/', 'components/effects/', 'recipes/', 'examples/design-md/', 'extract/', 'hallmark/', 'assets/fonts/geist/']) {
+  for (const dir of ['search/', 'components/motion/', 'components/ui/', 'components/effects/', 'recipes/', 'examples/design-md/', 'extract/', 'hallmark/', 'anatomy/', 'assets/fonts/geist/']) {
     assert.ok(notices.includes(`\`${dir}`), dir);
   }
   const expected = [
@@ -152,6 +152,7 @@ test('consolidated notices preserve original license texts and attribution', () 
     '4575a543ab88dad12ccea7d97e563d0bce5b448b06072e65d3264497dad326df',
     '738f69dfa83db5c347c678fb9d90e560877059f0de93a327c39001bff92dc014',
     '06088a8b94598626f27612dea42300154bf7be967c85d9d3eee4490cb056af7d',
+    '87c078ab9d90a3044f359e6b563d4e6afea7aa060897cf4f21618687b3856796',
   ];
   const actual = [...notices.matchAll(/```text\n([\s\S]*?)```/g)]
     .map((match) => createHash('sha256').update(match[1]).digest('hex'));
