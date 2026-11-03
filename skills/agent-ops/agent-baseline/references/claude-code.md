@@ -146,6 +146,18 @@ for t in test-*.sh; do bash "$t" >/dev/null 2>&1 && echo "✓ $t" || echo "✗ $
 
 > 测试靠环境变量注入 mock（`RTK_SCRIPT` / `CAVEMAN_SCRIPT` / `CHECK_SCRIPT`），所以 `run.sh` 里这些路径变量（含 `CG_FILTER_SCRIPT`、`MR_SCRIPT`、`MIGRATE_SCRIPT`）**必须保持 `${VAR:-默认值}` 形式**；写成硬编码会让 mock 注入失效、测试报出误导性的「exit code not propagated」。
 
+## 可选任务状态门控
+
+第三方模型会将进度正文当作最终答复时，可使用 `scripts/hooks/task-completion-gate.py`，不再依赖动作短语正则。先设置 `VFT_KIT_DIR` 为本仓库绝对路径，运行 `python3 "${VFT_KIT_DIR}/scripts/hooks/task-completion-gate.py" --settings-json` 生成 CLI `--settings` 配置；脚本不默认注册到所有插件用户，也不调用额外模型。
+
+- UserPromptSubmit 建立任务版本，SessionStart 恢复状态；单独“继续”保留未完成任务和证据。
+- 工具钩子记录本轮回执。active 状态的 Stop 必须继续，不论最后一句是什么；通过 Bash 单独执行 `--status --session <id>` 查询编号，`--finish --session <id> --receipt '<JSON>'` 提交终态。
+- completed 收据须含 revision 和逐项 checks（requirement、成功工具编号 evidence）；Edit/Write 后须有更晚的非读取工具验收。answered 说明纯问答依据，blocked 说明原因和 remaining，cancelled 说明停止原因。
+- 三次自动续跑仍无成功工具进展则显示 TASK_STALLED，明确未完成；新工作工具使旧终态失效。状态在对应 CLAUDE_CONFIG_DIR/task-gate，文件权限0600。
+- 这是回执来源和先后关系校验，不是业务完整性证明。清单是否遗漏、验收是否充分及 answered/blocked/cancelled 是否属实仍由执行者负责；Bash 内文件写入也无法像 Edit/Write 一样自动识别。网络断流、额度与进程崩溃不在 Stop 门控修复范围。已有进程需重新启动/恢复才能加载新增生命周期事件。
+
+测试：`python3 "${VFT_KIT_DIR}/scripts/hooks/task-completion-gate.test.py"`。完整用法见[实例任务状态门控](https://wflynn.cn/pages/2607131002#实例任务状态门控)。
+
 ## 约束
 
 ### 改动纪律

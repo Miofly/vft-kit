@@ -81,8 +81,9 @@ Claude Code 插件不能直接提供 `.claude/rules/`，vft-kit 用钩子实现�
 | `scripts/hooks/bash-prompt-guard.py` | PreToolUse（Bash） | 拒掉会触发 Claude Code 内置确认框的 Bash 写法（cd 后 git、变量删除等）并给改写提示 |
 | `scripts/hooks/handoff-nudge.py` | PostToolUse（*） | 主会话上下文过 40%/55%/70%/85% 各记一次；默认影子运行，`~/.cache/vft-kit/handoff-nudge.LIVE` 存在才注入「写交接」提示 |
 | `scripts/hooks/reply-lang-pin.py` | UserPromptSubmit | 提问中文占比低于 30% 时补一句「用简体中文回复」；`VFT_REPLY_LANG` 改目标语言，`~/.cache/vft-kit/reply-lang.OFF` 关闭 |
+| `scripts/hooks/task-completion-gate.py`（按需启用） | SessionStart / UserPromptSubmit / PostToolUse / PostToolUseFailure / Stop | 以每轮任务状态和工具证据控制结束，不依赖回复措辞；`--settings-json` 生成独立会话配置，见[装配基线文档](https://wflynn.cn/pages/2607131002) |
 
-后三个是 agent-baseline 的通用 hook，随插件注册，不再写进 `settings.json`；旧版留下的绝对路径条目用 `skills/agent-ops/agent-baseline/claude-code/scripts/migrate-plugin-hooks.sh` 清理（`CLAUDE_CONFIG_DIR` 指定实例，`--dry-run` 预览）。
+bash-prompt-guard、handoff-nudge、reply-lang-pin 是 agent-baseline 的通用 hook，随插件注册，不再写进 `settings.json`；旧版留下的绝对路径条目用 `skills/agent-ops/agent-baseline/claude-code/scripts/migrate-plugin-hooks.sh` 清理（`CLAUDE_CONFIG_DIR` 指定实例，`--dry-run` 预览）。
 
 插件自带规则在 `rules/`（目前：`vue-sfc`、`style-layout`、`package-json`）。项目继承与私有规则放在项目根（从被操作文件向上逐级合并，monorepo 根与子项目可各放一份）：
 
