@@ -57,7 +57,7 @@ description: "公众号后台与微信开发者控制台：登录、草稿排版
 | 开发者平台 tab、AppSecret、白名单、接口权限与额度 | [console.md](references/console.md) | `ego-browser nodejs` |
 | `40164`、`48001`、粘贴重复、发表无反应等报错 | [troubleshooting.md](references/troubleshooting.md) | — |
 | 小程序上传、预览、版本状态、提审 | [miniprogram-release.md](references/miniprogram-release.md) | `scripts/mp-ci.mjs`、`scripts/wxamp-version-status.mjs`、`scripts/wxamp-submit-audit-api.mjs`（兜底 `scripts/wxamp-submit-audit.mjs`） |
-| 小程序开发者工具 CLI、automator 自测、本地后端、广告与分享 | [miniprogram-devtools.md](references/miniprogram-devtools.md) | `scripts/miniprogram-automator-helpers.cjs` |
+| 小程序开发者工具 CLI、automator 自测、本地后端、广告与分享；小游戏后台登录、测试号、读控制台（cua-driver） | [miniprogram-devtools.md](references/miniprogram-devtools.md) | `scripts/miniprogram-automator-helpers.cjs` |
 | 反编译 wxapkg、还原 WXSS、复刻到 Taro | [wxapkg-unpack.md](references/wxapkg-unpack.md) | `scripts/wxapkg/wxapkg.sh`、`scripts/wxapkg/extract-wxss.mjs`、`scripts/wxapkg/split-service.mjs` |
 | TikTok Minis 链接抓 H5 前端产物学习 | [tiktok-minis.md](references/tiktok-minis.md) | `scripts/tiktok-minis/fetch.py` |
 | 全部文件说明 | [file-index.md](references/file-index.md) | — |

@@ -16,6 +16,7 @@
 | 整页反模板设计体系：Floor/Reflex/Finish 门槛、50 个材料主题（含整页示例图）、21 种版式骨架、sloplint 可执行检查与 deal/scaffold 脚本、开放许可照片索引 `photos.json`（原文件未改） | `hallmark/` | Nutlope/hallmark `8f6969f8` | MIT，© 2026 Hallmark contributors — [许可正文](#hallmark-mit) |
 | 等距解说图体系：把技术概念建成可运转的实物装置（多零件实心体、四色明暗、画家序、边框卡片、实时读数与缓动），SVG / WebGL / 3D 三档、几何审计、无头截图与 A4 打印；`examples/` 8 个完整示例（原文件未改） | `anatomy/` | wheresryan22/anatomy `1482e84` | MIT，© 2026 Ryan — [许可正文](#anatomy-mit) |
 | 手绘与写实画风（001–368）、170 种排版图型、36 种主题色的生图提示词体系：根路由 SKILL.md、14 个子 skill、画风/图型/色卡画廊与编号参考图、Python 工具（原文件未改；删去上游作者自用的画廊上云脚本 `scripts/sync_to_static.py`）。许可附署名要求：衍生使用须保留作者 yang0 与原仓库链接 | `handraw/` | yang0/handraw-style `2858062f` | MIT（附署名要求），© 2026 yang0 — [许可正文](#handraw-style-mit) |
+| 像素风特效与动画库：244 个纯代码效果（火焰、爆炸、魔法、天气、UI 庆祝、拾取、转场、小生物等）、带角色表演的 act、渲染/检查/导出精灵图的 Node 工具、制作新效果的 SKILL.md 与 `docs/AUTHORING.md`（原文件未改；只取 `skills/pixelfx/SKILL.md` 放到根，未带 `gallery/`（含非 MIT 的 Patch Pixel 字体）、README 动图、`tools/serve.mjs`、`tools/build-gallery.mjs`）。部分代码改编自 Hugo Duprez、Hollow Crown 的 MIT 代码，见 `pixelfx/NOTICE.md` | `pixelfx/` | patch-gg/pixelfx `a841596` | MIT，© 2026 Patch — [许可正文](#pixelfx-mit) |
 | Geist Sans / Mono 可变 WOFF2（未修改、未子集化） | `assets/fonts/geist/` | vercel/geist-font `b5d164a0` | SIL OFL 1.1 — 复制字体时一并复制 `OFL-1.1.txt` |
 
 ## 未分发的受限库
@@ -739,6 +740,35 @@ furnished to do so, subject to the following conditions:
    you must retain and clearly display credit to the original author (yang0) and
    the original repository link (https://github.com/yang0/handraw-style) in your
    documentation, repository, product description, or user interface.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+<a id="pixelfx-mit"></a>
+
+## pixelfx-MIT.txt
+
+```text
+MIT License
+
+Copyright (c) 2026 Patch
+Copyright (c) 2026 Hugo Duprez
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,

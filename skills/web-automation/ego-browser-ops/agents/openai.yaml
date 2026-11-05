@@ -1,0 +1,5 @@
+interface:
+  display_name: "ego-browser-ops"
+  short_description: "ego 浏览器自动化与书签管理"
+policy:
+  allow_implicit_invocation: false

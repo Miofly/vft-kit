@@ -47,7 +47,7 @@ node scripts/audit-public.mjs
 | 开发工作流 (`dev-workflow`) | 数据库工具、疑难 bug 诊断、前端质量、Git、代码托管、Vue 配置、方案逼问和已发布产物逆向分析 | `dbx` · `diagnosing-bugs` · `fe-quality-ops` · `git-auto-push` · `git-ops` · `github-ops` · `grill-me` · `rea` |
 | 设计与内容 (`design-content`) | 前端视觉设计与风格迁移、信息图、Office 文档、SEO 审计和中文去 AI 味 | `co-infographic-generator` · `frontend-design` · `mastergo-mcp` · `office-doc-rewrite` · `seo-ops` · `zh-humanizer` |
 | 工作台工具 (`workplace-tools`) | Lark/飞书文档、表格、云盘、任务和知识库；桌面软件配置迁移与后台 GUI 操作 | `lark-cli` · `soft-ops` |
-| Web 与自动化 (`web-automation`) | 浏览器发布、网页抓取、Android 与 macOS 自动化 | `android-ui-automation` · `chrome-web-store-publish` · `keyboard-maestro` · `qr-login` · `temp-mail` · `web-scrape` · `wechat-mp` |
+| Web 与自动化 (`web-automation`) | 浏览器发布、网页抓取、Android 与 macOS 自动化 | `android-ui-automation` · `chrome-web-store-publish` · `ego-browser-ops` · `keyboard-maestro` · `qr-login` · `temp-mail` · `web-scrape` · `wechat-mp` |
 
 新增、删除或改名 skill 时同步更新分类，并运行：
 
@@ -60,6 +60,8 @@ node scripts/validate-skill-catalog.mjs
 `agent-baseline` 按需加载装配核对、插件刷新、[CC 备份恢复 / 清理](skills/agent-ops/agent-baseline/references/backup.md)与 [CC Switch 供应商配置](skills/agent-ops/agent-baseline/references/cc-switch.md)。恢复或供应商配置不会顺带运行完整装配维护。清理保留交互确认，供应商写库前备份且默认不切换当前供应商。
 
 `frontend-design` 以 Anthropic 官方技能为主线，按功能组织：`search/` 风格、配色、字体与 UX 本地检索；`components/ui`、`components/motion`、`components/effects` 分别是基础组件与布局、动效组件、视觉效果的可许可源码；`recipes/` 动效配方与可运行示例；`extract/` 样式提取纯模块；`hallmark/` 整页反 AI 模板体系（Floor 门槛、50 个材料主题、21 种版式骨架、sloplint 可执行检查）；三个整页案例、应用界面、设计审查与 Geist 中英字体规范按任务加载。React Bits / Animate UI 只给独立分析与许可边界，不分发其源码。Claude Code 用 `/vft-kit:frontend-design`，Codex 用 `$frontend-design`；详见[前端设计与风格迁移](skills/design-content/frontend-design/SKILL.md)及[第三方许可](skills/design-content/frontend-design/THIRD_PARTY_NOTICES.md)。字体保留 SIL OFL 1.1。
+
+`ego-browser-ops` 是 ego-browser（ego lite，Chromium 内核、人和 Agent 共用的浏览器）的公共操作手册：安装探测与升级、profile 列举与指定、task space 生命周期、Page 全 API、从 Chrome 导入 profile、书签管理（`scripts/ego-bookmarks.sh`）与排障。官方指南是真值（`ego-browser skill`）；个人 profile 等私有约定不在本层。详见 [ego 浏览器自动化与书签管理](https://wflynn.cn/pages/2607131022)。
 
 ## Agents
 
