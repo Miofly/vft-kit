@@ -156,7 +156,7 @@ for t in test-*.sh; do bash "$t" >/dev/null 2>&1 && echo "✓ $t" || echo "✗ $
 - 三次自动续跑仍无成功工具进展则显示 TASK_STALLED，明确未完成；新工作工具使旧终态失效。状态在对应 CLAUDE_CONFIG_DIR/task-gate，文件权限0600。
 - 这是回执来源和先后关系校验，不是业务完整性证明。清单是否遗漏、验收是否充分及 answered/blocked/cancelled 是否属实仍由执行者负责；Bash 内文件写入也无法像 Edit/Write 一样自动识别。网络断流、额度与进程崩溃不在 Stop 门控修复范围。已有进程需重新启动/恢复才能加载新增生命周期事件。
 
-测试：`python3 "${VFT_KIT_DIR}/scripts/hooks/task-completion-gate.test.py"`。完整用法见[实例任务状态门控](https://wflynn.cn/pages/2607131002#实例任务状态门控)。
+测试：`python3 "${VFT_KIT_DIR}/scripts/hooks/task-completion-gate.test.py"`。
 
 ## 约束
 

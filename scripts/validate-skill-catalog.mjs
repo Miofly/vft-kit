@@ -12,6 +12,8 @@ const errors = [];
 const categoryIds = new Set();
 const catalogSkills = new Map();
 const explicitOnly = new Set(catalog.invocationPolicy?.explicitOnly ?? []);
+// Public layers a private wrapper reads by path; kept out of the Claude manifest to avoid a duplicate trigger.
+const claudeOmit = new Set(catalog.claudeManifestOmit ?? []);
 
 if (catalog.invocationPolicy?.default !== 'auto') {
   errors.push('invocationPolicy.default must be auto');
@@ -44,12 +46,15 @@ for (const category of catalog.categories ?? []) {
 for (const skill of explicitOnly) {
   if (!catalogSkills.has(skill)) errors.push(`explicit-only skill is not categorized: ${skill}`);
 }
+for (const skill of claudeOmit) {
+  if (!catalogSkills.has(skill)) errors.push(`claude-omitted skill is not categorized: ${skill}`);
+}
 
 const expectedCodexRoots = [...categoryIds].sort().map((category) => `./skills/${category}`);
 const expectedClaudeRoots = (catalog.categories ?? []).flatMap((category) => {
-  const hasExplicitSkill = category.skills.some((skill) => explicitOnly.has(skill));
-  return hasExplicitSkill
-    ? category.skills.filter((skill) => !explicitOnly.has(skill)).map((skill) => `./skills/${category.id}/${skill}`)
+  const hidden = (skill) => explicitOnly.has(skill) || claudeOmit.has(skill);
+  return category.skills.some(hidden)
+    ? category.skills.filter((skill) => !hidden(skill)).map((skill) => `./skills/${category.id}/${skill}`)
     : [`./skills/${category.id}`];
 }).sort();
 for (const [manifestPath, expectedSkillRoots] of [

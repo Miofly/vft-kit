@@ -68,6 +68,8 @@ Based on the user interview, fill in these components:
 - **compatibility**: Required tools, dependencies (optional, rarely needed)
 - **the rest of the skill :)**
 
+Before drafting the description and body, read `references/writing-for-agents.md`: how to word the description as a context pointer, what stays in SKILL.md versus `references/`, completion criteria, leading words, pruning, and model- vs user-invoked trade-offs (plus this repo's catalog/command wiring). Use it when editing a CLAUDE.md/AGENTS.md too.
+
 ### Skill Writing Guide
 
 #### Anatomy of a Skill
@@ -466,6 +468,7 @@ The agents/ directory contains instructions for specialized subagents. Read them
 
 The references/ directory has additional documentation:
 - `references/schemas.md` — JSON structures for evals.json, grading.json, etc.
+- `references/writing-for-agents.md` — Writing any agent-facing document: pointers, information hierarchy, completion criteria, leading words, pruning, invocation choice
 
 ---
 

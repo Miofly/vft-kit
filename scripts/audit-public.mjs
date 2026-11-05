@@ -17,6 +17,7 @@
 //   - file: <root>/.audit-public-allow (or --allowlist). One entry per line:
 //       <path-glob>[:<line>] [<rule-glob>]      e.g. docs/*.md:12 pii.*
 //       fp:<fingerprint>                        fingerprint printed with each finding
+//     rule `binary.known` keeps a reviewed known-format binary out of the --max-binary count.
 //     `#` starts a comment. Globs: `*` (no slash), `**` (any), `?`.
 // Secret values are never printed; findings carry a short sha256 fingerprint.
 //
@@ -237,7 +238,9 @@ export function audit(root, opts = {}) {
     const bin = classifyBinary(buf);
     if (bin || !isPlainText(buf)) {
       const c = bin || { known: false, label: 'contains NUL or control bytes' };
-      if (c.known) { res.binary.known[c.label] = (res.binary.known[c.label] || 0) + 1; res.binary.knownFiles.push(rel); }
+      // Reviewed asset galleries can opt out of the --max-binary count with a `binary.known` allowlist entry.
+      if (c.known && allowed(allow, { rule: 'binary.known', file: rel, line: 0, fp: '' })) res.suppressed++;
+      else if (c.known) { res.binary.known[c.label] = (res.binary.known[c.label] || 0) + 1; res.binary.knownFiles.push(rel); }
       else if (allowed(allow, { rule: 'binary.unknown', file: rel, line: 0, fp: '' })) res.suppressed++;
       else res.binary.unknown.push({ file: rel, type: c.label });
       continue;
@@ -391,6 +394,10 @@ function selftest(dirArg) {
   if (l.ok) fails.push('leaky fixture should fail');
   const t = audit(clean, { allFiles: true, maxBinary: 0 });
   if (t.ok || !t.gate.overThreshold) fails.push('binary threshold gate not enforced');
+  const allowKnown = path.join(base, 'allow-known');
+  fs.writeFileSync(allowKnown, 'assets/*.png binary.known\n');
+  const ak = audit(clean, { allFiles: true, maxBinary: 0, allowlist: allowKnown });
+  if (!ak.ok || ak.binary.knownFiles.length) fails.push('binary.known allowlist should exclude the file from the threshold');
   if (JSON.stringify(l).includes(U(1, 40))) fails.push('secret value leaked into result');
 
   const cli = (root) => spawnSync(process.execPath, [self, '--root', root, '--all-files'], { encoding: 'utf8' });

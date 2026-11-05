@@ -1,5 +1,9 @@
 {
   "version": 1,
+  "claudeManifestOmit": [
+    "frontend-design",
+    "soft-ops"
+  ],
   "invocationPolicy": {
     "default": "auto",
     "explicitOnly": [
@@ -64,20 +68,23 @@
         "frontend-design",
         "mastergo-mcp",
         "office-doc-rewrite",
+        "seo-ops",
         "zh-humanizer"
       ]
     },
     {
       "id": "dev-workflow",
       "name": "开发工作流",
-      "description": "数据库工具、前端质量、Git、代码托管和 PR 交付流程。",
+      "description": "数据库工具、疑难 bug 诊断、前端质量、Git、代码托管、PR 交付和已发布产物逆向分析。",
       "skills": [
         "dbx",
+        "diagnosing-bugs",
         "fe-quality-ops",
         "git-auto-push",
         "git-ops",
         "github-ops",
-        "grill-me"
+        "grill-me",
+        "rea"
       ]
     },
     {
@@ -99,7 +106,8 @@
       "name": "工作台工具",
       "description": "Lark/飞书的文档、表格、云盘、任务和知识库操作。",
       "skills": [
-        "lark-cli"
+        "lark-cli",
+        "soft-ops"
       ]
     }
   ]
