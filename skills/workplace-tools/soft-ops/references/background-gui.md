@@ -30,8 +30,37 @@
 - 判断：`<App>.app/Contents/Frameworks/` 下有 `Electron Framework.framework` 即 Electron，基本都认 `--user-data-dir`（Chrome/Edge、VS Code/Cursor 同样认）。原生应用（如微信、QQ Mac 版）没有这个参数，复制 `.app` 改 Bundle ID 重签的做法易出问题，不作为默认方案。部分 Electron 应用自己写死单实例或数据目录，逐个实测。
 - 启动：`open -n -a /Applications/<App>.app --args --user-data-dir="$HOME/Library/Application Support/<app>-2"`。`-n` 强制新进程；`open -a` 不带 `-n` 会切到已开的实例。数据目录放 `~/Library/Application Support/` 下长期保留，不放会被清理的临时目录。
 - 空目录 = 全新未登录实例，可登录另一个账号；要复用当前账号就按上节第 4 步复制 userData。给用户双开不加 `--inspect`（本机任意进程都能连该端口执行代码），只在 AI 后台操作时加。
-- 常用的写成 shell alias；回读：`pgrep -fl "user-data-dir=<目录>"` 有主进程，原实例 PID 仍在。
+- 要在「应用程序」里点开：用 [`scripts/dual-open/make-launcher.sh`](../scripts/dual-open/make-launcher.sh) `<源 .app> [编号=2] [输出目录=/Applications]` 生成 `<名称><编号>.app` 启动器（`DUAL_DATA_DIR` 改数据目录）。它只建启动器不启动应用；非 Electron 退出码 2，同名已存在退出码 3（启动器不含数据，重建时 `lsregister -u` 后直接删旧的；别把旧 .app 留在其他目录，Spotlight 会把每份都列成同名应用）。启动器逻辑：找「命令行以 `<源>/Contents/MacOS/<可执行> ` 开头、且含 `--user-data-dir=<目录>`」的进程（只提到这串文字的 shell/grep 不算，2026-11-05 自测曾误中测试 shell；也不能要求 `--user-data-dir` 紧跟可执行文件，带 `--inspect` 时它在后面，曾因此认不出已运行的副本而开出重复进程），已在运行就经 System Events 切前台，否则 `open -n`；不判断的话重复点击会对同一目录起第二个进程（第 10 步的损坏）。图标沿用原应用 `.icns`（脚本会删掉 osacompile 自带的 `Assets.car`/`CFBundleIconName`，否则盖住图标），`LSUIElement` 使启动器本身不进 Dock，ad-hoc 签名并 `lsregister -f`。终端 alias 指向同一个启动器：`alias <名>2='open -a /Applications/<名称>2.app'`。
+- 隐藏副本的 Dock 图标：生成时加 `DUAL_HIDE_DOCK=1`。启动器用 `--inspect=127.0.0.1:<随机端口>` 启动，[`dock-hide.mjs`](../scripts/dual-open/dock-hide.mjs) 连上后改成 `setActivationPolicy('accessory')`，并把 `app.setActivationPolicy`、`app.dock.show` 改成空操作、`app.dock.isVisible` 恒返回 true，再 `inspector.close()` 关端口。只拦 `dock.show` 不够：有的应用自带 Dock 守护（Loomy `electron/windows/dock-controller.js` 每秒查 `dock.isVisible()`，不可见就 `setActivationPolicy('regular')` + `dock.show()`），图标会被恢复。2026-11-05 Loomy 实测：`ApplicationType` 为 `UIElement`，inspect 端口 2 秒内关闭，再点启动器不新增进程。代价：启动瞬间图标会闪一下；副本不进 Dock 和 Cmd+Tab，只能点启动器切回；调试端口在启动后几秒内对本机开放。核对：`lsappinfo info -only ApplicationType <pid>` 应非 `Foreground`，`lsof -nP -a -p <pid> -iTCP -sTCP:LISTEN` 无 inspect 端口。
+- 回读：`pgrep -fl "user-data-dir=<目录>"` 有主进程，原实例 PID 仍在。
 - 平台可能检测同设备多账号；同账号双开的限制见上节第 12 步；同一数据目录不能开两个进程（第 10 步）。
+
+## 任意软件启动时不显示 Dock 图标
+
+没有对所有软件都可靠的单一方法。Dock 图标由进程的激活策略决定（`regular` 进 Dock，`accessory`/`LSUIElement` 不进），macOS 没有公开 API 让外部进程改别的进程的策略，只能「启动前改包」或「进程内改」。按类型选：
+
+| 路线 | 适用 | 闪现 | 状态 |
+|---|---|---|---|
+| A. 进程内改：`--inspect` 启动，`dock-hide.mjs` 设 `accessory` 并拦截恢复调用 | Electron 且 inspect fuse 开 | 启动瞬间闪一下 | 已验证（Loomy，见「双开」节） |
+| B. 改副本的包：复制 `.app`，Info.plist 加 `LSUIElement=true`，ad-hoc 重签 | 任意未沙盒、不自己改激活策略的应用 | 不闪 | 未验证 |
+| C. 外部注入（`DYLD_INSERT_LIBRARIES` 等） | — | — | 不采用：SIP、hardened runtime 和 AMFI 会拦截已签名应用 |
+
+B 的做法（只动副本，不改原应用：改原包会影响主实例、破坏原签名，并在更新时被覆盖回去）：
+
+```bash
+cp -cR "/Applications/<App>.app" "$HOME/Applications/<App> Hidden.app"   # -c 走 APFS 克隆，不占双倍空间
+plutil -replace LSUIElement -bool true "$HOME/Applications/<App> Hidden.app/Contents/Info.plist"
+codesign --force --deep -s - "$HOME/Applications/<App> Hidden.app"
+```
+
+B 的已知限制，用前逐条判断：
+- 原开发者签名被换掉：钥匙串按签名识别应用，已存的密码/令牌可能读不到或要求重新授权；推送、iCloud、App Store 应用（沙盒加收据）可能起不来。带受限 entitlements（如 `keychain-access-groups`、`com.apple.developer.*`）的应用，ad-hoc 签名会被 AMFI 拒绝启动。
+- 应用自己调用 `setActivationPolicy(.regular)` 或 `TransformProcessType` 会把图标调回来（Loomy 的 `dock-controller.js` 就是），这类只能走 A。
+- 自带自动更新（Sparkle、Squirrel）会失败或把副本覆盖回原样；更新后按上面三行重建。
+- `LSUIElement` 应用没有顶部菜单栏、不进 Cmd+Tab；窗口照常可用，切回靠启动器或点窗口。
+- 与双开组合：Electron 副本仍要独立 `--user-data-dir`，同一数据目录只能一个进程（上节第 10 步）。
+
+验证（每个新应用第一次都要做）：启动前后各读一次前台应用不变；`lsappinfo info -only ApplicationType "$(lsappinfo find pid=<pid>)"` 为 `UIElement`；观察约 20 秒确认图标没被应用自己恢复。不满足就换路线或告诉用户做不到，不要反复启动试错。
 
 ## cua-driver
 

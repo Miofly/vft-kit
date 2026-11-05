@@ -1,6 +1,6 @@
 ---
 name: soft-ops
-description: "桌面软件与本机客户端操作的通用方法：软件安装配置、偏好与快捷键迁移、插件兼容和替代、本地配置修复、原生窗口操作，以及不打扰用户的后台 GUI 操作（cua-driver MCP、Electron 隔离实例）和 Electron 应用双开（独立 user-data-dir 登录另一个账号）。迁移软件设置、把软件配好、让 AI 后台操作某个客户端、双开/多开某个软件、记录单个软件任务时使用；网页平台操作走 web-ops，已有专用软件 skill 时优先复用。"
+description: "桌面软件与本机客户端操作的通用方法：软件安装配置、偏好与快捷键迁移、插件兼容和替代、本地配置修复、原生窗口操作，以及不打扰用户的后台 GUI 操作（cua-driver MCP、Electron 隔离实例）和 Electron 应用双开（独立 user-data-dir 登录另一个账号）、软件启动不显示 Dock 图标。迁移软件设置、把软件配好、让 AI 后台操作某个客户端、双开/多开某个软件、隐藏某个软件的程序坞图标、记录单个软件任务时使用；网页平台操作走 web-ops，已有专用软件 skill 时优先复用。"
 ---
 
 # soft-ops
@@ -27,7 +27,7 @@ description: "桌面软件与本机客户端操作的通用方法：软件安装
 - 其他原生应用，或要在用户正在用的同一窗口里操作：`cua-driver` MCP（辅助功能后台投递，不移动光标、不抢焦点）。
 - 要彻底隔离整机：macOS 虚拟机（cua `lume`、`tart`）。
 
-用户要自己双开某个软件（如登录第二个账号）时，按同一 reference 的「双开」节：Electron 应用用 `open -n` + 独立 `--user-data-dir`，不加 `--inspect`。
+用户要自己双开某个软件（如登录第二个账号）时，按同一 reference 的「双开」节：Electron 应用用 `open -n` + 独立 `--user-data-dir`；要在「应用程序」里点开就跑 `scripts/dual-open/make-launcher.sh <源 .app>` 生成启动器（防重复启动、沿用原图标），要藏副本的 Dock 图标加 `DUAL_HIDE_DOCK=1`。任意软件启动不显示 Dock 图标，按同一 reference「任意软件启动时不显示 Dock 图标」节选路线（Electron 走进程内改；其他软件改副本的 `LSUIElement`，有签名和更新限制）。
 
 ## 记录规则
 
