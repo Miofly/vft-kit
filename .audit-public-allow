@@ -9,3 +9,7 @@ skills/design-content/frontend-design/search/data/stacks/avalonia.csv:21 path.ho
 skills/design-content/frontend-design/hallmark/references/themes/squeeze.md:17 private
 # hallmark brand-truth.md 的安全清单：列出应拒绝的私网/回环网段，是文档不是真实内网地址。
 skills/design-content/frontend-design/hallmark/references/brand-truth.md:7 pii.private-ip
+# anatomy 示例的 A4 打印版 PDF（HeadlessChrome 由同目录 HTML 导出）；已用 pdftotext + strings 核对正文与元数据无私有标识。
+skills/design-content/frontend-design/anatomy/examples/*/*.pdf binary.unknown
+# handraw 上游画风/图型/色卡参考图（webp/png，约 670 张，MIT 附署名，见 THIRD_PARTY_NOTICES.md）；整体随 skill 发布，不计入 --max-binary。
+skills/design-content/frontend-design/handraw/** binary.known

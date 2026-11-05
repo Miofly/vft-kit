@@ -15,6 +15,7 @@
 | 样式采集脚本与纯规范化/生成/校验模块（原文件未改）；`extract/tests/local-boundaries.mjs` 为本地新增 | `extract/` | bergside/design-md-chrome `8e07614f` | MIT，© 2026 Bergside — [许可正文](#design-md-chrome-mit) |
 | 整页反模板设计体系：Floor/Reflex/Finish 门槛、50 个材料主题（含整页示例图）、21 种版式骨架、sloplint 可执行检查与 deal/scaffold 脚本、开放许可照片索引 `photos.json`（原文件未改） | `hallmark/` | Nutlope/hallmark `8f6969f8` | MIT，© 2026 Hallmark contributors — [许可正文](#hallmark-mit) |
 | 等距解说图体系：把技术概念建成可运转的实物装置（多零件实心体、四色明暗、画家序、边框卡片、实时读数与缓动），SVG / WebGL / 3D 三档、几何审计、无头截图与 A4 打印；`examples/` 8 个完整示例（原文件未改） | `anatomy/` | wheresryan22/anatomy `1482e84` | MIT，© 2026 Ryan — [许可正文](#anatomy-mit) |
+| 手绘与写实画风（001–368）、170 种排版图型、36 种主题色的生图提示词体系：根路由 SKILL.md、14 个子 skill、画风/图型/色卡画廊与编号参考图、Python 工具（原文件未改；删去上游作者自用的画廊上云脚本 `scripts/sync_to_static.py`）。许可附署名要求：衍生使用须保留作者 yang0 与原仓库链接 | `handraw/` | yang0/handraw-style `2858062f` | MIT（附署名要求），© 2026 yang0 — [许可正文](#handraw-style-mit) |
 | Geist Sans / Mono 可变 WOFF2（未修改、未子集化） | `assets/fonts/geist/` | vercel/geist-font `b5d164a0` | SIL OFL 1.1 — 复制字体时一并复制 `OFL-1.1.txt` |
 
 ## 未分发的受限库
@@ -703,6 +704,41 @@ furnished to do so, subject to the following conditions:
 
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+<a id="handraw-style-mit"></a>
+
+## handraw-style-MIT.txt
+
+```text
+MIT License (with Attribution Requirement)
+
+Copyright (c) 2026 yang0 (https://github.com/yang0/handraw-style)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+1. The above copyright notice and this permission notice shall be included in all
+   copies or substantial portions of the Software.
+
+2. Attribution Requirement: You are free to use, modify, distribute, and
+   commercialize this project. If this project is helpful to you, or if your
+   project/product is based on or derived from secondary development of this work,
+   you must retain and clearly display credit to the original author (yang0) and
+   the original repository link (https://github.com/yang0/handraw-style) in your
+   documentation, repository, product description, or user interface.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,

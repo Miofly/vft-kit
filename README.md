@@ -31,7 +31,7 @@ node scripts/validate-skill-catalog.mjs
 node scripts/audit-public.mjs
 ```
 
-`audit-public.mjs` 扫描 git 会发布的文件，检查私有标识符、密钥、PII、危险文件和二进制文件。未知二进制或读不了的文件直接判失败。误报可以用行内注释 `audit-public: allow` 或根目录的 `.audit-public-allow` 放行；`--selftest <dir>` 跑自检。
+`audit-public.mjs` 扫描 git 会发布的文件，检查私有标识符、密钥、PII、危险文件和二进制文件。未知二进制或读不了的文件直接判失败。误报可以用行内注释 `audit-public: allow` 或根目录的 `.audit-public-allow` 放行；整批核对过的图库可写 `<路径glob> binary.known`，不计入 `--max-binary` 上限；`--selftest <dir>` 跑自检。
 
 ## 使用边界
 
@@ -44,9 +44,9 @@ node scripts/audit-public.mjs
 |---|---|---|
 | Agent 运维 (`agent-ops`) | Claude Code、Codex、CC Switch、插件缓存、通知与 skill 编写 | `agent-baseline` · `email-ops` · `notify` · `ollama-local` · `skill-creator` |
 | 云平台 (`cloud-platforms`) | 云服务、模型托管、部署平台和账号资源 | `aistudio` · `cloudflare-ops` · `huggingface-ops` · `kaggle-ops` · `modelscope-studio` · `vercel-ops` |
-| 开发工作流 (`dev-workflow`) | 数据库工具、前端质量、Git、代码托管、Vue 配置和方案逼问 | `dbx` · `fe-quality-ops` · `git-auto-push` · `git-ops` · `github-ops` · `grill-me` |
-| 设计与内容 (`design-content`) | 前端视觉设计与风格迁移、信息图、Office 文档和中文去 AI 味 | `co-infographic-generator` · `frontend-design` · `mastergo-mcp` · `office-doc-rewrite` · `zh-humanizer` |
-| 工作台工具 (`workplace-tools`) | Lark/飞书文档、表格、云盘、任务和知识库 | `lark-cli` |
+| 开发工作流 (`dev-workflow`) | 数据库工具、疑难 bug 诊断、前端质量、Git、代码托管、Vue 配置、方案逼问和已发布产物逆向分析 | `dbx` · `diagnosing-bugs` · `fe-quality-ops` · `git-auto-push` · `git-ops` · `github-ops` · `grill-me` · `rea` |
+| 设计与内容 (`design-content`) | 前端视觉设计与风格迁移、信息图、Office 文档、SEO 审计和中文去 AI 味 | `co-infographic-generator` · `frontend-design` · `mastergo-mcp` · `office-doc-rewrite` · `seo-ops` · `zh-humanizer` |
+| 工作台工具 (`workplace-tools`) | Lark/飞书文档、表格、云盘、任务和知识库；桌面软件配置迁移与后台 GUI 操作 | `lark-cli` · `soft-ops` |
 | Web 与自动化 (`web-automation`) | 浏览器发布、网页抓取、Android 与 macOS 自动化 | `android-ui-automation` · `chrome-web-store-publish` · `keyboard-maestro` · `qr-login` · `temp-mail` · `web-scrape` · `wechat-mp` |
 
 新增、删除或改名 skill 时同步更新分类，并运行：
@@ -81,7 +81,7 @@ Claude Code 插件不能直接提供 `.claude/rules/`，vft-kit 用钩子实现�
 | `scripts/hooks/bash-prompt-guard.py` | PreToolUse（Bash） | 拒掉会触发 Claude Code 内置确认框的 Bash 写法（cd 后 git、变量删除等）并给改写提示 |
 | `scripts/hooks/handoff-nudge.py` | PostToolUse（*） | 主会话上下文过 40%/55%/70%/85% 各记一次；默认影子运行，`~/.cache/vft-kit/handoff-nudge.LIVE` 存在才注入「写交接」提示 |
 | `scripts/hooks/reply-lang-pin.py` | UserPromptSubmit | 提问中文占比低于 30% 时补一句「用简体中文回复」；`VFT_REPLY_LANG` 改目标语言，`~/.cache/vft-kit/reply-lang.OFF` 关闭 |
-| `scripts/hooks/task-completion-gate.py`（按需启用） | SessionStart / UserPromptSubmit / PostToolUse / PostToolUseFailure / Stop | 以每轮任务状态和工具证据控制结束，不依赖回复措辞；`--settings-json` 生成独立会话配置，见[装配基线文档](https://wflynn.cn/pages/2607131002) |
+| `scripts/hooks/task-completion-gate.py`（按需启用） | SessionStart / UserPromptSubmit / PostToolUse / PostToolUseFailure / Stop | 以每轮任务状态和工具证据控制结束，不依赖回复措辞；`--settings-json` 生成独立会话配置，见 `skills/agent-ops/agent-baseline/references/claude-code.md`「可选任务状态门控」 |
 
 bash-prompt-guard、handoff-nudge、reply-lang-pin 是 agent-baseline 的通用 hook，随插件注册，不再写进 `settings.json`；旧版留下的绝对路径条目用 `skills/agent-ops/agent-baseline/claude-code/scripts/migrate-plugin-hooks.sh` 清理（`CLAUDE_CONFIG_DIR` 指定实例，`--dry-run` 预览）。
 

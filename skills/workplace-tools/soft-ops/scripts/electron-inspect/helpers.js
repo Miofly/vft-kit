@@ -1,0 +1,4 @@
+window.$t=(t,exact=true)=>[...document.querySelectorAll('body *')].filter(e=>e.offsetParent!==null||e.getClientRects().length).filter(e=>{const s=(e.innerText||'').trim();return exact?s===t:s.includes(t)}).sort((a,b)=>(a.innerText||'').length-(b.innerText||'').length||b.querySelectorAll('*').length-a.querySelectorAll('*').length);
+window.clk=(t,exact=true)=>{const e=$t(t,exact)[0];if(!e)return 'NOTFOUND '+t;const c=e.closest('button,a,[role=button],[role=menuitem],li,[class*=item],[class*=card]')||e;['pointerdown','mousedown','pointerup','mouseup','click'].forEach(k=>c.dispatchEvent(new MouseEvent(k,{bubbles:true,cancelable:true,view:window})));return 'clicked '+c.tagName+'.'+(c.className+'').slice(0,40)};
+window.txt=(sel='body',n=1500)=>[...document.querySelectorAll(sel)].map(e=>e.innerText).join('\n---\n').slice(0,n);
+'ok'
