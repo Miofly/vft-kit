@@ -75,3 +75,38 @@ mp.disconnect();
 - 分享标题建议带上产品名，在群聊里一眼能认出是什么。
 - **分享成功没有回调**：微信不告诉页面用户是否真的转发了。需要“分享后”做事（比如弹插屏），就在 `onShareAppMessage` 里记一个标记，等关闭转发面板回到页面触发 `onShow` 时再处理。测试时在 `mp.evaluate` 里取 `getCurrentPages()` 的最后一页，依次调 `onShareAppMessage()` 和 `onShow()`。automator 的 `page.callMethod('onShareAppMessage')` 不一定走到页面自己的实现。
 - **Taro（vite）监听构建会丢分享开关**：`taro build --watch` 增量重编页面时，产物里会丢掉 `component.enableShareAppMessage = true`，页面分享退回全局默认（如果有全局 Page 补丁）或不能转发。根因是 `@tarojs/vite-runner` 输出页面 JSON 时直接 `delete` 了缓存配置里的这个字段。根治办法是在页面组件上也声明：`defineOptions({ enableShareAppMessage: true })`，Taro 运行时会读组件上的这个标记，不受构建缓存影响。
+
+## 小游戏（Cocos 等引擎构建产物）
+
+整条链路都能后台完成：CLI 打开项目，cua-driver（`cua-driver call <tool> '<json>'`，需已授予辅助功能和屏幕录制）按辅助功能元素点击、读控制台。用户正在用电脑时也不抢鼠标。
+
+**登录**
+- `cli islogin` 是准的。返回 `{"login":false}` 时，项目窗口右上会显示「未登录」面板。用户说「登录了」，往往是看错了窗口，先截项目窗口核对。
+- 后台点「微信快捷登录」：`get_window_state` 加 `query:"登录"`，找到 `AXButton "微信快捷登录"`，用 `element_token` 点击。
+- 点完微信桌面端会弹「微信开发者工具 申请使用 你的昵称、头像」，要点「允许」。这个弹框没有辅助功能树，截图也是空白：
+  - 用 `list_windows {"pid":<微信pid>}` 找 layer 23、尺寸 360×260 的那个窗口。同尺寸、layer 0 的那个点不了。
+  - 「允许」在窗口坐标 (259,212) 附近。
+  - 后台点击不生效，要 `delivery_mode:"foreground"`。点前先记下当前前台应用，点完 `osascript -e 'tell application "<原应用>" to activate'` 切回去。
+- 回读以 `cli islogin` 返回 `{"login":true}` 为准。
+
+**AppID**
+- 未登录时，CLI 能用任意 AppID 打开项目，比如 Cocos 默认的 `wx6ac3f5090a6b99c5`。登录后会校验 AppID：测试号和 `touristappid` 都报 `不存在此 AppID 请检查后重新输入 (code 10)`。
+- 没有自己的小游戏 AppID 时，申请当前账号的测试号：
+  1. 项目列表窗口点菜单「项目 → 新建项目」。
+  2. 点 `AXLink (测试号)`。
+  3. 从 AppID 那个 `AXTextField` 读出值，形如 `wxba16…`。
+  4. 点「取消」，不真正建项目。
+- 测试号的 request 合法域名是空的：运行时报 `<域名> 不在以下 request 合法域名列表中`。本地调试时在「详情 → 本地设置」勾选不校验，上线要配后台域名。
+
+**运行与读日志**
+- 开项目：在 `/tmp` 下执行 `cli open --project <build/wechatgame>`。产物重新构建后，已打开的项目会报 `文件读取失败 File: game.json`，要先 `cli close --project <dir>` 再 `cli open`。
+- 重新编译：菜单「工具 → 编译」。用 `get_window_state` 加 `query:"编译"` 拿到菜单项，再按元素点击，不需要窗口在前台。
+- 读控制台：
+  1. 点 `AXRadioButton (Console)`。
+  2. `get_window_state` 加 `query:"Error"`，`max_elements` 设到 4000。
+  3. 报错全文在 `AXRow "Error …"` 的文本里，比截图完整。
+- miniprogram-automator 连上小游戏后，`evaluate`/`screenshot` 报 `timeout waiting for automator response`，小游戏不能用它。要看画面就截窗口：`cua-driver get_window_state` 加 `screenshot_out_file`，或 `screencapture -x -o -l<窗口号>`。
+
+**Cocos 3.8 产物的坑**
+- 开了引擎插件 `separateEngine`，但 AppID 后台没添加 Cocos 插件 `wx0446ba2621dda60a` 时，报 `summer-compiler miss js file, __context__/__plugin__/wx0446ba2621dda60a/plugin.js`，接着 `web-adapter.js` 报 `Object.defineProperty called on non-object`，模拟器白屏。测试号、未添加插件的 AppID 都要关掉 `separateEngine`。
+- 首包 ≤ 4MB：Asset Bundle 对 `wechatgame` 设 `compressionType: "subpackage"`。实测不开引擎插件时主包 2.76MB。

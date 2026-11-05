@@ -12,6 +12,7 @@
       "chrome-web-store-publish",
       "cloudflare-ops",
       "dbx",
+      "ego-browser-ops",
       "email-ops",
       "git-auto-push",
       "git-ops",
@@ -94,6 +95,7 @@
       "skills": [
         "android-ui-automation",
         "chrome-web-store-publish",
+        "ego-browser-ops",
         "keyboard-maestro",
         "qr-login",
         "temp-mail",
