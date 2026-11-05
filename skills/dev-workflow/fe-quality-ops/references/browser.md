@@ -168,6 +168,14 @@ python3 "${VFT_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEX_PLUGIN_ROOT:-}}}/skill
   - ❌ `test-three-scene.png`（相对名）、`screenshot1.png`、`all-rendered-final.png`
 - **为什么必须绝对路径**：`--output-dir` 只管 snapshot/console 这类自动命名产物；`browser_take_screenshot` 的**相对 filename 是相对 MCP 进程 cwd（即 `$HOME`）解析**，会落到家目录而不是中央目录，第 7 步清理脚本（只扫中央目录）就清不到、还污染家目录。传绝对路径一步到位。
 - 规范前缀 `test-` 是为了第 7 步清理脚本能精确识别。
+- **chrome-headless-shell 截图可能拍到旧帧（2026-11-05）**：DOM 断言已通过（如 `waitForFunction(() => !document.querySelector('.cx-loading'))` + 再等 6 秒）后 `page.screenshot()` 仍可能输出**合成器未失效的过期帧**（截到已从 DOM 移除的 fixed 遮罩，实测复现过一次，概率性）。拍前强制重绘即可避免：
+
+  ```js
+  await page.evaluate(() => new Promise(r =>
+    requestAnimationFrame(() => requestAnimationFrame(() => r(null)))));
+  ```
+
+  拍完再对 PNG 做像素抽查（如角落底色、目标区域特征色占比）兜底，别只信视觉模型对旧路径的复述。
 
 ### 7. 清理临时截图
 

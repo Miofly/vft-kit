@@ -138,6 +138,16 @@ for t in test-*.sh; do bash "$t" >/dev/null 2>&1 && echo "✓ $t" || echo "✗ $
 - **启动时的默认模型**：settings env 里的 `ANTHROPIC_MODEL` 优先于在菜单里按 Enter 存下的 `model`。要换开局模型，用 `--model`。如果启动器支持按编号固定后端 key，应在启动器参数层完成（例如 `ccmax gpt2`），不要在 LiteLLM 代理里按请求随机切换，否则首帧状态和会话粘性无法可靠记录。
 - **LiteLLM fallback**：`router_settings.fallbacks` 的键按请求里的确切模型名匹配，写成 `claude-*` 这种通配键不生效（`router_utils/fallback_event_handlers.py`）。每个名字都要单独列一条，可以用 YAML 锚点复用后备列表。`CustomLogger.async_filter_deployments` 返回空列表时会触发 fallback。
 - **按 key 路由、记录 key**：同名部署有多个时，`async_filter_deployments` 可以按自定义请求头（Claude Code 用 `ANTHROPIC_CUSTOM_HEADERS` 发）挑出指定 key；冷却中的 key 不在候选里，会自动换另一个。`async_log_success_event` 里用 `kwargs['litellm_params']['proxy_server_request']['headers']` 拿 `x-claude-code-session-id`，用 `model_info.id` 拿实际部署 id，就能让状态栏显示本会话实际在用的 key。`session_affinity` 的绑定存在内存里，代理重启就丢。
+- **多账号按额度轮换（用完当天换号）**：后端无状态、各账号等价、不需要状态栏显示当前账号时，可以在 `async_pre_call_deployment_hook` 里每个请求随机挑账号，并把凭据写进 `kwargs`（每次重读凭据文件，不写进 YAML）。这和上一条「按编号固定 key」不冲突：那一条是为了会话粘性和状态栏显示。几个坑（LiteLLM 1.106 实测）：
+  - 额度用完多是 402，而 `litellm.should_retry` 只重试 408/409/429/5xx，`num_retries` 不会换号重发。
+  - 换号重发靠 `router_settings.fallbacks`：每个别名配几个隐藏的同模型组（`<别名>-retry`、`-retry2`…）。fallback 列表会依次尝试；每次重试都会重新进 deployment hook，所以能重新选号。
+  - 标记写在 `async_log_failure_event` 里，写入按日期失效的状态文件。utils 包装层会先 await 失败回调再抛错，所以 fallback 选号时已经能看到标记。
+  - 回调里拿不到 hook 选了哪个号，用 `litellm_call_id` → 账号 的 dict 传过去。
+  - 进入 `-retry` 时，从 `metadata.previous_models[*].exception_string` 判断上次是不是额度错误。不是就原样抛出上次的异常（失败回调里按 call id 存下），否则 fallback 会把真实错误换成新错误，还会重复扣费的前处理（如识图）。
+  - 401/403 也换号时，标记要按「账号 + 凭据哈希」记，用户重新登录换了新凭据后自动恢复。
+  - 加了隐藏组后，健康检查要按全部路由名比较；旧代理路由集合不一致时，先核对进程身份再重启。
+  - 账号内还有「团队额度 → 个人额度」两级时，切换通常是服务端状态（一个「设当前团队」接口），会连带改掉用户自己客户端的状态，要先告诉用户。
+- **桌面客户端的接口地址别信 userData 配置**：Electron 正式包常把生产地址放在 `Contents/Resources/.env.prod`（可能加密，解密函数在 asar 里），优先级高于 userData 里存的默认值，而那个默认值可能是测试环境。拿生产凭据请求测试地址，常常返回「登录已失效」，会被误判成凭据过期。判断凭据失效前，先按客户端源码的取值顺序确认实际用的地址。
 - **只回 SSE 的 OpenAI 中转**：有的中转不管是否流式，`/v1/responses` 都回 SSE。`openai/` 会走 Responses API，非流式请求解析失败，还会被 fallback 悄悄换成别的模型回答。改用 `hosted_vllm/` 走 chat completions。
 - **重启代理**：按端口找监听进程来杀（`lsof -tiTCP:<port> -sTCP:LISTEN`），不要按 pid 文件。启动失败的那次也会写 pid 文件，之后旧代理一直杀不掉，改了配置也不生效。
 - **记忆不共享**：实例读的是 `<CLAUDE_CONFIG_DIR>/projects/<cwd>/memory`，主配置的记忆不会自动过去。要单向同步：主配置的文件更新过才覆盖，实例自己写的不删，`MEMORY.md` 把实例自己的索引行合并在后面。`utimes` 只保留到毫秒，比较修改时间时留 1 ms 容差，否则每次都判定为有改动。
