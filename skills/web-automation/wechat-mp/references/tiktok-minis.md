@@ -40,6 +40,61 @@ python3 scripts/tiktok-minis/fetch.py <minis_url | link 接口 JSON 文件> <输
 - 截图文件名标明来源（`competitor-<页面>.png` 和 `ours-<页面>.png`）。用户贴的图先问清是哪一方的，再拿来对照。
 - 改之前先列对照表：先看区域结构（上下分区，还是浮层叠在视频上），再逐个控件记位置、尺寸、文字和显隐规则。改完截自己的同一页，和对方的图并排逐项核对。
 
+## 竞品源码调研（代码优先）
+
+研究登录、游客、广告、支付、预加载这类机制时，先抓 H5 源码读代码；模拟器只在两种情况用：复刻视觉布局，或代码看不出运行时行为（宿主弹窗、真实时序、广告填充）。
+
+### 找链接
+
+1. 搜索引擎：`"tiktok.com/minis" <品牌>`、`tiktokminis.us <品牌>` 等多换几种说法批量搜，把结果里的 `tiktok.com/minis/<token>` 和 `minis-<client_key>-<id>-3.tiktokminis.us` 全部收集起来。站点体检类网站（如 scamadviser）会收录 `*.tiktokminis.us` 主机名，`curl -s https://<host>/ | grep -o '<title>[^<]*'` 就能认出品牌。
+2. 用 link 接口批量解析，按 `minis_meta.name` 认品牌（ego-browser 已登录 TikTok 的 profile）：
+
+```js
+const page = (await taskSpace("minis-links")).page("p1");
+await page.goto("https://www.tiktok.com/explore");
+for (const t of ["<token1>", "<token2>"]) {
+  const r = await page.fetch("https://www.tiktok.com/tiktok/minis/link/" + t);
+  const j = JSON.parse(r.body), m = j.minis_meta || {};
+  // 存 r.body 到 <输出目录>/_links/<token>.json，给 fetch.py 用
+  console.log(t, j.status_code, m.name, m.asset_type, j.minis_link_meta?.minis_url);
+}
+```
+
+3. 判读：`status_code=8` 是未登录；`200002 "The corresponding minis link does not exist"` 表示链接不存在；`status_code=0` 但 body 约 218B、`minis_meta` 只有 `{"minis_status":4}` 表示链接还在、小程序不可用（推测已下架）；`asset_type=1` 加 `*-minigame.tiktokminis.us/vpkg/` 是游戏型包，web 上抓不到。
+4. 网页端找不到入口：TikTok web 的搜索接口（`/api/search/general/full/`）、作品详情、主页简介都不返回 Minis 卡片或锚点，品牌主页的 bio 链接一般跳原生 App 的 onelink。这种情况只能在 App 里搜品牌名，到「综合」页的 TikTok Minis 卡片点「打开」，再用右上角 More → Copy link 拿 token。
+
+### 批量抓取
+
+```bash
+export HTTPS_PROXY=http://127.0.0.1:7890
+for t in <token1> <token2>; do
+  python3 scripts/tiktok-minis/fetch.py <输出目录>/_links/$t.json <输出目录>/<竞品名> --pretty 2>&1 | tail -3
+done
+```
+
+`js/css_fail` 不为 0 时，逐条用 `grep -rn <文件名>` 查引用出处：出现在注释里，或者是打包进 bundle 的 `node_modules/...` 路径字符串，就是误报；只有 html 或 JS 真实加载的路径 404 才算没抓全。
+
+### 分析清单
+
+先统计宿主能力：`grep -rohE "TTMinis\.[a-zA-Z]+" pretty *.html | sort | uniq -c | sort -rn`。
+
+| 维度 | grep 关键词 | 看什么 |
+|---|---|---|
+| 登录与鉴权 | `TTMinis\.(login\|authorize)`、`LoginBy\|tiktok-login\|/auth/`、`guest\|visitor\|anonym\|deviceId` | 调用点在启动 boot 里还是按钮点击里；首屏数据请求是不是 `await` 在登录后面；有没有超时（`Promise.race`、`setTimeout`）和冷却 |
+| 会话存储 | `localStorage\.(get\|set)Item\|sessionStorage\|setStorageSync`、`token` | token 和用户信息存在哪些键；「本会话已尝试静默登录」这类标记；401 或业务码过期时是重试、清 token 还是跳登录页 |
+| 强制登录 | `isLoggedIn\|login\.html\|navigateTo.*login`、`LOGIN_REQUIRED` | 哪些页面或操作必须登录（收藏、评论、下单），公共浏览页遇到 401 是否跳转 |
+| 付费墙/支付 | `TTMinis\.pay\|requestPayment\|createSubscription`、`CreateOrder\|create-order\|order`、`needsReauth` | 下单接口 → `pay` → 回查（轮询次数和间隔），取消和超时分支，启动时是否补单 |
+| 激励广告 | `createRewardedVideoAd`、`onClose\|offClose\|onError\|onLoad\|isEnded`、`setTimeout` | 实例是预建复用还是每次新建，`load()` 的时机，单飞锁，`isEnded` 判定，超时兜底，关闭后何时预加载 |
+| 播放预加载 | `m3u8\|mux\|hls\|xgplayer\|preload\|autoplay`、`swiper` | 首帧来源，播放器是否复用，下一集何时预加载，切集方式 |
+
+非 Vite 的多页站（每页一个 `*.html` 加 `js/*.js`）把页面逻辑写在 html 内联脚本里，grep 要连 `*.html` 一起搜。
+
+### 本次踩坑
+
+- `config.build.htmlEntry` 写的可能是源码路径（`public/index.html`，配 `outputDir: dist`），线上真实入口在站点根目录的 `index.html`，按 htmlEntry 拼 URL 会 404。fetch.py 现在会依次回退到 basename 和 `index.html`。
+- 多页原生 JS 站的引用写成 `js/api.js`，页面跳转写在 JS 里（`location.href = 'play.html?...'`），只扫 `/assets/` 会漏掉大部分页面。fetch.py 现在会收 html 里的全部本站引用，并解析 JS 里出现的 `*.html`；这些 html 按文档根解析，不按 JS 文件所在目录。
+- 逐个文件调 `npx prettier` 在代理环境下每次都去查 registry，几十个文件要卡十几分钟。fetch.py 改成只调一次 `npx`，并且调用时不带代理变量。
+
 ## 案例：VesperDrama（短剧，token mN6Hn1SDJkj）
 
 uni-app H5，16 个页面：首页、剧集列表、播放、排行、搜索、收藏、记录、订单、个人中心、登录/注册、语言、设置、反馈、客服、政策。播放页主要靠 swiper 竖滑切集，用 m3u8 + mux.js 转封装，带 preload/autoplay；剧集解锁同时支持激励广告（rewarded）、金币和订阅（`/payment/create-subscription`、`/payment/tiktok/server-create-order`，走 `TTMinis.pay`），播放时开 `enableCapture` 防录屏。
