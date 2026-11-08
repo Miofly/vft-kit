@@ -2,7 +2,7 @@
 
 import os from 'node:os';
 import path from 'node:path';
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 
 const args = process.argv.slice(2);
 const dataDir = process.env.DBX_DATA_DIR || (
@@ -17,8 +17,29 @@ const commandArgs = process.env.DBX_MCP_ARGS
   ? JSON.parse(process.env.DBX_MCP_ARGS)
   : ['-y', '@dbx-app/mcp-server'];
 
+// DBX 0.6.x 起连接密码/SQL 由本地密钥加密，密钥存在 macOS Keychain 的
+// com.dbx.app.secret-store.v1 / local-data-encryption-key。MCP 二进制的 keychain 授权在
+// 非 GUI 进程里不稳定（--authorize-keychain 报 KEYRING_ACCESS_FAILED），所以直接从 Keychain
+// 取出来经 DBX_SECRET_KEY 环境变量传进去。密钥只在本进程内出现，不落盘、不打印。
+function keychainSecret() {
+  if (process.env.DBX_SECRET_KEY || process.env.DBX_SECRET_KEY_FILE) return undefined;
+  if (process.platform !== 'darwin') return undefined;
+  try {
+    // password 由 security 打在 stderr，stdout 是元数据；两段都搜一遍
+    const out = execFileSync('sh', ['-c', "security find-generic-password -s com.dbx.app.secret-store.v1 -g 2>&1"], {
+      encoding: 'utf8',
+    });
+    const line = out.split('\n').find((l) => l.startsWith('password:'));
+    return line ? line.slice('password: '.length).replace(/^"|"$/g, '') : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+const secretKey = keychainSecret();
+
 const child = spawn(command, commandArgs, {
-  env: { ...process.env, DBX_DATA_DIR: dataDir },
+  env: { ...process.env, DBX_DATA_DIR: dataDir, ...(secretKey ? { DBX_SECRET_KEY: secretKey } : {}) },
   stdio: ['pipe', 'pipe', 'pipe'],
 });
 
