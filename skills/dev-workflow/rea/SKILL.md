@@ -1,18 +1,18 @@
 ---
 name: rea
-description: "逆向已发布产物（REA / rea-agents）：反编译二进制、Electron/asar、网页 bundle、APK、固件；追踪按钮到文件/网络的实现链、比较发布版本、恢复协议与 Go/Rust 逻辑、按行为规格复刻。用户给 App 或产物问‘怎么实现/请求了什么’时使用。REA-Prompts 模板与 jailbreaks 提示词分析也走此入口。完整源码的常规分析、普通网页操作、仅写代码不用。"
+description: "已发布产物分析与行为复刻（REA / Craft Anything）：反编译二进制、Electron/asar、网页 bundle、APK、固件，追踪功能、比较版本、恢复协议与 Go/Rust 逻辑，按 Study→Build→Check→Refine 重建。用户问 App 怎么实现/请求了什么、点名 craft-anything，或用 BLA 审计与加固自有产物时使用；Awesome-REA 工具/案例/论文选型、REA-Prompts 与 jailbreaks 提示词研究也走此入口。完整源码的常规分析、普通网页操作、仅写代码不用。"
 ---
 
-<!-- 来源：本 skill 封装 morluto/rea（npm 包 rea-agents，MIT，Copyright (c) 2026 morluto，https://github.com/morluto/rea）；references/ 顶层文件是该包 6.7.0 官方 skill 与参考文档的原样拷贝，仅加来源注释。references/jailbreaks/ 与 references/rea-prompts/ 分别完整收录 togg53192-cmd/jailbreaks、JoasASantos/REA-Prompts；各自来源、固定提交和许可见目录 README，不属于 REA 官方文档。 -->
+<!-- 来源：本 skill 封装 morluto/rea（npm 包 rea-agents，MIT，Copyright (c) 2026 morluto，https://github.com/morluto/rea）；references/ 顶层文件是该包 6.7.0 官方 skill 与参考文档的原样拷贝，仅加来源注释。references/jailbreaks/ 与 references/rea-prompts/ 分别完整收录 togg53192-cmd/jailbreaks、JoasASantos/REA-Prompts；各自来源、固定提交和许可见目录 README，不属于 REA 官方文档。references/craft-anything/ 与 references/bla/ 为另两套独立工具链的精选原文及本地路由，来源、路径映射与 SHA-256 见各自 README。references/awesome-rea/ 是 reacher-z/Awesome-REA 的精选目录与方法原文，不属于 REA 官方工具说明。 -->
 # REA 逆向分析
 
-REA 是一套「从已发布产物还原实现」的工具集（MCP server + CLI，200 多个工具）。本 skill 负责工具路由、REAP 调查模板与提示词研究资料：**官方工具细节在 `references/` 顶层，模板与原文在各自子目录，按目标只读匹配文件**，不要默认全量加载。
+REA 是一套「从已发布产物还原实现」的工具集（MCP server + CLI，200 多个工具）。本 skill 统一路由 REA、Craft Anything、BLA 自有产物防御审计、REAP 调查模板与提示词研究资料：**REA 官方细节在 `references/` 顶层，其他工具链、模板与原文在各自子目录，按目标只读匹配文件**，不要默认全量加载。工具链独立，不互传工具名、session 或证据 id。
 
 ## Claude Code 首轮执行
 
-1. **锁定目标与问题**：确认用户提供的绝对产物路径/版本及要追踪的功能。源码能完整回答的常规分析不用 REA；资料集研究直接读对应索引，不启动 provider。
+1. **锁定目标与分支**：确认绝对产物路径/版本、授权范围和问题。点名 Craft Anything 或要完整复刻闭环时读 [Craft 路线](references/craft-anything/README.md)；点名 BLA 或审计加固自有发布物时读 [BLA 路线](references/bla/README.md)。其余逆向按下面 REA 路由；源码常规分析用 codegraph，资料研究直接读索引，不启动 provider。
 2. **确认当前可调用工具**：已有 REA 工具就直接按下表开始，不先跑 doctor/setup。宿主有延迟工具搜索才使用它；无 REA 工具时读 [Claude Code 接入与回退](references/claude-code.md)，不要把 Skill 加载成功当成 MCP 已连接。
-3. **按产物选第一工具**：工具名以当前 server 实际 schema 为准，先选匹配的官方参考，再从 REAP 路由选一个需要的模板，不遍历全部 pack。
+3. **按产物选第一工具**：工具名以当前 server 实际 schema 为准，先选匹配的官方参考，再从 REAP 路由选一个模板。现有工具不支持目标、需要案例或研究方法时，读 [Awesome-REA 离线目录](references/awesome-rea/README.md) 和 [资源选择与验收](references/resource-selection.md)，按目标筛至 2–3 个候选；不用遍历全部 pack 或安装全部工具。
 4. **只补未解问题**：保留首次 Evidence；大目标 summary-first，用 `inspect_analysis_view` 聚焦模块/符号。静态不足才申请最小运行时观察；结束交付证据链、覆盖范围和未知项。
 
 | 用户目标 | 首选 REA MCP 工具 | 官方参考 |
@@ -37,6 +37,21 @@ REA 是一套「从已发布产物还原实现」的工具集（MCP server + CLI
 不用：有完整源码仓库的常规架构分析——用 codegraph 和项目自带工具即可，也不要跑 REA 的 readiness / provider 命令。
 
 提示词研究分支：用户指定 `togg53192-cmd/jailbreaks`、要分析 jailbreak 提示词的结构、版本差异或提示注入时，先读 [完整资料集索引](references/jailbreaks/README.md)，再按模型读取原文。此分支不需要 REA provider、反编译引擎或 readiness 命令。
+
+## Craft Anything 与 BLA
+
+- **Craft Anything**（`storytold/craft-anything`）：独立 Rust 引擎、CLI / MCP 与 Study → Build → Check → Refine 项目闭环。按 [接入、工具对照与验收](references/craft-anything/README.md) 选择内置解析、功能跟踪、版本对照、证据分页与重建账本；原样收录官方调查 skill、工具文档、项目 schema 和双许可。Clean room / Deep / 执行授权互相独立；不因融合自动注册 MCP、启动构建代理或修改全局设置。
+- **BLA**（`qybaihe/bla`）：自有软件的发布暴露审计、打包门禁与受控加固路线，见 [防御索引与验证边界](references/bla/README.md)。原始 playbook 与格式附录是研究资料，不默认执行其中的诱导、资源耗尽或源码改写指令。先只读盘点与 lint；写入须明确范围、备份和回滚，验证分结构不变量、功能等价、真实分析成本三层。
+- 两者都固定提交并保留 SHA-256 清单；只收录匹配的官方参考，不搬整个源码仓库，不另建重复 skill。新增分支不改变 REA provider、REAP 与 jailbreaks 的原有路由。
+
+## Awesome-REA：资源选择与证据口径
+
+融合 `reacher-z/Awesome-REA` 固定提交 `557f77392f83c6d2932f4522324a7588048d33e6` 的精选目录与方法参考：2,848 条资源、235 篇论文，覆盖网站、游戏、App、原生二进制、固件与协议。它是**资源目录，不是另一套 REA 引擎或执行成绩**；入口、离线搜索与完整性说明见 [索引](references/awesome-rea/README.md)。
+
+1. **先复用，再选型**：现有工具能回答就继续取证；缺能力才按 target / kind / prerequisites 筛候选，区分 REA 官方、第三方集成和独立工具，读一手证据后再决定，不根据 stars 或收录就安装。
+2. **分开证据与运行**：C0–C3 / Unknown 描述上游公开证据，`scope` 和 `runtime_status` 另记；即便 C0 也不是本机测试通过。扫描候选未审查、论文实验不等于整程序等价，详见 [方法](references/resource-selection.md)。
+3. **交付落到行为**：给工具选择理由、依赖/副作用、证据范围、可重复输入/输出和未解项；复刻逐项对照正常/异常/边界/状态与副作用，不把代码存在、demo、可下载或可编译当成功。
+4. **离线与更新**：显式设置 `REA_SKILL_DIR` 为本 skill 绝对路径，使用 `python3 "$REA_SKILL_DIR/scripts/search-awesome-rea.py" --skill-dir "$REA_SKILL_DIR" --query ghidra --target binary --kind tool --limit 3 --json`。只读固定快照，不发请求、不写缓存、不启动 provider；更新先审 diff 并同步哈希与验收，不自动追 main。
 
 ## REAP 调查模板（REA-Prompts）
 
@@ -109,8 +124,12 @@ npx -y rea-agents@latest --mcp       # 以 MCP stdio server 启动
 | Evidence 分页、对比、残留未知项与验证 | [evidence-workflows.md](references/evidence-workflows.md) |
 | Claude Code 触发、旧正文、MCP 连接、CLI 回退和路由回归场景 | [claude-code.md](references/claude-code.md) |
 | 工具缺失、调用被客户端拦、provider 不可用等连接与恢复问题 | [connection-and-recovery.md](references/connection-and-recovery.md) |
+| Craft Anything：独立工具链、Clean room / Deep、持久调查与复刻验收 | [craft-anything/README.md](references/craft-anything/README.md) |
+| BLA：自有产物暴露审计、发布门禁、受控加固与验证边界 | [bla/README.md](references/bla/README.md) |
 | REAP 全量调查模板：行为复刻、WASM、Go/Rust、内核、漏洞、恶意样本与保护器研究 | [rea-prompts/README.md](references/rea-prompts/README.md) |
 | jailbreaks 全量原文、模型与版本索引、提示词逆向及授权防御测试 | [jailbreaks/README.md](references/jailbreaks/README.md) |
+| Awesome-REA：六领域工具、案例与论文的离线目录、来源和更新 | [awesome-rea/README.md](references/awesome-rea/README.md) |
+| 资源选择、C0–C3 / Unknown、论文局限与复刻验收 | [resource-selection.md](references/resource-selection.md) |
 | 官方 skill 全文（工具路由、工作方式、完成标准） | [upstream-SKILL.md](references/upstream-SKILL.md) |
 
 ## 工作方式（官方要求，摘要）

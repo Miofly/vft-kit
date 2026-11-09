@@ -5,6 +5,7 @@
 - `holdout.jsonl` / `holdout-meta.jsonl`：20 道留出题（shuorenhua 非核心题随机抽，正常文本 10 + 需清理 10），只用来验证，不据此改规则。
 - `cases-meta.jsonl`：每题是否为正常文本（normal）、是否属于正向收益集（positive）。只给判官，不给改写模型。
 - `criteria.md`：shuorenhua v2.5 编辑质量判据，只给判官。
+- `evals.json`：7 个 skill-creator 整体任务；2026-11-09 增加声口、文件保护、回复上下文、资料缺口四题。第 2 题保留小标题编号，遵守用户“不动结构”的要求。新增题与历史冻结成绩分开报告，不能用静态校验代替模型效果评测。
 
 ## 跑法（三个独立模型角色）
 1. 改写：两个改写模型分别只读 `../references/edit-rules.md`（新规则）或 `simple-prompt.md`（基线）加 `cases.jsonl` 与 `holdout.jsonl`，各写 `out-<方案>.jsonl`，每行 `{id, output}`。不得读取判据和 meta。
