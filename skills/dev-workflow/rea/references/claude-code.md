@@ -94,6 +94,15 @@ REA MCP 名称以当前 server 为准；不可用时查询该操作的具体原�
 | 已有 REA 工具且能调用 | 直接按目标取证 | 每轮 doctor / setup |
 | REA 缺失，CLI 包 `ENOTCACHED` | 报包获取阻碍，保留目标与待验证项 | 报 MCP/引擎正常或重复离线安装 |
 | 已有同版本 Evidence，只问一个模块 | `inspect_analysis_view` 聚焦已保存证据 | 重跑完整分析 |
+| 点名 Craft Anything，静态识别本地产物 | Craft 索引，核实模式，单次 `--deep triage` 或持久 MCP | 传入 REA 工具名或复用另一引擎的证据 id |
+| Craft MCP 已有 `--all-tools`，doctor 提示不同形状 | 保留现有注册，按需核实工具表 | setup 覆盖而丢失 `--all-tools` |
+| Craft Clean room 拒绝读取内部 | 说明边界，获准后单次 Deep | 切工具绕过模式限制 |
+| 自有 App 复刻并持续验收 | Study → Build → Check → Refine，行为规格与真实对照 | 把构建通过或项目 ready 当业务完成 |
+| BLA 只读发布审计或资料研究 | BLA 索引，discover / lint 或读取原文 | 自动 harden / setup、覆盖产物或写入诱导指令 |
+| BLA `overallPassed` / 历史报告 `available` | 区分结构检查、功能等价和实际成本 | 声称 100% 等价或本次真实 REA 测评通过 |
+| 找 Android/固件/协议工具或同类复刻案例 | Awesome-REA 离线 target/kind 检索，读取 prerequisites 和一手证据 | 全量加载目录、自动安装或把收录当兼容保证 |
+| Awesome-REA C0，问是否已本机跑通 | 区分 evidence_class、scope 与 runtime_status；需要再实际验证 | 把人工来源复核或 C0 当本机成功 |
+| 论文函数重编译/抽样执行成功，问能否还原整程序 | 读论文版本、平台与 scope_limitations，交付覆盖及未知项 | 外推为原始源码恢复或整程序等价 |
 
 结构检查只能证明文档、路由和链接一致。测自动触发率、工具选择准确率时，需要固定 Claude Code 版本、模型、skill 版本与基线，对这些输入运行实际会话并检查工具调用记录；没有这些记录不报成功率。
 

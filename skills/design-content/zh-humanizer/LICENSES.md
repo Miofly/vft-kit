@@ -9,6 +9,7 @@
 | https://github.com/op7418/humanizer-zh | Copyright (c) 2026 歸藏 |
 | https://github.com/LifelongLazyLearner/qu-ai-wei | Copyright (c) 2026 @LifelongLazyLearner |
 | https://github.com/KKKKhazix/khazix-skills （khazix-writer） | Copyright (c) 2026 数字生命卡兹克 |
+| https://github.com/blader/humanizer | Copyright (c) 2025 Siqi Chen |
 
 ## MIT License
 

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BuildProgress",
+  "description": "The app as the builder last left it, and turns since it last changed. Only the rebuild run\nwrites this record. An older project without one has no counted turns.",
+  "type": "object",
+  "properties": {
+    "fingerprint": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "unchanged_turns": {
+      "type": "integer",
+      "format": "uint32",
+      "default": 0,
+      "minimum": 0
+    },
+    "version": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "version"
+  ]
+}
