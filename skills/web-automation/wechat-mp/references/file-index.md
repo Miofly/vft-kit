@@ -15,4 +15,5 @@
 - `references/wxapkg-unpack.md` — 小程序反编译：扫描缓存、定位 wxid、解包、还原 WXSS、复刻要点
 - `references/tiktok-minis.md` — TikTok Minis：link 接口取 minis_url、判断 H5 型、抓前端产物、读码要点与案例
 - `scripts/wxapkg/wxapkg.sh` — wxapkg 扫描 / 解包 CLI（带 `selftest`）；`scripts/wxapkg/extract-wxss.mjs` — 还原 WXSS；`scripts/wxapkg/split-service.mjs` — 拆 `app-service.js` 并导出数据 JSON（带 `--selftest`）
+- `scripts/wxapkg/export-game.py` — 小游戏归档：原始 wxapkg、已解包发布代码、桌面 define 模块、已访问 Cocos 资源、可选远端 bundle 配置；SHA-256 清单，`--selftest`，不执行目标 JS、不改微信数据
 - `scripts/tiktok-minis/fetch.py` — TikTok Minis H5 前端产物抓取（minis_url 或 link 接口 JSON 输入，`--pretty` 格式化）

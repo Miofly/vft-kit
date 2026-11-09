@@ -37,6 +37,29 @@
    ```
    `app-service.js` 按 `define()` 拆到 `_modules/<原路径>`；纯数据模块（城市表、话术、文章等 `module.exports = {...}`）导出到 `_data/<路径>.json`。移植数据时从 JSON 生成 TS，不要让 LLM 手抄，长段中文法条手抄必然漏字改字。
 
+## 小游戏代码与资源归档
+
+小游戏没有 `app-service.js` 时，不跑 `split-service.mjs`。电脑版 Cocos 包常在主包及分包的 `game.js` 中使用 `define("path", function(require, module, exports){…})`；用 `scripts/wxapkg/export-game.py` 归档，保留 wrapper 原文，不执行第三方 JS。
+
+```bash
+python3 "$WECHAT_MP_SKILL_DIR/scripts/wxapkg/export-game.py" --selftest
+python3 "$WECHAT_MP_SKILL_DIR/scripts/wxapkg/export-game.py" \
+  --packages "$WX_PACKAGE_VERSION_DIR" --user-dir "$WX_APP_LOCAL_DIR" \
+  --wxid "$WX_APPID" --output "$GAME_ARCHIVE_DIR" \
+  --remote-configs --proxy http://127.0.0.1:7890
+```
+
+以上变量均由调用方设为绝对路径；先用 `wxapkg.sh` 确保 CLI 已构建。`--packages` 是包含 `.wxapkg` 的版本目录，`--user-dir` 是同一账号和 AppID 的 `applet/local/<wxid>`，`--output` 必须是全新的归档目录。不同账号不可混用。省略 `--remote-configs` 时完全离线；配置下载走 `wget -c`，失败非零退出并在 manifest 中保留错误。
+
+- `packages/`：原始缓存包；`unpacked/<wxid>/`：解包的发布产物。
+- `modules/`：按原路径拆开的桌面 `define` 模块；保留打包 wrapper，不是原始 TypeScript，也不自动还原 Cocos 工程。
+- `resources/<host>/<path>`：按 `usr/gamecaches/cacheList.json` 将已访问资源映射回远端路径；只复制资源，不复制账号 storage 或 token。
+- `manifest.json`：文件大小、SHA-256、模块与缓存数量、缺失资源及可选下载的 bundle 配置。`complete=true` 仅表示本次声明的缓存导出范围完整，不代表全游戏资源完整。
+
+**范围**：远端配置只是索引，不等于全量纹理、音频、场景下载。先实际游玩所需场景，随后导出新快照；未访问的关卡明确列为未下载。仅处理无 query 的公开 HTTPS 资源，不保存带签名或认证参数的 URL。对外不分发解包产物。
+
+**试玩记录**：依次观察首屏引导、核心经营循环、货币收支、升级/招聘、任务奖励、存档恢复；截图标出对应动作与结果。未解锁、付费、广告和长周期系统分开列为未验证，不拿代码中出现的类名当实际玩过。
+
 ## 解包产物怎么读
 
 包解出来是**编译产物**，不是原始工程：
