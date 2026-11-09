@@ -25,6 +25,7 @@ ego-browser（ego lite，Chromium 内核，Agent 与用户共用的浏览器）�
 - 不继承 shell 的 cwd 和环境变量：读写文件一律绝对路径，参数直接写进脚本（脚本化时由外层 shell 拼进 heredoc，见 `scripts/ego-bookmarks.sh`）。内置模块用 `await import("node:fs/promises")`。
 - `console.log` 输出走 **stderr**：要给管道解析的结果，写临时文件再 `cat`。
 - 只用本文列出的 API，**不是 Playwright**：没有 `locator()`/`getByRole()`/`context()`/`expect()`/`route()`，不 import Playwright、不另起浏览器；不够用走 `evaluate()` / `cdp()`。
+- `page.waitForFunction(fn, arg, opts)` 的 **arg 位置不能省**：写成 `waitForFunction(fn, { timeout })` 会报 `options are the third argument; pass undefined when omitting the callback argument`，必须 `waitForFunction(fn, undefined, { timeout })`（2026-11-08 实测，白跑一轮）。
 - 时间单位一律毫秒。
 
 ## Task space
