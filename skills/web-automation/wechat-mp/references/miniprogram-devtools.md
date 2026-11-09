@@ -107,6 +107,13 @@ mp.disconnect();
   3. 报错全文在 `AXRow "Error …"` 的文本里，比截图完整。
 - miniprogram-automator 连上小游戏后，`evaluate`/`screenshot` 报 `timeout waiting for automator response`，小游戏不能用它。要看画面就截窗口：`cua-driver get_window_state` 加 `screenshot_out_file`，或 `screencapture -x -o -l<窗口号>`。
 
+**电脑版小游戏卡加载：先查真实资源连接**
+- 主包与分包已缓存，不代表远端资源可达。Cocos 可从 `src/settings.*.json` 的 `assets.server`、`remoteBundles`、`bundleVers` 定位真实启动配置 URL；仅在有权检查时用现成 wxapkg 工具只读解包，不改原包或存档。
+- HTTPS 报 `Connection reset by peer` / TLS EOF 时，不先归因于 Mac 不兼容。对不带凭据的公开 URL 用 HTTP 作诊断：若 HTTP 200 却是「URL过滤 / 访问被拒绝」HTML，就是访问策略拒绝的证据，不是资源成功；具体过滤设备仍未定。
+- 对照正常站点，并分别检查直连与当前代理分流。若获准使用的另一出口可达，只给失败资源域名加精确规则，不切全局、不关闭安全软件、不把业务 URL 改成 HTTP。
+- 验收分三层：真实配置 HTTP 200 且 JSON 正确；微信实际连接命中新出口、资源缓存增长；重新进入后出现可交互游戏界面。加载条前进或正式启动画面出现不能替代最后一层。
+- 重载用胶囊菜单「重新进入小程序」，不清缓存。旧窗口会关闭，需重新 `list_windows` 获取 window_id；无 AX 的画布控件可依据当前截图后台坐标点击，不能盲点或自动切前台。
+
 **Cocos 3.8 产物的坑**
 - 开了引擎插件 `separateEngine`，但 AppID 后台没添加 Cocos 插件 `wx0446ba2621dda60a` 时，报 `summer-compiler miss js file, __context__/__plugin__/wx0446ba2621dda60a/plugin.js`，接着 `web-adapter.js` 报 `Object.defineProperty called on non-object`，模拟器白屏。测试号、未添加插件的 AppID 都要关掉 `separateEngine`。
 - 首包 ≤ 4MB：Asset Bundle 对 `wechatgame` 设 `compressionType: "subpackage"`。实测不开引擎插件时主包 2.76MB。
