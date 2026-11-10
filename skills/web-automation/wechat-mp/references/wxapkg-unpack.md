@@ -56,6 +56,8 @@ python3 "$WECHAT_MP_SKILL_DIR/scripts/wxapkg/export-game.py" \
 - `resources/<host>/<path>`：按 `usr/gamecaches/cacheList.json` 将已访问资源映射回远端路径；只复制资源，不复制账号 storage 或 token。
 - `manifest.json`：文件大小、SHA-256、模块与缓存数量、缺失资源及可选下载的 bundle 配置。`complete=true` 仅表示本次声明的缓存导出范围完整，不代表全游戏资源完整。
 
+**桌面 wrapper 坑**：入口 `define("game.js", …)` 可能紧跟 loader 的 `};` 在同一行；只匹配行首会漏掉主包及分包入口。拆分后核对每个包的 wrapper 数量，并对所有模块跑 `node --check`。脚本的 `--selftest` 覆盖同行入口、路径穿越/软链逃逸、缓存缺失和 query URL 拒绝。
+
 **范围**：远端配置只是索引，不等于全量纹理、音频、场景下载。先实际游玩所需场景，随后导出新快照；未访问的关卡明确列为未下载。仅处理无 query 的公开 HTTPS 资源，不保存带签名或认证参数的 URL。对外不分发解包产物。
 
 **试玩记录**：依次观察首屏引导、核心经营循环、货币收支、升级/招聘、任务奖励、存档恢复；截图标出对应动作与结果。未解锁、付费、广告和长周期系统分开列为未验证，不拿代码中出现的类名当实际玩过。
