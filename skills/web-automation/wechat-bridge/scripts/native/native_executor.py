@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Experimental, build-pinned Qt executor for filehelper ONLY.
+"""Experimental, build-pinned Qt executor for explicitly allowlisted recipients.
 
 Reads the existing exec-backend JSON contract on stdin. Never restarts WeChat,
 loads a dylib, navigates, or uses keyboard/clipboard. A validated external probe
@@ -8,7 +8,10 @@ Each target/text pair gets an exclusive durable claim BEFORE evaluation; even
 unknown results cannot be retried automatically. Submitted is not delivered.
 
 WXS_NATIVE_CONFIG must name a private JSON config. No implicit PID, addresses,
-build or paths are selected. See references/qt-native-send-derivation.md.
+build or paths are selected. allowed_recipients defaults to filehelper; changing
+it is an explicit operator action, never inferred from navigation or aliases.
+The preflight and resolve operations are read-only and never authorize a send.
+See references/qt-native-send-derivation.md.
 """
 import hashlib
 import fcntl
@@ -41,8 +44,7 @@ def number(value):
 def validate_payload(payload):
     if not isinstance(payload, dict) or payload.get('op') != 'send':
         raise Refused('only send is supported')
-    if payload.get('wxid') != 'filehelper':
-        raise Refused('this experimental executor only accepts exact wxid=filehelper')
+    validate_recipient(payload.get('wxid'))
     if payload.get('mention') not in (None, '', []):
         raise Refused('mentions are not supported')
     text = payload.get('text')
@@ -93,23 +95,69 @@ def read_config():
     return config
 
 
-def discover(config):
+def discover(config, wxid='filehelper'):
     result = subprocess.run([config['probe'], str(number(config['pid'])),
-                             str(config['input_vtable']), str(config['editor_vtable'])],
+                             str(config['input_vtable']), str(config['editor_vtable']),
+                             str(config['recipient_offset'])],
                             capture_output=True, text=True, timeout=20, check=True)
     data = json.loads(result.stdout)
-    return select_binding(config, data)
+    return select_binding(config, data, wxid)
 
 
-def select_binding(config, data):
-    if data.get('bounded') or data.get('pid') != number(config['pid']):
+def validate_recipient(wxid):
+    if not isinstance(wxid, str) or not re.fullmatch(r'[A-Za-z0-9_@.\-]{1,128}', wxid):
+        raise Refused('an exact ASCII wxid is required; display names are not identities')
+    return wxid
+
+
+def resolve_recipient(config, hint):
+    """Resolve only explicit private mappings; never infer identity from a title."""
+    if not isinstance(hint, str) or not hint or len(hint) > 128:
+        raise Refused('a nonempty exact recipient hint is required')
+    aliases = config.get('recipient_aliases', {})
+    if not isinstance(aliases, dict):
+        raise Refused('recipient_aliases must map exact names to wxid lists')
+    matches = set()
+    if hint in ('文件传输助手', '文件助手', 'filehelper'):
+        matches.add('filehelper')
+    # ASCII nicknames are not proof of a wxid. Only configured identities count.
+    known = config.get('allowed_recipients', ['filehelper'])
+    if not isinstance(known, list):
+        raise Refused('allowed_recipients must be an exact-wxid list')
+    for wxid in known:
+        validate_recipient(wxid)
+    if hint not in aliases and hint in known:
+        matches.add(hint)
+    if hint in aliases:
+        values = aliases[hint]
+        if not isinstance(values, list) or not values:
+            raise Refused('recipient alias must contain a nonempty wxid list')
+        matches.update(validate_recipient(value) for value in values)
+    candidates = [{'wxid': wxid} for wxid in sorted(matches)]
+    return {'status': 'resolved' if len(candidates) == 1 else
+            'ambiguous' if candidates else 'not_found', 'candidates': candidates,
+            'source': 'explicit_mapping', 'send_ready': False}
+
+
+def preflight(payload):
+    """Read current target binding only; no LLDB, draft mutation, claim or send."""
+    wxid = validate_recipient(payload.get('wxid'))
+    config = read_config()
+    discover(config, wxid)
+    return {'status': 'target_matched', 'wxid': wxid, 'pid': number(config['pid']),
+            'send_ready': False, 'diagnostic': 'current input and editor match; draft and delivery not checked; no message submitted'}
+
+
+def select_binding(config, data, wxid='filehelper'):
+    if data.get('bounded') is not False or data.get('pid') != number(config['pid']):
         raise Refused('incomplete probe or wrong PID')
+    validate_recipient(wxid)
     offset = hex(number(config['recipient_offset']))
     candidates = [c for c in data.get('candidates', [])
                   if c.get('kind') == 'input' and c.get('qobject_backlink') is True
-                  and offset in c.get('filehelper_offsets', [])]
+                  and c.get('recipient') == {'offset': offset, 'wxid': wxid}]
     if len(candidates) != 1:
-        raise Refused('filehelper input must resolve uniquely; open its conversation first')
+        raise Refused('exact recipient input must resolve uniquely; open its conversation first')
     candidate = candidates[0]
     members = [m for m in candidate.get('members', [])
                if number(m['offset']) == number(config['editor_offset'])]
@@ -121,7 +169,19 @@ def select_binding(config, data):
     return base, number(candidate['address']), number(members[0]['address'])
 
 
-def expression(config, binding, utf16):
+def authorize_recipient(config, wxid):
+    validate_recipient(wxid)
+    allowed = config.get('allowed_recipients', ['filehelper'])
+    if not isinstance(allowed, list) or not allowed:
+        raise Refused('allowed_recipients must be a nonempty exact-wxid list')
+    for item in allowed:
+        validate_recipient(item)
+    if wxid not in allowed:
+        raise Refused('recipient not enabled in private allowed_recipients; no message submitted')
+
+
+def expression(config, binding, utf16, wxid='filehelper'):
+    validate_recipient(wxid)
     base, inp, editor = binding
     units = [int.from_bytes(utf16[i:i+2], 'little') for i in range(0, len(utf16), 2)]
     values = ','.join(map(str, units))
@@ -132,13 +192,20 @@ def expression(config, binding, utf16):
     return f'''({{ unsigned long wxn_i={inp}ULL,wxn_e={editor}ULL; int wxn_rc=-100;
     auto wxn_meta=(void(*)(void*,int,int,void**)){address('text_metacall')}ULL;
     auto wxn_destroy=(void(*)(void*)){address('qstring_destructor')}ULL;
-    auto wxn_guard=[&]() {{return ((int(*)())pthread_main_np)()
-      && *(unsigned long*)wxn_i=={address('input_vtable')}ULL
-      && *(unsigned long*)wxn_e=={address('editor_vtable')}ULL
-      && *(unsigned long*)(wxn_i+{number(config['editor_offset'])})==wxn_e
-      && *((unsigned char*)wxn_i+{number(config['recipient_offset'])}+23)==10
-      && ((int(*)(const void*,const void*,unsigned long))memcmp)(
-           (void*)(wxn_i+{number(config['recipient_offset'])}),"filehelper",10)==0;}};
+    auto wxn_guard=[&]() {{
+      if(!((int(*)())pthread_main_np)()
+        || *(unsigned long*)wxn_i!={address('input_vtable')}ULL
+        || *(unsigned long*)wxn_e!={address('editor_vtable')}ULL
+        || *(unsigned long*)(wxn_i+{number(config['editor_offset'])})!=wxn_e) return false;
+      unsigned char *wxn_peer=(unsigned char*)(wxn_i+{number(config['recipient_offset'])});
+      unsigned long wxn_len=wxn_peer[23];const void *wxn_chars=wxn_peer;
+      if(wxn_peer[23]&128) {{
+        wxn_chars=*(void**)wxn_peer;wxn_len=*(unsigned long*)(wxn_peer+8);
+        if(!wxn_chars || ((*(unsigned long*)(wxn_peer+16))&0x7fffffffffffffffULL)<=wxn_len) return false;
+      }} else if(wxn_len>22) return false;
+      return wxn_len=={len(wxid)} && ((const char*)wxn_chars)[wxn_len]==0
+        && ((int(*)(const void*,const void*,unsigned long))memcmp)(wxn_chars,"{wxid}",{len(wxid)})==0;
+    }};
     if(wxn_guard()) {{
       void *wxn_before=(void*){address('qstring_empty')}ULL;void *wxn_bargs[]={{&wxn_before}};
       wxn_meta((void*)wxn_e,1,9,wxn_bargs);
@@ -175,7 +242,8 @@ def claim(state_dir, payload, pid):
     state_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
     if state_dir.is_symlink() or state_dir.stat().st_uid != os.getuid() or state_dir.stat().st_mode & 0o077:
         raise Refused('receipt directory must be private and owned by current user')
-    digest = hashlib.sha256((str(pid)+'\0filehelper\0'+payload['text']).encode()).hexdigest()
+    wxid = validate_recipient(payload['wxid'])
+    digest = hashlib.sha256((str(pid)+'\0'+wxid+'\0'+payload['text']).encode()).hexdigest()
     path = state_dir / (digest + '.json')
     try:
         fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
@@ -192,6 +260,7 @@ def claim(state_dir, payload, pid):
 def execute(payload):
     utf16 = validate_payload(payload)
     config = read_config()
+    authorize_recipient(config, payload['wxid'])
     state_dir = Path(config['state_dir'])
     state_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
     if state_dir.is_symlink() or state_dir.stat().st_uid != os.getuid() or state_dir.stat().st_mode & 0o077:
@@ -209,7 +278,8 @@ def execute(payload):
 
 
 def execute_locked(config, payload, utf16):
-    binding = discover(config)
+    authorize_recipient(config, payload['wxid'])
+    binding = discover(config, payload['wxid'])
     receipt, result = claim(config['state_dir'], payload, number(config['pid']))
     if result is None:
         # Do not trust an old submitted state as current delivery confirmation.
@@ -218,7 +288,7 @@ def execute_locked(config, payload, utf16):
     try:
         with tempfile.TemporaryDirectory(prefix='wxs-expression-') as work:
             expr = Path(work) / 'expression.txt'
-            expr.write_text(expression(config, binding, utf16))
+            expr.write_text(expression(config, binding, utf16, payload['wxid']))
             outcome = Path(work) / 'result.json'
             runner_config = Path(work) / 'runner.json'
             runner_config.write_text(json.dumps({'pid': number(config['pid']),
@@ -269,7 +339,13 @@ def main():
         raw = sys.stdin.buffer.read(32769)
         if len(raw) > 32768:
             raise Refused('request too large')
-        result = execute(json.loads(raw))
+        payload = json.loads(raw)
+        if isinstance(payload, dict) and payload.get('op') == 'preflight':
+            result = preflight(payload)
+        elif isinstance(payload, dict) and payload.get('op') == 'resolve':
+            result = resolve_recipient(read_config(), payload.get('hint'))
+        else:
+            result = execute(payload)
     except (Refused, ValueError) as error:
         result = {'status': 'failed', 'diagnostic': str(error)}
     except Exception:
