@@ -133,6 +133,7 @@ class Bridge:
         if "mention" in payload and not isinstance(payload["mention"], (str, list, dict)):
             raise ValueError("mention must be a string, list or object")
 
+        native_request_id = None
         b = _backend()
         if b == "noop":
             status = "status_unknown"
@@ -142,6 +143,8 @@ class Bridge:
                                          "mention": payload.get("mention")})
             status = str(result.get("status", "submitted_unconfirmed"))
             diagnostic = str(result.get("diagnostic", ""))[:500]
+            if isinstance(result.get("request_id"), str) and result["request_id"]:
+                native_request_id = result["request_id"]
         elif b == "upstream":
             body = json.dumps({"wxid": wxid, "text": text,
                                **({"mention": payload["mention"]} if "mention" in payload else {})},
@@ -163,14 +166,17 @@ class Bridge:
             rid = f"{int(time.time()*1000)}-{len(self.sent)}"
             self.requests[rid] = wxid
             self.sent.append({"request_id": rid, "wxid": wxid, "ts": int(time.time()),
-                              "status": status, "text_len": len(text)})
-        return {"status": status, "diagnostic": diagnostic, "request_id": rid}
+                              "status": status, "text_len": len(text),
+                              **({"native_request_id": native_request_id} if native_request_id else {})})
+        return {"status": status, "diagnostic": diagnostic, "request_id": rid,
+                **({"native_request_id": native_request_id} if native_request_id else {})}
 
     def receipt(self, rid: str) -> dict:
         with self.lock:
             for row in self.sent:
                 if row["request_id"] == rid:
-                    return {"request_id": rid, "status": row["status"], "ts": row["ts"]}
+                    return {"request_id": rid, "status": row["status"], "ts": row["ts"],
+                            **({"native_request_id": row["native_request_id"]} if row.get("native_request_id") else {})}
         return {"request_id": rid, "status": "not_found"}
 
 
@@ -362,13 +368,15 @@ def self_test() -> None:
         assert h["send_ready"] is True, h
         code, r = req("POST", "/send", {"wxid": "filehelper", "text": "hello"})
         assert code == 200 and r["status"] == "delivered", r
-        assert r["request_id"], r
-        return 2
+        assert r["request_id"] and r["native_request_id"] == "native-test-receipt", r
+        code, receipt = req("GET", "/receipt?request_id=" + r["request_id"])
+        assert code == 200 and receipt["native_request_id"] == "native-test-receipt", receipt
+        return 3
 
     n1 = run_case("noop", {}, noop_checks)
     n2 = run_case("noop", {"WECHAT_BRIDGE_BEARER": "secret"}, auth_checks)
     # exec backend: a fake executor that echoes a delivered status via stdin JSON.
-    fake = "python3 -c 'import sys,json; d=json.load(sys.stdin); print(json.dumps({\"status\":\"delivered\" if d[\"op\"]==\"send\" else \"ok\"}))'"
+    fake = "python3 -c 'import sys,json; d=json.load(sys.stdin); print(json.dumps({\"status\":\"delivered\" if d[\"op\"]==\"send\" else \"ok\",\"request_id\":\"native-test-receipt\"}))'"
     n3 = run_case("exec", {"WECHAT_BRIDGE_EXEC": fake}, exec_checks)
     print(f"self-test ok: {n1} noop + {n2} auth + {n3} exec = {n1+n2+n3} protocol checks")
 

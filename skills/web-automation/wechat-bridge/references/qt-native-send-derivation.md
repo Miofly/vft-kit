@@ -6,6 +6,23 @@
 >
 > **本机 WeChat 4.1.10 已实际派生成功**，结果与复现步骤见 [§10](#10-已派生的-profilewechat-4110本机实测纯静态不用自动分析)。全程不需要完整自动分析。
 
+## 当前有效结论（2026-11-11 复核，优先于下文历史记录）
+
+- **已登录副本不重启**：使用外部 `wechat_probe.c`，只调用读取接口，不暂停进程、不写内存、不调用 Qt、不触发登录或发送。旧版 socket 收到任意正文会执行写入/发送，不能拿它当只读探针。
+- **4.2.0 / 270353 只读实测**：`ChatInputView` vtable RVA `0x9caf6c8`，其 `+0x200` 成员是 `ChatInputField`，vtable RVA `0x9caf158`。两对象均通过 `QObjectData::q_ptr` 回指检查。Ghidra 继承链证明 `ChatInputField` 经中间类继承 `XTextEdit` / `QTextEdit`。不是要求对象的动态 vtable 必须等于基类 `XTextEdit` 的 vtable。
+- **RTTI 不可按明文类名盲搜**：该 build 的输入视图/编辑器 RTTI 名称分别是散列形式 `_dfb5955a` / `_3d16f471`；明文 `ChatInputView` / `TextEdit` 子串搜索会漏报。libc++ 的 `type_info` 名称指针还可能带高位标签。
+- **字符串布局更正**：上游模板的 `QString` 是单指针持有 `QArrayData` 的 Qt5 风格布局；`data()` 地址为 `header + *(header+16)`。旧实现把偏移写成 `24-8`，与该模板不符；更不能把该布局称为通用 Qt6 ABI。当前代码删除手拼字符串和未验证的 Qt 调用，不再靠猜 ABI 发送。
+- **必须在 GUI 主线程执行 QWidget 操作**：旧 socket 工作线程直接调用 Qt 是不正确的。新版安全底座将绑定复核放在 main queue；目前没有任何文本写入或发送调用。
+- **新版产物仅支持 `probe\n`**：拒绝所有其他请求，`mutation_ready:false`；不宣称草稿或送达已验收。构建只写全新输出文件，不覆盖已映射 dylib；现有已登录进程仍加载旧产物，源码修复不等于已部署。
+- `derive_profile.py` 的方法表现在由 `Profile.java` 从当前二进制解析，4.2.0 的 `Send` 为局部 id **8**、`setPlainText` 为 **16**；不再把旧的硬编码方法表写到新 profile。输出固定 `runtime_ready:false`。
+- **后续原生/HTTP 实测补充**：`native_executor.py` / `lldb_runner.py` 通过短暂 LLDB 附着，在已运行副本主线程调用 Qt，不加载新 dylib。4.2.0 的收件人字段在 input `+0x258`（libc++ 短字符串 `filehelper`），editor 在 `+0x200`。已完成空草稿检查、Qt 写入与 UTF-16 回读、单次 `Send`（局部 id 8 / action 0）及发送后草稿清空；原生与 HTTP 各一次。状态均为 **`submitted_unconfirmed`**，窗口不可见导致聊天记录和手机端送达未独立确认。
+- 实验字符串使用堆分配的 Qt5 风格数据头，offset=24、ref=1、capacity=len+1，使用当前 build 的 QString 析构释放；不是通用 Qt6 ABI，也不等于已找到真实字符串工厂。已复核的析构 RVA `0xadba4`，共享空串头 RVA `0xa383938`。模块须匹配完整文件 SHA-256，静态 slice 指纹不能混用。
+- 原生 exec 通过私有 `WXS_NATIVE_CONFIG` 显式配置：`pid/module/module_sha256/probe/lldb_runner/state_dir/input_vtable/editor_vtable/editor_offset/recipient_offset/text_metacall/input_metacall/qstring_destructor/qstring_empty`；路径必须绝对。只允许 `WeChatSend.app` 与精确 filehelper，所有地址从此次 probe 重新取得，不缓存对象指针。字段从本 build 独立验证后填写，不自动将静态 profile 升为可发送配置。
+- LLDB `--timeout` 的单位是微秒；5 秒为 `5000000`。SB API 设置 `SetTimeoutInMicroSeconds(5000000)`，选择唯一 main-thread，finally 分离。发送前持久 claim、串行锁、不自动重发；外部超时和窗口不可见不能作为未发送的证据。
+- 尚未完成：独立送达确认、真实 Qt 字符串工厂、跨 build 生命周期验证、通用收件人导航及媒体发送。全功能范围另见 [capability-scope.md](capability-scope.md)。
+
+下文保留研究线索；其中“Qt6”“RTTI 类名匹配已修好”“重启必丢登录”等早期断言不能作为当前使用依据。
+
 ## 1. 产出（profile 字段）
 
 | 字段 | 含义 |
@@ -264,7 +281,7 @@ m[27] insertPlainText(QString)
 | 上游做法 | 简化 | 依据 |
 |---|---|---|
 | LLDB 表达式求值 / `mach_vm_write` | **`DYLD_INSERT_LIBRARIES` 加载自己的 dylib**，进程内直接调 | ad-hoc 重签（无 hardened runtime）的副本认这个环境变量；上游自己已经有 load-command 注入的机制 |
-| `qstring_from_utf8_rva` + `qarray_deallocate_rva` | **手搓 Qt6 `QString`**（`{ref=-1,size,offset}` + UTF-16 数据） | 上行模板里就是按这个头解析的（§3 第 8 步） |
+| `qstring_from_utf8_rva` + `qarray_deallocate_rva` | **不再省略真实工厂与析构验证** | 旧手拼头偏移与上游模板不符，不能将 Qt5 风格布局称作通用 Qt6 ABI；目前写入/发送关闭 |
 | 完整自动分析 | `-noanalysis` 导入即可 | §10 |
 
 ### 11.4 最小实现（已进 skill）
@@ -306,8 +323,8 @@ m[27] insertPlainText(QString)
 7. **dylib 必须 fat（arm64 + arm64e）**：宿主 `WeChat` 用 `lipo -archs` 看是 `x86_64 arm64`，但 dyld 插入时按 **arm64e** 校验，纯 arm64 dylib 直接被拒并在启动瞬间退出：`terminating because inserted dylib ... (mach-o file, but is an incompatible architecture (have 'arm64', need 'arm64e'))`。`build_dylib.sh` 现在两切片一起编再 `lipo -create`，不猜。
 8. **从 shell 启动副本会变英文 UI**：本机 shell（Claude Code / Orca 宿主）带 `__CFBundleIdentifier=com.stablyai.orca` 和 `LANG=en_US.UTF-8`，AppKit/CFBundle 的本地化按这个宿主解析，于是副本登录窗全英文（`Scan to log in`）。启动时清掉：`env -u __CFBundleIdentifier -u __CF_USER_TEXT_ENCODING -u LANG -u LC_ALL -u LC_CTYPE DYLD_INSERT_LIBRARIES=... WeChat`。清完窗口标题即恢复「微信」。
 
-9. **重启副本 = 丢登录，必须攒够改动再重启**：登录态不跟着 ad-hoc 重签的副本走（推断是 keychain ACL 绑代码签名，未验证），只要 kill + 重开副本就回到扫码页。所以流程反过来：**先把代码/参数全部改完，再让用户扫一次**；参数改动走 `/tmp/wxs.conf`（dylib 每请求热加载 `set_id`/`send_id`/`action`），不要为调参重启。2026-11-11 踩过：用户登录后为加载新 dylib 重启，登录白扫一次。
+9. **不要为调试擅自重启已登录副本**：此前看到登录窗口便断言“重启必丢登录”，没有确认当前主窗口；后续同一 pid 已存在聊天主窗口，旧登录窗仍可隐藏留存。Keychain ACL 是否影响登录态也未验证，不能当根因。正确做法是绑定当前可见主窗口确认登录状态，离线完成修复后再说明加载变更的影响，不让用户反复扫码。旧版 `/tmp/wxs.conf` 热加载不能替代收件人和草稿安全检查。
 10. **局部方法 id 逐 build 变，别信旧表**：4.2.0 的 `mmui::ChatInputView::Send(SendActionType)` 局部 id 是 **m[8]**（`MetaNames.java` 实测），4.1.10 的 profile 里写的是 5；`QTextEdit::setPlainText` 两版都仍是 **m[16]**。
-11. **实例定位要用 RTTI 类名，不要用 vtable 全等**：实际被 new 出来的是子类，vtable 地址跟元对象扫描报出来的那个不一样。按 `vptr[-1] -> type_info -> name` 匹配类名子串（`ChatInputView` / `TextEdit`）才找得到；vtable 全等在 4.2.0 上 raw 命中 2 个、可用 0 个。
+11. **不能从未登录探针推断实例定位方案优劣**：登录后外部只读探测通过精确 vtable 和 QObject 回指找到唯一输入视图及其 `+0x200` 编辑器。前者 RTTI 是 `_dfb5955a`，后者是 `_3d16f471`，按明文类名搜索反而会漏。基类 vtable 不等于派生对象 vptr；必须核对继承链与成员归属，不能全局挑第一个 `TextEdit`。
 
 副本位置 `~/Applications/WeChatSend.app`（1.6 GB）；不再需要时直接删目录即可，主微信与它的容器都没动。

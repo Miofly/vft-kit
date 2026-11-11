@@ -57,9 +57,10 @@ def thin(dylib, work):
 def run_headless(ghidra, proj, thin_path, fresh):
     headless = os.path.join(ghidra, "support", "analyzeHeadless")
     script_dir = os.path.join(HERE, "ghidra")
+    project_exists = os.path.isfile(os.path.join(proj, "wechat.gpr"))
     os.makedirs(proj, exist_ok=True)   # analyzeHeadless aborts if the dir is missing
     env = dict(os.environ, GHIDRA_MAXMEM=os.environ.get("GHIDRA_MAXMEM", "6G"))
-    if fresh or not os.path.isdir(proj):
+    if fresh or not project_exists:
         cmd = [headless, proj, "wechat", "-import", thin_path, "-noanalysis",
                "-scriptPath", script_dir, "-postScript", "Profile.java"]
     else:
@@ -83,6 +84,14 @@ def parse_classes(out):
                          "data": "0x" + dt, "static_metacall": "0x" + smc,
                          "vtables": [v.strip().strip('"') for v in vt.split(",") if v.strip()]}
     return classes
+
+
+def parse_methods(out):
+    methods = {}
+    for match in re.finditer(r"METHOD ([A-Za-z_:][\w:]*) (\d+) ([A-Za-z_]\w*) (\d+)", out):
+        owner, index, name, argc = match.groups()
+        methods.setdefault(owner, {})[index] = {"name": name, "argc": int(argc)}
+    return methods
 
 
 def main():
@@ -109,6 +118,9 @@ def main():
         sys.stderr.write(out[-3000:])
         raise SystemExit("no QMetaObject found — check the Ghidra scripts / project")
 
+    methods = parse_methods(out)
+    if not methods:
+        raise SystemExit("no method tables found — do not reuse a previous build's method ids")
     prof = {
         "schema": "wechat-bridge/native-profile/v1",
         "wechat": wechat_version(a.wechat),
@@ -119,12 +131,10 @@ def main():
                 "module_base + rva. static_metacall(QObject*, QMetaObject::Call, int id, void**) "
                 "uses LOCAL method ids (see references/qt-native-send-derivation.md).",
         "classes": classes,
-        "methods": {
-            "mmui::ChatInputField": {"0": "send(SendActionType)"},
-            "mmui::ChatInputView": {"5": "Send(SendActionType)", "8": "InsertMessage(kernel::MessageWrapper)",
-                                    "9": "InsertMention(kernel::AtUsersMemberInfo)",
-                                    "10": "SetReferMessage(kernel::ReferSendData)"},
-        },
+        "methods": methods,
+        "runtime_ready": False,
+        "note_runtime": "Static metadata only; editor ownership, recipient guards, GUI-thread "
+                        "execution and delivery must be verified separately. No automatic send.",
     }
     with open(a.out, "w") as f:
         json.dump(prof, f, indent=2, ensure_ascii=False)

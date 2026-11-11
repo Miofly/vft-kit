@@ -39,6 +39,29 @@ static int type_name(mach_port_t task, uint64_t object, char name[160]) {
     return 0;
 }
 
+static void print_filehelper_fields(mach_port_t task, uint64_t parent) {
+    unsigned char bytes[1536];
+    printf("[");
+    int first = 1;
+    if (read_at(task, parent, bytes, sizeof bytes)) {
+        for (size_t off = 0; off + 24 <= sizeof bytes; off += 8) {
+            const unsigned char *h = bytes + off;
+            uint64_t length = h[23], pointer = parent + off;
+            if (h[23] & 128) {
+                memcpy(&pointer, h, 8);
+                memcpy(&length, h + 8, 8);
+            }
+            char value[10];
+            if (length == 10 && read_at(task, pointer, value, sizeof value)
+                && !memcmp(value, "filehelper", 10)) {
+                printf("%s\"0x%zx\"", first ? "" : ",", off);
+                first = 0;
+            }
+        }
+    }
+    printf("]");
+}
+
 static void print_members(mach_port_t task, uint64_t parent, int depth) {
     uint64_t words[192];
     if (!read_at(task, parent, words, sizeof words)) { printf("[]"); return; }
@@ -53,7 +76,8 @@ static void print_members(mach_port_t task, uint64_t parent, int depth) {
         printf("%s{\"offset\":\"0x%zx\",\"address\":\"0x%llx\",\"vptr\":\"0x%llx\",\"type\":\"%s\",\"members\":",
             first ? "" : ",", i * 8, (unsigned long long)words[i],
             (unsigned long long)vptr, name);
-        if (depth == 0 && strstr(name, "ChatInputField"))
+        // Names may be obfuscated; recurse over direct QObject members once.
+        if (depth == 0 && words[i] != parent && i != 1)
             print_members(task, words[i], depth + 1);
         else printf("[]");
         printf("}");
@@ -177,6 +201,8 @@ int main(int argc, char **argv) {
                                 first ? "" : ",", k ? "editor" : "input",
                                 (unsigned long long)candidate, good ? "true" : "false", name);
                             if (good && k == 0) print_members(task, candidate, 0); else printf("[]");
+                            printf(",\"filehelper_offsets\":");
+                            if (good) print_filehelper_fields(task, candidate); else printf("[]");
                             printf("}");
                             first = 0;
                         }

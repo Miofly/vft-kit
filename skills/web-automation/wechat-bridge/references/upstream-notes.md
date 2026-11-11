@@ -64,7 +64,9 @@ SDK `bridge.mjs` 的关键约束：网络异常或成功响应不可解码时抛
 
 ## 本 skill 的定位
 
-只实现上述公开 HTTP 协议的独立互操作（`/health` `/resolve` `/chats` `/contacts` `/unread` `/chat/{wxid}` `/chat/{wxid}/history` `/messages/stream` `/send` + `/receipt`），零依赖标准库、只绑 loopback。注入、dylib、激活、版本适配均不在本层；真实发送由 `exec` 后端接自备发送器，或由 `upstream` 后端交给已运行的上游 bridge。
+当前实现是公开 HTTP 路由的适配外壳，不能声称完整兼容：`/messages/stream` 仍只是占位握手，没有消息源；真实发送和查询依赖另配后端。原生代码当前仅开放只读探测，不是可用发送器。
+
+最终目标已扩展为上游当前公开支持的全部能力，逐项范围、限制与验收见 [capability-scope.md](capability-scope.md)。优先复用上游公开入口，但必须保留激活和受支持 build 条件；目前不能把 4.2.0 的静态适配研究等同于上游 4.1.9 SDK 的全部能力。
 
 ## 研究产物位置
 
