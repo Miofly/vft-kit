@@ -24,6 +24,12 @@
 - **React Bits**（DavidHDev/react-bits）与 **Animate UI**（imskyleen/animate-ui）为 MIT + Commons Clause：允许在应用、网站或产品中使用，禁止把原组件单独或成包再分发（含改名、移植、换框架端口）。本 skill 不含它们的任何源码、CSS、shader、registry 文件或端口；`visual-effects.md`、`motion-components.md` 中只有独立撰写的机制分析、参数说明与官方包接入路线。
 - 需要这些组件时，在获许可的目标产品内按官方仓库或官方包使用，并自行核对当时版本的许可。
 
+## 移动端补充参考（未分发源码）
+
+2026-11-10 新增独立撰写的 `references/mobile-responsive.md` 与本地 DOM 初筛工具。补充阅读来源为 [Vercel Web Interface Guidelines](https://github.com/vercel-labs/web-interface-guidelines)、[UI Skills](https://github.com/ibelick/ui-skills)、[Reka UI](https://github.com/unovue/reka-ui)、[React Spectrum / Aria](https://github.com/adobe/react-spectrum)、[axe-core](https://github.com/dequelabs/axe-core) 与 [Open Props](https://github.com/argyleink/open-props)；未复制其源码、规则全文或安装器，不新增第三方运行依赖。建议已按现有组件、保留缩放、真实 ready 与动效契约筛选，不整包继承上游强制规则。
+
+[Vue Bits](https://github.com/DavidHDev/vue-bits) 仅为 Vue 视觉效果的外部参考，当前为 MIT + Commons Clause，未打包源码或移植版；实际使用前核对当时许可。Vaul 已声明停止维护，不作为新增默认依赖。
+
 ## 使用与更新规则
 
 - 本地副本保持上游原样以便对照；移植到目标项目时修改目标副本，并补齐参考文档列出的焦点、清理、减少动效与依赖缺项。

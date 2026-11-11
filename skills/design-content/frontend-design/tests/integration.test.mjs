@@ -43,7 +43,8 @@ test('every route and local link resolves, and every reference is reachable', ()
 test('functional layout only: no repository mirrors, provenance dumps, or personal paths', () => {
   const all = files(skill);
   // hallmark/、anatomy/、handraw/ 是整体引入的上游 skill（MIT，见 THIRD_PARTY_NOTICES.md），自带 SKILL.md，属已登记的嵌套体系。
-  const nested = (file) => /^(?:anatomy|hallmark)\/SKILL\.md$|^handraw\/(?:[\w-]+\/)*SKILL\.md$/.test(path.relative(skill, file));
+  // pixelfx/ 也已登记，保留同样的嵌套入口检查。
+  const nested = (file) => /^(?:anatomy|hallmark|pixelfx)\/SKILL\.md$|^handraw\/(?:[\w-]+\/)*SKILL\.md$/.test(path.relative(skill, file));
   const skillFiles = all.filter((file) => path.basename(file) === 'SKILL.md');
   assert.deepEqual(skillFiles.filter((file) => file !== at('SKILL.md') && !nested(file)), []);
   assert.ok(skillFiles.includes(at('SKILL.md')) && skillFiles.includes(at('handraw/skills/handdraw-style-prompter/SKILL.md')));
@@ -53,6 +54,17 @@ test('functional layout only: no repository mirrors, provenance dumps, or person
   for (const file of activeDocs) {
     assert.doesNotMatch(text(file), /\/Users\/[a-zA-Z][\w-]*\/|[\w-]+\/\.secrets|vft-kit:replicate-web-style/, file);
   }
+});
+
+test('mobile route keeps implementation, evidence and dependency boundaries together', () => {
+  const mobile = text(at('references/mobile-responsive.md'));
+  assert.match(text(at('SKILL.md')), /mobile-responsive\.md/);
+  for (const contract of ['safe-area-inset', 'VisualViewport', 'pointercancel', '320', '400%', 'reduced-motion', 'collectMobileAudit', 'axe', '真机', 'Reka UI']) {
+    assert.ok(mobile.includes(contract), contract);
+  }
+  assert.match(mobile, /不设置 `user-scalable=no`/);
+  assert.match(mobile, /缺依赖就标未跑/);
+  assert.match(mobile, /`status: clear`仅表示/);
 });
 
 test('three case studies keep full-page, narrow-screen and entry lessons', () => {
@@ -157,6 +169,7 @@ test('consolidated notices preserve original license texts and attribution', () 
     '06088a8b94598626f27612dea42300154bf7be967c85d9d3eee4490cb056af7d',
     '87c078ab9d90a3044f359e6b563d4e6afea7aa060897cf4f21618687b3856796',
     '862952d06929d716be7a62733550eaa11ac4765c2567657e0e75b7a0fde48897',
+    '0a77565a50c3462831244452f129c38d2adc4fd07897cbeba8adc943f958604e',
   ];
   const actual = [...notices.matchAll(/```text\n([\s\S]*?)```/g)]
     .map((match) => createHash('sha256').update(match[1]).digest('hex'));
@@ -180,7 +193,7 @@ test('bundled Geist fonts retain the recorded official bytes and OFL', () => {
 });
 
 test('motion recipes state/cleanup regression and extraction boundary checks pass', () => {
-  for (const script of ['recipes/recipes.test.mjs', 'extract/tests/run-tests.mjs', 'extract/tests/local-boundaries.mjs']) {
+  for (const script of ['recipes/recipes.test.mjs', 'extract/tests/run-tests.mjs', 'extract/tests/local-boundaries.mjs', 'tests/mobile-audit.test.mjs']) {
     execFileSync(process.execPath, [at(script)], { encoding: 'utf8' });
   }
 });

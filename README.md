@@ -47,7 +47,7 @@ node scripts/audit-public.mjs
 | 开发工作流 (`dev-workflow`) | 疑难 bug 诊断、前端质量、Git、代码托管、Vue 配置、方案逼问和已发布产物逆向分析 | `diagnosing-bugs` · `fe-quality-ops` · `git-auto-push` · `git-ops` · `github-ops` · `grill-me` · `rea` |
 | 设计与内容 (`design-content`) | 前端视觉设计与风格迁移、信息图、Office 文档、SEO 审计和中文去 AI 味 | `co-infographic-generator` · `frontend-design` · `mastergo-mcp` · `office-doc-rewrite` · `seo-ops` · `zh-humanizer` |
 | 工作台工具 (`workplace-tools`) | Lark/飞书文档、表格、云盘、任务和知识库；桌面软件配置迁移与后台 GUI 操作、DBX 数据库客户端 | `lark-cli` · `soft-ops` |
-| Web 与自动化 (`web-automation`) | 浏览器发布、网页抓取、Android 与 macOS 自动化 | `android-ui-automation` · `chrome-web-store-publish` · `ego-browser-ops` · `keyboard-maestro` · `qr-login` · `temp-mail` · `web-scrape` · `wechat-mp` |
+| Web 与自动化 (`web-automation`) | 浏览器发布、网页抓取、Android 与 macOS 自动化 | `android-ui-automation` · `chrome-web-store-publish` · `ego-browser-ops` · `keyboard-maestro` · `qr-login` · `temp-mail` · `web-scrape` · `wechat-bridge` · `wechat-mp` |
 
 新增、删除或改名 skill 时同步更新分类，并运行：
 

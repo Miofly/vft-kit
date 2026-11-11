@@ -98,6 +98,7 @@
     "qr-login",
     "temp-mail",
     "web-scrape",
+    "wechat-bridge",
     "wechat-mp"
    ]
   },
