@@ -39,6 +39,31 @@ static int type_name(mach_port_t task, uint64_t object, char name[160]) {
     return 0;
 }
 
+// Build-pinned libc++ alternate-layout string: bounded ASCII wxid only.
+// Reading a field is evidence of the current recipient, not a contact lookup.
+static int read_recipient(mach_port_t task, uint64_t address, char out[129]) {
+    unsigned char h[24];
+    if (!read_at(task, address, h, sizeof h)) return 0;
+    uint64_t length = h[23], pointer = address;
+    if (h[23] & 128) {
+        uint64_t capacity = 0;
+        memcpy(&pointer, h, 8);
+        memcpy(&length, h + 8, 8);
+        memcpy(&capacity, h + 16, 8);
+        capacity &= ~(1ULL << 63);
+        if (!pointer || capacity <= length) return 0;
+    } else if (length > 22) return 0;
+    if (!length || length > 128 || !read_at(task, pointer, out, length + 1)
+        || out[length]) return 0;
+    for (uint64_t i = 0; i < length; i++) {
+        unsigned char c = (unsigned char)out[i];
+        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+              || (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '@'
+              || c == '.')) return 0;
+    }
+    return 1;
+}
+
 static void print_filehelper_fields(mach_port_t task, uint64_t parent) {
     unsigned char bytes[1536];
     printf("[");
@@ -123,14 +148,38 @@ static int self_test(void) {
     data[1] = 1;
     if (qobject_backlink(mach_task_self(), (uint64_t)object)) return 1;
     if (qobject_backlink(mach_task_self(), 1)) return 1;
-    puts("probe self-test: 3/3 passed (valid backlink, false hit, unmapped)");
+    unsigned char short_string[24] = {0};
+    char value[129];
+    memcpy(short_string, "filehelper", 10); short_string[23] = 10;
+    if (!read_recipient(mach_task_self(), (uint64_t)short_string, value)
+        || strcmp(value, "filehelper")) return 1;
+    short_string[10] = 'x';
+    if (read_recipient(mach_task_self(), (uint64_t)short_string, value)) return 1;
+    short_string[10] = 0; short_string[23] = 23;
+    if (read_recipient(mach_task_self(), (uint64_t)short_string, value)) return 1;
+    short_string[23] = 10; short_string[1] = '"';
+    if (read_recipient(mach_task_self(), (uint64_t)short_string, value)) return 1;
+    short_string[23] = 0;
+    if (read_recipient(mach_task_self(), (uint64_t)short_string, value)) return 1;
+    char long_text[] = "wxid_long_recipient_0123456789";
+    uint64_t long_string[3] = {(uint64_t)long_text, sizeof long_text - 1,
+                               (1ULL << 63) | 64};
+    if (!read_recipient(mach_task_self(), (uint64_t)long_string, value)
+        || strcmp(value, long_text)) return 1;
+    long_string[1] = 129;
+    if (read_recipient(mach_task_self(), (uint64_t)long_string, value)) return 1;
+    long_string[1] = sizeof long_text - 1; long_string[0] = 1;
+    if (read_recipient(mach_task_self(), (uint64_t)long_string, value)) return 1;
+    long_string[0] = (uint64_t)long_text; long_string[2] = (1ULL << 63) | 2;
+    if (read_recipient(mach_task_self(), (uint64_t)long_string, value)) return 1;
+    puts("probe self-test: 12/12 passed (backlink and bounded recipient strings)");
     return 0;
 }
 
 int main(int argc, char **argv) {
     if (argc == 2 && !strcmp(argv[1], "--self-test")) return self_test();
-    if (argc != 4) {
-        fprintf(stderr, "usage: wechat_probe PID INPUT_VTABLE_RVA EDITOR_VTABLE_RVA\n");
+    if (argc != 4 && argc != 5) {
+        fprintf(stderr, "usage: wechat_probe PID INPUT_VTABLE_RVA EDITOR_VTABLE_RVA [RECIPIENT_OFFSET]\n");
         return 2;
     }
     char *end = NULL;
@@ -140,6 +189,11 @@ int main(int argc, char **argv) {
     for (int i = 0; i < 2; i++) {
         rv[i] = strtoull(argv[i + 2], &end, 0);
         if (*end || !rv[i]) return 2;
+    }
+    uint64_t recipient_offset = 0;
+    if (argc == 5) {
+        recipient_offset = strtoull(argv[4], &end, 0);
+        if (*end || !recipient_offset || recipient_offset > 4096) return 2;
     }
     mach_port_t task = MACH_PORT_NULL;
     kern_return_t kr = task_for_pid(mach_task_self(), (int)pid, &task);
@@ -203,6 +257,12 @@ int main(int argc, char **argv) {
                             if (good && k == 0) print_members(task, candidate, 0); else printf("[]");
                             printf(",\"filehelper_offsets\":");
                             if (good) print_filehelper_fields(task, candidate); else printf("[]");
+                            if (good && k == 0 && recipient_offset) {
+                                char recipient[129];
+                                if (read_recipient(task, candidate + recipient_offset, recipient))
+                                    printf(",\"recipient\":{\"offset\":\"0x%llx\",\"wxid\":\"%s\"}",
+                                        (unsigned long long)recipient_offset, recipient);
+                            }
                             printf("}");
                             first = 0;
                         }
@@ -215,7 +275,7 @@ int main(int argc, char **argv) {
     }
     printf("],\"raw_hits\":[%u,%u],\"backlinks\":[%u,%u],\"scanned_bytes\":%llu,\"bounded\":%s,\"elapsed_seconds\":%.3f}\n",
         raw[0], raw[1], valid[0], valid[1], (unsigned long long)scanned,
-        capped ? "true" : "false", seconds() - started);
+        (capped || raw[0] > 12 || raw[1] > 12) ? "true" : "false", seconds() - started);
     mach_port_deallocate(mach_task_self(), task);
     return 0;
 }

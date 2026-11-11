@@ -15,11 +15,11 @@
 - **必须在 GUI 主线程执行 QWidget 操作**：旧 socket 工作线程直接调用 Qt 是不正确的。新版安全底座将绑定复核放在 main queue；目前没有任何文本写入或发送调用。
 - **新版产物仅支持 `probe\n`**：拒绝所有其他请求，`mutation_ready:false`；不宣称草稿或送达已验收。构建只写全新输出文件，不覆盖已映射 dylib；现有已登录进程仍加载旧产物，源码修复不等于已部署。
 - `derive_profile.py` 的方法表现在由 `Profile.java` 从当前二进制解析，4.2.0 的 `Send` 为局部 id **8**、`setPlainText` 为 **16**；不再把旧的硬编码方法表写到新 profile。输出固定 `runtime_ready:false`。
-- **后续原生/HTTP 实测补充**：`native_executor.py` / `lldb_runner.py` 通过短暂 LLDB 附着，在已运行副本主线程调用 Qt，不加载新 dylib。4.2.0 的收件人字段在 input `+0x258`（libc++ 短字符串 `filehelper`），editor 在 `+0x200`。已完成空草稿检查、Qt 写入与 UTF-16 回读、单次 `Send`（局部 id 8 / action 0）及发送后草稿清空；原生与 HTTP 各一次。状态均为 **`submitted_unconfirmed`**，窗口不可见导致聊天记录和手机端送达未独立确认。
+- **后续原生/HTTP 实测补充**：`native_executor.py` / `lldb_runner.py` 通过短暂 LLDB 附着，在已运行副本主线程调用 Qt，不加载新 dylib。4.2.0 的收件人字段在 input `+0x258`（libc++ 短字符串 `filehelper`），editor 在 `+0x200`。已完成空草稿检查、Qt 写入与 UTF-16 回读、单次 `Send`（局部 id 8 / action 0）及发送后草稿清空；原生与 HTTP 各一次。状态均为 **`submitted_unconfirmed`**。后续后台截图 `recipient-nav-before.png` 已核对原生、HTTP 与聊天 skill 三条正文均出现在文件传输助手发出消息气泡，未见失败标记；历史回执不改写，手机接收仍未验证。
 - 实验字符串使用堆分配的 Qt5 风格数据头，offset=24、ref=1、capacity=len+1，使用当前 build 的 QString 析构释放；不是通用 Qt6 ABI，也不等于已找到真实字符串工厂。已复核的析构 RVA `0xadba4`，共享空串头 RVA `0xa383938`。模块须匹配完整文件 SHA-256，静态 slice 指纹不能混用。
-- 原生 exec 通过私有 `WXS_NATIVE_CONFIG` 显式配置：`pid/module/module_sha256/probe/lldb_runner/state_dir/input_vtable/editor_vtable/editor_offset/recipient_offset/text_metacall/input_metacall/qstring_destructor/qstring_empty`；路径必须绝对。只允许 `WeChatSend.app` 与精确 filehelper，所有地址从此次 probe 重新取得，不缓存对象指针。字段从本 build 独立验证后填写，不自动将静态 profile 升为可发送配置。
+- 原生 exec 通过私有 `WXS_NATIVE_CONFIG` 显式配置：`pid/module/module_sha256/probe/lldb_runner/state_dir/input_vtable/editor_vtable/editor_offset/recipient_offset/text_metacall/input_metacall/qstring_destructor/qstring_empty`；路径必须绝对。只允许 `WeChatSend.app`，发送 ID 由私有 `allowed_recipients` 精确白名单控制，缺省仅 filehelper；`recipient_aliases` 只负责显式名称映射，不能授权发送。`op=preflight` 只读核对当前精确 wxid 与编辑器归属，`op=resolve` 不自动查询通讯录。probe 必须是支持可选 `RECIPIENT_OFFSET` 参数的新版（字段短/长串均有边界校验）；没有精确 recipient 字段时拒绝，不回退为任意子串匹配。所有地址从此次 probe 重新取得，不缓存对象指针。字段从本 build 独立验证后填写，不自动将静态 profile 升为可发送配置。
 - LLDB `--timeout` 的单位是微秒；5 秒为 `5000000`。SB API 设置 `SetTimeoutInMicroSeconds(5000000)`，选择唯一 main-thread，finally 分离。发送前持久 claim、串行锁、不自动重发；外部超时和窗口不可见不能作为未发送的证据。
-- 尚未完成：独立送达确认、真实 Qt 字符串工厂、跨 build 生命周期验证、通用收件人导航及媒体发送。全功能范围另见 [capability-scope.md](capability-scope.md)。
+- 尚未完成：手机端接收确认、真实 Qt 字符串工厂、跨 build 生命周期验证、通用收件人导航及媒体发送。另一现有会话只做了后台打开与原生 ID 只读验证，未写草稿或发送；后台搜索候选不可可靠读取、独立窗口可能关闭释放对象，原因未定，不能将旧对象地址复用于发送。全功能范围另见 [capability-scope.md](capability-scope.md)。
 
 下文保留研究线索；其中“Qt6”“RTTI 类名匹配已修好”“重启必丢登录”等早期断言不能作为当前使用依据。
 
