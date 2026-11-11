@@ -15,6 +15,7 @@
     "./skills/dev-workflow/fe-quality-ops",
     "./skills/dev-workflow/rea",
     "./skills/web-automation/android-ui-automation",
+    "./skills/web-automation/wechat-bridge",
     "./skills/web-automation/wechat-mp"
   ]
 }

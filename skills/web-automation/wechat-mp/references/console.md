@@ -24,6 +24,12 @@ await js(`(() => { const li = [...document.querySelectorAll('.weui-desktop-tab__
 
 - **AppSecret**：只有「重置 / 冻结」两个动作，看不到当前值。重置需要管理员在微信里确认，新值**只显示一次**，且旧值立即失效——线上在用的话，先确认能同步更新配置再点。
 - **API IP白名单**：「设置名单」入口在 AppSecret 下方。不设白名单调不了 `access_token`（报 40164）。40164 的错误信息里会直接给出被拒的 IP，照抄进去即可。注意本机公网 IP 与服务器出口 IP 是两个，两边都要调接口就都得加；家宽 IP 会漂移。
+- **改 API IP白名单的实测流程（2026-11-10）**：
+  1. 控制台首页 `console/index?tab1=business&tab2=dev` 默认列小程序。先点「公众号」分类，才看得到公众号卡片和它的 AppID；公众号与同名小程序的 AppID 不同，开错了会提示「暂无查看权限」。
+  2. 进 `console/product/mp/<AppID>?tab1=basicInfo`，点「API IP白名单」旁的「编辑」，在 `textarea[placeholder="多个 IP 用回车隔开"]` 里每行一个 IP，点「确定」。
+  3. 点完弹出管理员扫码框（「微信扫码，授权设置 API IP 白名单」），这一步必须交给用户扫码。扫码授权后才保存，保存后回读同一行，确认包含新 IP。
+  4. 接口化进度：读白名单所在的配置走 `POST /console/cgi/mp/getAdvancedConfig`。扫码授权走 `POST /console/cgi/route/mpQRCode`：依次是 `{"path":"/cgi-bin/basesafeqrcode","appid":…,"action":"getticket","typeid":322}`、`action:"getqrcode"`（带 `ticket`），再轮询 `action:"ask"`。扫码后的最终保存请求还没抓到，因为第一次抓包时扫完码直接刷新了页面。写操作始终需要管理员扫码，所以保留浏览器操作。
+- **出口 IP**：魔搭创空间 8G 免费档（函数计算，cn-beijing）在两个不同账号下实测都从 `60.205.182.30` 出网（2026-11-10 用 `wget ip.sb` 测得），以前 16G（EAS 张家口）的出口不是这个，所以迁到 8G 后所有公众号都报 40164。
 - **认证状态**：`个人` + `暂未认证` 意味着发布类接口全无权限，这是很多「接口调不通」问题的真实根因，先看这里能省半天。
 
 ## 抓「接口权限与额度」

@@ -13,6 +13,7 @@ license: "Apache-2.0 main guidance; third-party licenses and redistribution limi
 | 当前任务 | 按需读取 |
 |---|---|
 | 选风格、配色、字体；黏土、玻璃或行业落地页 | [style-library.md](references/style-library.md)：`search/` 本地检索；[case-studies.md](references/case-studies.md)：三个案例整页、手机、交互与复刻规范 |
+| 整页新建/重做/迁移的手机端基线，或响应式、触摸与软键盘适配 | [mobile-responsive.md](references/mobile-responsive.md)：重组、视口/安全区、触摸/弹层、动效设备策略、验收矩阵与无依赖 DOM 初筛 |
 | 新页面布局、视觉辨识度、图片与内容节奏 | [layout-and-taste.md](references/layout-and-taste.md) |
 | 工作台、后台、设置、数据页（KPI/图表/表格/密度/状态/手机） | [app-screens.md](references/app-screens.md)；组件组合见 component-systems |
 | 按参考换肤、保留业务、组件和弹出层适配 | [style-migration.md](references/style-migration.md) |
@@ -62,7 +63,7 @@ license: "Apache-2.0 main guidance; third-party licenses and redistribution limi
 2. **形成设计契约**：写清信息架构、布局与窄屏重组、角色色、字排、材质、主要组件及状态；只对未被项目或 brief 固定的维度做选择，引用来源和未知项。
 3. **取可执行方案**：用风格检索、组件 registry 和配方找到对应源码/依赖/参数。基础语义、布局、视觉效果、动效分别选型但共同验收；新效果不能破坏既有 VFT/项目交互。用户指定复杂效果时完整读实现与清理路径。
 4. **实现全状态**：默认、键盘/触屏、开关/展开、选中/禁用、加载/空/错/成功、长内容、权限、减少动效、SSR 与卸载；所需状态按真实任务覆盖，不用装饰掩盖缺失业务。
-5. **看结果并修正**：按范围检查全页与开始/中间/终态、窄屏、焦点、快速重复操作、无依赖/无 JS 回退和资源回收。截图仅是视觉证据，按钮还须核对实际行为。先修高影响问题，再精修排版、间距和节奏，直到约定范围完成。
+5. **看结果并修正**：按范围检查全页与开始/中间/终态、窄屏、焦点、快速重复操作、无依赖/无 JS 回退和资源回收。整页任务按 [手机端验收矩阵](references/mobile-responsive.md#4-验收矩阵与完成条件) 记录宽高、主题、输入和状态，运行 DOM 初筛并复核候选；缩小视口不等于触摸或真机验证。截图仅是视觉证据，按钮还须核对实际行为。先修高影响问题，再精修排版、间距和节奏，直到约定范围完成。
 6. **如实交付**：给出具体页面/效果、实测证据与未测项。没有运行的检查标未验证，不把静态/转译通过说成视觉、性能或业务验收通过；不宣称跨所有场景“最优”。
 
 每种组件与效果都应能回答：输入是什么、状态如何变化、参数控制什么、依赖是否存在、谁负责焦点/滚动/transform、失败如何恢复、卸载如何清理。答不出就继续读对应源码，不用库名代替实现理解。
