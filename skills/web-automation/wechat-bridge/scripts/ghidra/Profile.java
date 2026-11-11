@@ -44,19 +44,21 @@ public class Profile extends GhidraScript {
     return all;
   }
   String nameAt(long sd,int idx) throws Exception {
-    int sz=mem.getInt(toAddr(sd+idx*24+4)); if(sz<0||sz>200) return null;
-    // resolve by scanning blob for a printable run of exactly sz bytes, in table order
-    List<Integer> sizes=new ArrayList<>();
-    for(int i=0;i<400;i++){ int s=mem.getInt(toAddr(sd+i*24+4)); if(s<0||s>200) break; sizes.add(s); }
-    List<String> tbl=new ArrayList<>(); for(int i=0;i<sizes.size();i++) tbl.add(null);
-    int k=0;
-    for(long o=sd;o<sd+16384 && k<sizes.size();o++){
-      int s=sizes.get(k); if(s==0){tbl.set(k,"");k++;continue;}
-      StringBuilder b=new StringBuilder(); boolean ok=true;
-      for(int i=0;i<s;i++){ byte c=mem.getByte(toAddr(o+i)); if(c<32||c>126){ok=false;break;} b.append((char)c); }
-      if(ok && (mem.getByte(toAddr(o+s))&0xff)==0){ tbl.set(k,b.toString()); k++; o+=s-1; }
+    // This build uses Qt5-style QByteArrayData entries. offset is relative to
+    // the start of each 24-byte header, not sd and not the offset field itself.
+    if(idx<0||idx>4096) return null;
+    long entry=sd+(long)idx*24;
+    int size=mem.getInt(toAddr(entry+4));
+    long offset=mem.getLong(toAddr(entry+16));
+    if(size<0||size>512||offset<-1048576||offset>1048576) return null;
+    long chars=entry+offset;
+    StringBuilder text=new StringBuilder();
+    for(int i=0;i<size;i++){
+      int c=mem.getByte(toAddr(chars+i))&0xff;
+      if(c<32||c>126) return null;
+      text.append((char)c);
     }
-    return (idx>=0&&idx<tbl.size())?tbl.get(idx):null;
+    return mem.getByte(toAddr(chars+size))==0?text.toString():null;
   }
   public void run() throws Exception {
     mem=currentProgram.getMemory();
@@ -91,6 +93,17 @@ public class Profile extends GhidraScript {
       println("    \""+en.getKey()+"\": {\"metaobject\": \""+Long.toHexString(v[0])+"\", \"stringdata\": \""+Long.toHexString(v[1])
         +"\", \"data\": \""+Long.toHexString(v[2])+"\", \"static_metacall\": \""+Long.toHexString(v[3])
         +"\", \"vtables\": "+vtj+"}"+(++i<hits.size()?",":""));
+      // Emit local method ids from this build, not a hard-coded previous map.
+      int count=mem.getInt(toAddr(v[2]+16)), start=mem.getInt(toAddr(v[2]+20));
+      if(count<0||count>1024||start<0) throw new IllegalStateException("Invalid method table");
+      for(int m=0;m<count;m++){
+        long entry=v[2]+(start+(long)m*5)*4;
+        String method=nameAt(v[1],mem.getInt(toAddr(entry)));
+        int argc=mem.getInt(toAddr(entry+4));
+        if(method==null||!method.matches("[A-Za-z_][A-Za-z_0-9]*")||argc<0||argc>64)
+          throw new IllegalStateException("Unresolved method: "+en.getKey()+" #"+m);
+        println("METHOD "+en.getKey()+" "+m+" "+method+" "+argc);
+      }
     }
     println("  }");
     println("}");

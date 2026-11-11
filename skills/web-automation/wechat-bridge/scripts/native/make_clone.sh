@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Create a re-signed WeChat clone that loads wechat_send.dylib, and launch it.
+# Prepare a re-signed clone offline. Never launch, log in, or replace an existing clone.
 #
 # No load-command patching and no debugger: an ad-hoc signed (non-hardened) copy
 # honours DYLD_INSERT_LIBRARIES. The clone has its own bundle id and its own
@@ -9,7 +9,7 @@
 set -euo pipefail
 SRC="${1:-/Applications/WeChat.app}"
 CLONE="${2:-$HOME/Applications/WeChatSend.app}"
-DYLIB="${3:-$(cd "$(dirname "$0")" && pwd)/wechat_send.dylib}"
+DYLIB="${3:?Pass the absolute path to a separately built dylib}"
 BUNDLE_ID="${WXS_CLONE_BUNDLE_ID:-com.tencent.xinWeChat.send}"
 
 [ -x "$DYLIB" ] || { echo "dylib not built: $DYLIB (run build_dylib.sh)" >&2; exit 2; }
@@ -35,12 +35,7 @@ codesign --force --deep --sign - --entitlements "$ENT" "$CLONE"
 codesign -d --entitlements - "$CLONE" 2>&1 | head -5
 
 echo
-echo "launching with DYLD_INSERT_LIBRARIES=$DYLIB"
-echo "first run: scan the QR code to log this clone in."
-# -u __CFBundleIdentifier: launcher (Claude Code / Orca) sets it to the host app
-#   id, which makes AppKit resolve localizations against that host -> English UI.
-# -u LANG/LC_*: same reason; without this the clone comes up in English.
-env -u __CFBundleIdentifier -u __CF_USER_TEXT_ENCODING -u LANG -u LC_ALL -u LC_CTYPE \
-    DYLD_INSERT_LIBRARIES="$DYLIB" nohup "$CLONE/Contents/MacOS/WeChat" >/tmp/wxs_clone.log 2>&1 &
-echo "sender socket: ${WXS_SOCKET:-/tmp/wechat_send.sock}"
-echo 'try: printf "%s" "hello" | nc -U /tmp/wechat_send.sock'
+echo "clone prepared, NOT launched: $CLONE"
+echo "probe-only dylib: $DYLIB"
+echo "Keep an already-logged-in clone running; this script never initiates login."
+echo "Use the external wechat_probe tool for read-only inspection before any launch change."
