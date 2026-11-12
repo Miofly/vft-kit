@@ -1,0 +1,8 @@
+{
+  "evidence": {"status": "pending", "evidence": "待实际核对来源、材料、关键主张与定位"},
+  "citations": {"status": "pending", "evidence": "待核对文内文后对应、元数据和引用语义"},
+  "methods": {"status": "pending", "evidence": "待核对研究设计、数据和结论措辞；不适用须写依据"},
+  "format": {"status": "pending", "evidence": "待逐条核对学校或期刊格式要求"},
+  "rendering": {"status": "pending", "evidence": "待实际打开或渲染最终交付文件，不能用文本提取代替"},
+  "privacy": {"status": "pending", "evidence": "待核对匿名化、授权、AI使用披露与元数据"}
+}
