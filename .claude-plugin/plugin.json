@@ -8,6 +8,7 @@
   "skills": [
     "./skills/agent-ops/notify",
     "./skills/agent-ops/skill-creator",
+    "./skills/design-content/academic-writing",
     "./skills/design-content/co-infographic-generator",
     "./skills/design-content/office-doc-rewrite",
     "./skills/design-content/seo-ops",

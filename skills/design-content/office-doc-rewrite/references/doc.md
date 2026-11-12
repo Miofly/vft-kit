@@ -1,5 +1,16 @@
 # 改写 .doc（老 OLE 格式）完整指南
 
+## 只读提取文本：macOS 自带 textutil，免安装
+
+只是想看 .doc 内容（无需改格式、无需装 LibreOffice），macOS 自带 `textutil`：
+
+```bash
+textutil -convert txt report.doc -stdout        # 直接看
+textutil -convert txt report.doc -output out.txt # 存文件
+```
+
+比装 LibreOffice 快得多；中文 .doc 也能正常提取。本机没装 LibreOffice 时这是首选。
+
 ## .doc 不是 zip,不能直接改
 
 `.doc` 是微软老的 **OLE 复合二进制格式**（`file` 命令显示 "Composite Document File V2"）,不是 zip+XML,没法像 xlsx/docx 那样 zip 层改文字。WPS 存的 .doc 也是这个格式。

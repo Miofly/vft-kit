@@ -45,7 +45,7 @@ node scripts/audit-public.mjs
 | Agent 运维 (`agent-ops`) | Claude Code、Codex、CC Switch、插件缓存、通知与 skill 编写 | `agent-baseline` · `email-ops` · `notify` · `ollama-local` · `skill-creator` |
 | 云平台 (`cloud-platforms`) | 云服务、模型托管、部署平台和账号资源 | `aistudio` · `cloudflare-ops` · `huggingface-ops` · `kaggle-ops` · `modelscope-studio` · `vercel-ops` |
 | 开发工作流 (`dev-workflow`) | 疑难 bug 诊断、前端质量、Git、代码托管、Vue 配置、方案逼问和已发布产物逆向分析 | `diagnosing-bugs` · `fe-quality-ops` · `git-auto-push` · `git-ops` · `github-ops` · `grill-me` · `rea` |
-| 设计与内容 (`design-content`) | 前端视觉设计与风格迁移、信息图、Office 文档、SEO 审计和中文去 AI 味 | `co-infographic-generator` · `frontend-design` · `mastergo-mcp` · `office-doc-rewrite` · `seo-ops` · `zh-humanizer` |
+| 设计与内容 (`design-content`) | 前端视觉设计与风格迁移、信息图、Office 文档、学术论文、SEO 审计和中文去 AI 味 | `academic-writing` · `co-infographic-generator` · `frontend-design` · `mastergo-mcp` · `office-doc-rewrite` · `seo-ops` · `zh-humanizer` |
 | 工作台工具 (`workplace-tools`) | Lark/飞书文档、表格、云盘、任务和知识库；桌面软件配置迁移与后台 GUI 操作、DBX 数据库客户端 | `lark-cli` · `soft-ops` |
 | Web 与自动化 (`web-automation`) | 浏览器发布、网页抓取、Android 与 macOS 自动化 | `android-ui-automation` · `chrome-web-store-publish` · `ego-browser-ops` · `keyboard-maestro` · `qr-login` · `temp-mail` · `web-scrape` · `wechat-bridge` · `wechat-mp` |
 
@@ -64,6 +64,8 @@ node scripts/validate-skill-catalog.mjs
 `ego-browser-ops` 是 ego-browser（ego lite，Chromium 内核、人和 Agent 共用的浏览器）的公共操作手册：安装探测与升级、profile 列举与指定、task space 生命周期、Page 全 API、从 Chrome 导入 profile、书签管理（`scripts/ego-bookmarks.sh`）与排障。官方指南是真值（`ego-browser skill`）；个人 profile 等私有约定不在本层。详见 [ego 浏览器自动化与书签管理](https://wflynn.cn/pages/2607131022)。
 
 `zh-humanizer` 保真清理中文套话与模板腔，支持作者样稿校准、文件正文保护、整篇复扫和明确回复场景的上下文处理；不编经历，不保证通过 AI 检测。Claude Code 显式调用 `/vft-kit:zh-humanizer`，Codex 用 `$zh-humanizer`。详见 [skill 规则](skills/design-content/zh-humanizer/SKILL.md)和[上游采纳与取舍](skills/design-content/zh-humanizer/references/upstream-humanizer.md)。
+
+`academic-writing` 覆盖选题、开题、文献检索与综述、证据提纲、正文修订、引用核验和导师意见回复。以 K-Dense 的 scientific-writing 为主线，融合综述与引用流程，并采纳中文人文论文、本科论文工作台与 Orchestra 的论证规则；支持中文毕业论文和教育研究，不编文献、调查数据或实施效果。统一流程共用证据记录，按四个视角复核；附无依赖、只读的证据记录、Markdown/DOCX/TeX-BibTeX 正文及六层交付检查器，引用解析复用 quzhiii 的 MIT 模块；不把机器通过当学术真实性或版式保证。Claude Code 用 `/vft-kit:academic-writing`，Codex 用 `$academic-writing`。详见[学术论文写作入口](skills/design-content/academic-writing/SKILL.md)与[上游取舍](skills/design-content/academic-writing/references/upstream.md)；配套博客文档路由为 `/pages/2607131024`。
 
 ## Agents
 
