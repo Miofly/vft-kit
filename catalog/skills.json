@@ -62,8 +62,9 @@
   {
    "id": "design-content",
    "name": "设计与内容",
-   "description": "设计还原、信息图、Office 文档和视觉内容生产。",
+   "description": "设计还原、信息图、Office 文档、学术论文和视觉内容生产。",
    "skills": [
+    "academic-writing",
     "co-infographic-generator",
     "frontend-design",
     "mastergo-mcp",
