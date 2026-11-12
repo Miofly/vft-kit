@@ -1,6 +1,6 @@
 # REAP：REA-Prompts 完整资料与任务路由
 
-完整收录 [JoasASantos/REA-Prompts](https://github.com/JoasASantos/REA-Prompts)，作为本 REA skill 的调查模板库。原始文件名和内容全部保存在 [upstream.tar.gz](upstream.tar.gz)；展开版仅把 26 个 `Skills/*/SKILL.md` 改名为 `PROMPTS.md`，避免单 skill 打包拒绝多个 `SKILL.md`，其余路径和全部字节不变。不拆成新的独立插件，不自动运行上游安装器。
+完整收录 [JoasASantos/REA-Prompts](https://github.com/JoasASantos/REA-Prompts)，作为本 REA skill 的调查模板库。原始内容完整保存在 `upstream/`；展开版仅把 26 个 `Skills/*/SKILL.md` 改名为 `PROMPTS.md`，避免单 skill 打包拒绝多个 `SKILL.md`，其余路径和全部字节不变。不拆成新的独立插件，不自动运行上游安装器。
 
 ## 来源与完整性
 
@@ -11,7 +11,7 @@
 - 收录日期：`2026-11-04`
 - 全量范围：**31 个受跟踪文件，180,217 字节**，包括 26 份 `Skills/*/SKILL.md`、完整 README、合并系统提示词、两个安装脚本及 LICENSE。
 - 许可：[MIT，Copyright (c) 2025 Joas Antonio dos Santos](upstream/LICENSE)，原样保留。
-- 可按需读取的展开文件在 `upstream/`；[SHA256SUMS](SHA256SUMS) 按展开路径覆盖所有 31 个文件。原始路径以归档为准，内容哈希与上游相同。从 `upstream/` 工作目录执行 `shasum -a 256 -c "$REA_SKILL_DIR/references/rea-prompts/SHA256SUMS"`；`REA_SKILL_DIR` 由使用者设置为本 skill 的绝对路径。
+- 可按需读取的展开文件在 `upstream/`；[SHA256SUMS](SHA256SUMS) 按展开路径覆盖所有 31 个文件。原始路径将 `PROMPTS.md` 对应回 `SKILL.md`，内容哈希与上游相同。从 `upstream/` 工作目录执行 `shasum -a 256 -c "$REA_SKILL_DIR/references/rea-prompts/SHA256SUMS"`；`REA_SKILL_DIR` 由使用者设置为本 skill 的绝对路径。
 
 ## 如何与现有 REA 融合
 
@@ -69,6 +69,6 @@
 
 ## 更新与验收
 
-按固定提交的 Git 树更新完整原始归档及展开版，同步全部新增、修改和删除；展开时将 `Skills/*/SKILL.md` 映射为 `Skills/*/PROMPTS.md`，避免嵌套技能入口。上游主索引与安装脚本仍原样保留，其中的 `SKILL.md` 路径对应原始归档；本 skill 调用展开版时使用本页路由。
+按固定提交的 Git 树更新完整展开版，同步全部新增、修改和删除；展开时将 `Skills/*/SKILL.md` 映射为 `Skills/*/PROMPTS.md`，避免嵌套技能入口。上游主索引与安装脚本仍原样保留，其中的 `SKILL.md` 路径对应原始归档；本 skill 调用展开版时使用本页路由。
 
-同时更新提交、文件数、字节数、路由及 SHA-256。逐字节验证归档原始路径与 31 个展开文件，检查 26 个 pack 都有入口，运行 skill-creator 的 `quick_validate.py`，保留 REA 官方文档与 jailbreaks 快照不变。结构与完整性检查通过只说明融合正确，不代表模板里的每项工具链和真实目标都已测试。
+同时更新提交、文件数、字节数、路由及 SHA-256。逐字节验证固定提交原始路径与 31 个展开文件，检查 26 个 pack 都有入口，运行 skill-creator 的 `quick_validate.py`，保留 REA 官方文档与 jailbreaks 快照不变。结构与完整性检查通过只说明融合正确，不代表模板里的每项工具链和真实目标都已测试。

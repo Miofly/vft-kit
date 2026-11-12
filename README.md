@@ -61,7 +61,7 @@ node scripts/validate-skill-catalog.mjs
 
 `frontend-design` 以 Anthropic 官方技能为主线，按功能组织：`search/` 风格、配色、字体与 UX 本地检索；`components/ui`、`components/motion`、`components/effects` 分别是基础组件与布局、动效组件、视觉效果的可许可源码；`recipes/` 动效配方与可运行示例；`extract/` 样式提取纯模块；`hallmark/` 整页反 AI 模板体系（Floor 门槛、50 个材料主题、21 种版式骨架、sloplint 可执行检查）；三个整页案例、应用界面、设计审查与 Geist 中英字体规范按任务加载。React Bits / Animate UI 只给独立分析与许可边界，不分发其源码。Claude Code 用 `/vft-kit:frontend-design`，Codex 用 `$frontend-design`；详见[前端设计与风格迁移](skills/design-content/frontend-design/SKILL.md)及[第三方许可](skills/design-content/frontend-design/THIRD_PARTY_NOTICES.md)。字体保留 SIL OFL 1.1。
 
-`ego-browser-ops` 是 ego-browser（ego lite，Chromium 内核、人和 Agent 共用的浏览器）的公共操作手册：安装探测与升级、profile 列举与指定、task space 生命周期、Page 全 API、从 Chrome 导入 profile、书签管理（`scripts/ego-bookmarks.sh`）与排障。官方指南是真值（`ego-browser skill`）；个人 profile 等私有约定不在本层。详见 [ego 浏览器自动化与书签管理](https://wflynn.cn/pages/2607131022)。
+`ego-browser-ops` 是 ego-browser（ego lite，Chromium 内核、人和 Agent 共用的浏览器）的公共操作手册：安装探测与升级、profile 列举与指定、task space 生命周期、Page 全 API、从 Chrome 导入 profile、书签管理（`scripts/ego-bookmarks.sh`）与排障。官方指南是真值（`ego-browser skill`）；个人 profile 等私有约定不在本层。详见 [ego 浏览器自动化与书签管理](skills/web-automation/ego-browser-ops/SKILL.md)。
 
 `zh-humanizer` 保真清理中文套话与模板腔，支持作者样稿校准、文件正文保护、整篇复扫和明确回复场景的上下文处理；不编经历，不保证通过 AI 检测。Claude Code 显式调用 `/vft-kit:zh-humanizer`，Codex 用 `$zh-humanizer`。详见 [skill 规则](skills/design-content/zh-humanizer/SKILL.md)和[上游采纳与取舍](skills/design-content/zh-humanizer/references/upstream-humanizer.md)。
 
