@@ -1,0 +1,20 @@
+{
+  "stage": "draft",
+  "title": "替换为实际论文题目",
+  "sources": [],
+  "claims": [
+    {
+      "id": "C1",
+      "text": "替换为当前需要核实的具体主张",
+      "kind": "literature",
+      "status": "pending",
+      "evidence": []
+    }
+  ],
+  "requirements": [
+    {"id": "R1", "text": "核对实际学校或期刊要求及条款出处", "status": "pending"}
+  ],
+  "review": [
+    {"id": "V1", "issue": "实际核对证据、引用、方法和交付状态", "status": "open"}
+  ]
+}
