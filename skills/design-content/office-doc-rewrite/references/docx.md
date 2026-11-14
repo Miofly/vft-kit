@@ -64,6 +64,12 @@ for tc in doc.element.body.iter(qn('w:tc')):
 # 然后 grep 旧业务词
 ```
 
+### 坑4：目录域（TOC）在 headless 渲染里永远是空的
+
+写 `TOC \o "1-2" \h \z \u` 域并指望 `soffice --headless --convert-to pdf` 出页码行不通：LO headless 不更新域（`settings.xml` 里加 `<w:updateFields w:val="true"/>` 也无效），渲染出来只有域里的占位文字；交付给非 Word 的阅读器（WPS/预览）同样可能空白。
+
+正解：**两遍静态目录**——先生成（目录页码写占位）→ 转 PDF → 用 `pdftotext -f N -l N` 逐页找标题首次出现的页 → 写页码映射 → 重新生成。标题定位要跳过目录页（目录自身含标题文字，可能占多页），用摘要正文首句等唯一串定位起始页。页码口径要显式定死（如封面/声明/目录不编号、摘要页起为 1，靠 `w:pgNumType w:start` 另起一节）。参考实现：`/Users/wfly/Documents/code/wfly/bolierplate/other/temp/documents/thesis/build_toc.py`。
+
 ### 处理 .docx → 读 [references/docx.md](docx.md)
 
 要点速览：
