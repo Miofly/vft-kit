@@ -70,6 +70,7 @@ ego-browser（ego lite，Chromium 内核，Agent 与用户共用的浏览器）�
 - 选择器：快照 ref `@21` / `ref=21`、`text=...`（不加引号=忽略大小写子串，加引号=精确）、`loc=css:` / `loc=role:button[name='Sign in']` / `loc=role:...[name*="..."]` / `loc=href:`、`xpath=...`、裸 CSS；另支持 `css=`、结尾 `:has-text()` / `:text-is()`、`>> nth=N`。选择器必须**恰好匹配一个**可操作元素。CSS 穿透开放 shadow root；动作先找顶层文档再找 iframe。
 - 一轮内能规划好的多个动作放同一次调用，末尾等最终状态并**最后打印新快照**，下一轮直接用；页面变了就重拍快照，旧 `@N` 失效。
 - `snapshot()` 只截视口，末尾出现 `[more content below the viewport: ...]` 表示下方被省略，不是不存在；用 `full_page` 或滚动再下结论。
+- **Page 没有 `setViewportSize`**：要量桌面/手机两档只能用 CDP —— `await page.cdp('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false })`（手机档 `mobile: true`）。恢复默认再传同方法 + `{ width: 0, height: 0 }` 或 `Emulation.clearDeviceMetricsOverride`（2026-11-13 实测，写成 `page.setViewportSize` 直接 `TypeError: not a function`）。每换一档都要重新 `goto` 并按需 `waitForTimeout`，避免读到上一档布局的一帧。
 - 动作不达预期先看当前页真实状态，不盲目重试、不急着降级到坐标或 CDP。结果已明确就停，不多处重复确认。
 
 ### 动作细节
