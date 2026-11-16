@@ -1,4 +1,4 @@
-# git-auto-push 执行流程
+# 绕过 hooks 提交（原 git-auto-push）执行流程
 
 ## 执行流程（全自动，不打断）
 
@@ -51,7 +51,7 @@ esac
 1. 用户在调用时已经提供 message → 直接用
 2. 改动集中在一个目录 → `<type>(<目录名>): <动作> xxx`
    - 例：只改 `src/views/foo.vue` → `feat: 更新 foo 页面`
-   - 例：只改 `skills/dev-workflow/git-auto-push/SKILL.md` → `chore: 更新 git-auto-push skill`
+   - 例：只改 `skills/dev-workflow/git-ops/SKILL.md` → `chore: 更新 git-ops skill`
 3. 主要是新增文件 → `feat: 新增 xxx`
 4. 主要是删除文件 → `chore: 清理 xxx`
 5. 改动跨多个无关目录 / 看不出主线 / 超过 3 秒还没拟好 → **默认 fallback**：`chore: 更新代码`

@@ -18,6 +18,18 @@ const repo = args.get('repo');
 
 if (!area || area === 'help' || area === '--help') usage();
 
+if (area === 'issue') {
+  const options = {
+    list: ['repo', 'state', 'limit', 'search'],
+    view: ['repo', 'number'],
+    comments: ['repo', 'number'],
+    comment: ['repo', 'number', 'body-file'],
+    close: ['repo', 'number', 'reason'],
+  }[action];
+  if (!options) fail(`未知 Issue 命令: ${action}`);
+  for (const key of args.keys()) if (!options.includes(key)) fail(`不支持 --${key}`);
+}
+
 switch (`${area}:${action ?? ''}`) {
   case 'auth:': {
     run(['api', 'user', '--jq', '{login:.login}']);
@@ -28,6 +40,58 @@ switch (`${area}:${action ?? ''}`) {
     requireRepo();
     run(['repo', 'view', repo, '--json', 'nameWithOwner,isPrivate,defaultBranchRef,url,viewerPermission']);
     break;
+  case 'issue:list': {
+    requireRepo();
+    const state = args.get('state') ?? 'open';
+    if (!['open', 'closed', 'all'].includes(state)) fail('无效的 --state open|closed|all');
+    const command = ['issue', 'list', '--repo', repo, '--state', state, '--limit', args.get('limit') ?? '20',
+      '--json', 'number,title,state,url,updatedAt'];
+    if (args.has('search')) command.push('--search', args.get('search'));
+    run(command);
+    break;
+  }
+  case 'issue:view':
+    issueInfo();
+    run(['issue', 'view', issueNumber(), '--repo', repo, '--json',
+      'number,title,body,author,state,stateReason,url,labels,assignees,updatedAt']);
+    break;
+  case 'issue:comments':
+    issueInfo();
+    console.log(JSON.stringify(issueComments(), null, 2));
+    break;
+  case 'issue:comment': {
+    issueInfo();
+    if (args.has('body') || !args.has('body-file')) fail('回复正文请使用 --body-file FILE（- 表示 stdin）');
+    const file = required('body-file');
+    const body = readFileSync(file === '-' ? 0 : file, 'utf8');
+    if (!body.trim() || body.includes('\0')) fail('回复正文为空或包含 NUL');
+    const login = JSON.parse(run(['api', 'user'], undefined, true)).login;
+    const matching = () => issueComments().find(comment => comment.user.login === login && comment.body === body);
+    let comment = matching();
+    if (!comment) {
+      run(['issue', 'comment', issueNumber(), '--repo', repo, '--body-file', '-'], Buffer.from(body));
+      comment = matching();
+      if (!comment) fail('回复已提交但回读未匹配；先检查远端评论，不要直接重试');
+    }
+    console.log(JSON.stringify({ id: comment.id, url: comment.html_url, body: comment.body }));
+    break;
+  }
+  case 'issue:close': {
+    const before = issueInfo();
+    const reason = args.get('reason') ?? 'completed';
+    if (!['completed', 'not planned'].includes(reason)) fail('无效的 --reason completed|not planned');
+    const expected = reason === 'completed' ? 'completed' : 'not_planned';
+    if (before.state === 'closed' && before.state_reason !== expected) {
+      fail('Issue 已关闭且原因不同；保留现状，不自动改写关闭原因');
+    }
+    if (before.state !== 'closed') {
+      run(['issue', 'close', issueNumber(), '--repo', repo, '--reason', reason]);
+    }
+    const after = issueInfo();
+    if (after.state !== 'closed' || after.state_reason !== expected) fail('关闭后远端状态/原因未匹配');
+    console.log(JSON.stringify({ number: after.number, state: after.state, reason: after.state_reason, url: after.html_url }));
+    break;
+  }
   case 'secret:list':
     requireRepo();
     run(['secret', 'list', '--repo', repo, '--app', 'actions', '--json', 'name,updatedAt']);
@@ -71,15 +135,35 @@ switch (`${area}:${action ?? ''}`) {
     fail(`未知命令: ${area}${action ? ` ${action}` : ''}`);
 }
 
-function run(command, input) {
+function issueNumber() {
+  const number = required('number');
+  if (!/^[1-9]\d*$/.test(number)) fail('无效的 --number 正整数');
+  return number;
+}
+
+function issueInfo() {
+  requireRepo();
+  const info = JSON.parse(run(['api', `repos/${repo}/issues/${issueNumber()}`], undefined, true));
+  if (info.pull_request) fail('目标是 Pull Request，不是 Issue');
+  return info;
+}
+
+function issueComments() {
+  return JSON.parse(run(['api', `repos/${repo}/issues/${issueNumber()}/comments`,
+    '--paginate', '--slurp'], undefined, true)).flat();
+}
+
+function run(command, input, capture = false) {
   const result = spawnSync('gh', command, {
-    encoding: input ? undefined : 'utf8',
+    encoding: 'utf8',
     input,
-    stdio: input ? ['pipe', 'inherit', 'inherit'] : ['ignore', 'inherit', 'inherit'],
+    stdio: capture ? ['ignore', 'pipe', 'inherit'] : input ? ['pipe', 'inherit', 'inherit'] : ['ignore', 'inherit', 'inherit'],
     env: process.env,
+    maxBuffer: 16 * 1024 * 1024,
   });
   if (result.error) fail(`无法执行 gh: ${result.error.message}`);
   if (result.status !== 0) process.exit(result.status ?? 1);
+  return result.stdout;
 }
 
 function required(name) {
@@ -101,6 +185,11 @@ function usage() {
   console.log(`github-ops
   auth [--repo owner/repo]
   repo --repo owner/repo
+  issue list --repo owner/repo [--state open|closed|all] [--limit N] [--search QUERY]
+  issue view --repo owner/repo --number N
+  issue comments --repo owner/repo --number N
+  issue comment --repo owner/repo --number N --body-file FILE
+  issue close --repo owner/repo --number N [--reason completed|"not planned"]
   secret list --repo owner/repo
   secret set --repo owner/repo --name NAME [--value-file FILE]
   secret delete --repo owner/repo --name NAME

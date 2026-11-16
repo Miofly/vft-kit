@@ -1,6 +1,6 @@
 ---
 name: git-ops
-description: Git 版本管理与协作：根据 diff 生成提交信息、检查 Commit 规范、解决 merge/rebase 冲突、辅助分支管理、Code Review、生成 PR/MR 描述及交付。用户说”生成 commit””检查提交规范””提交一下””解决冲突””整理分支””review 改动””写 PR 描述””提 PR””评审这个 MR””CR 一下”，或需要同步、stash、回退、tag 时使用。GitHub/GitLab/Gitee 均适用；平台设置和 CI 运维用 github-ops。
+description: Git 版本管理与协作：根据 diff 生成提交信息、检查 Commit 规范、解决 merge/rebase 冲突、辅助分支管理、Code Review、生成 PR/MR 描述及交付。用户说”生成 commit””检查提交规范””提交一下””解决冲突””整理分支””review 改动””写 PR 描述””提 PR””评审这个 MR””CR 一下”，或需要同步、stash、回退、tag 时使用；用户明确要求绕过 Git hooks、跳过钩子、`--no-verify`、不跑 lint 直接提交推送时也用它（走 auto-push 全自动流程）。GitHub/GitLab/Gitee 均适用；平台设置和 CI 运维用 github-ops。
 ---
 
 # Git Ops
@@ -14,7 +14,7 @@ description: Git 版本管理与协作：根据 diff 生成提交信息、检查
 ## 硬规则
 
 - 只生成文字或 Review 时不修改仓库；未明确要求时不建、不切分支或 worktree。
-- 只暂存已确认的文件；不默认 `git add -A`、不自动 stash、不绕过 hooks、不改全局 Git 配置。
+- 只暂存已确认的文件；不默认 `git add -A`、不自动 stash、不绕过 hooks、不改全局 Git 配置。**例外**：用户明确要求绕过 hooks / `--no-verify` / 不跑 lint 直接推时，按 [auto-push-workflow.md](references/auto-push-workflow.md) 全自动执行（该流程默认 `git add -A`，跑完一次性汇报，只在需要 force 或发现敏感文件时停下）。
 - 强推、丢弃修改、删除远端分支/tag、改写已推送历史需明确授权；强推只用指定旧 SHA 的 `--force-with-lease`。
 - 疑似真实密钥立即停止提交/推送，只报告脱敏位置；没做内容安全扫描要明说。
 - 推送、PR 创建、CI、合并分别核实；结果不确定先查现状再重试，每次远端写入只走一个通道。
@@ -29,3 +29,5 @@ description: Git 版本管理与协作：根据 diff 生成提交信息、检查
 | 冲突解决、分支整理 | [branches-conflicts.md](references/branches-conflicts.md) | — |
 | 本地 Review、PR/MR 描述 | [review-pr.md](references/review-pr.md)；评审清单 [mr-review-checklist.md](references/mr-review-checklist.md) | — |
 | 日常速查、PR 交付、完成证明、工具集成 | [daily-pr-delivery.md](references/daily-pr-delivery.md) | [git-pr.sh](scripts/git-pr.sh)；自检 [selftest.py](scripts/selftest.py) |
+| 明确要求绕过 hooks 的提交推送（`--no-verify`）、适用场景与红线 | [auto-push-rules.md](references/auto-push-rules.md) | — |
+| 绕过 hooks 的执行流程：预检、HTTPS→SSH、拟 message、暂存、commit、push、嵌套子仓库、验证汇报 | [auto-push-workflow.md](references/auto-push-workflow.md) | — |

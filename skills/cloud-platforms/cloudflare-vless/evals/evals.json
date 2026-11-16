@@ -1,0 +1,26 @@
+{
+  "skill_name": "cloudflare-vless",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "我没搭过代理，Windows 电脑，只有 Cloudflare 账号，没有域名。想用 Clash Verge Rev，带我一步一步做，别动我现在的公司代理。",
+      "expected_output": "先识别域名和写操作授权缺口，提供注册/NS/安装地址与 PowerShell 路线；保持公司代理，先本地配置再部署；不声称已建成。",
+      "files": [],
+      "assertions": ["指出自定义域名缺口及费用边界", "不关闭现有公司代理", "给出 Windows PowerShell/curl.exe 用法", "完成判据包含浏览器与真实代理而非仅登录页"]
+    },
+    {
+      "id": 2,
+      "prompt": "已经有自己的 Worker 和 Clash。订阅 200，但里面 SNI 是 undefined.xyz，curl 走 7890 能通，浏览器不通。直接给我修好，不要覆盖上次好的配置。",
+      "expected_output": "拒收坏订阅，保留旧 profile；分别检查 SNI/Host 和系统代理状态；先拿证据再改，不把显式 curl 成功当浏览器通过。",
+      "files": [],
+      "assertions": ["不覆盖上次好配置", "拒收 undefined.xyz 并核对自有隧道主机", "回读系统代理/浏览器代理状态", "不通过 skip-cert-verify 或 DIRECT 掩盖故障"]
+    },
+    {
+      "id": 3,
+      "prompt": "帮我把自建节点做成能更新的订阅。我复制 am-cf-tunnel-sub 的 _worker.js 到控制台报找不到 core/handler.js。顺便要日本出口，不能把我的 UUID 发给公共转换器。",
+      "expected_output": "说明模块化入口，固定仓库完整构建 _worker.src.js 或 Wrangler；区分两个 Worker 的 ID/UUID/HOST；禁止未经同意公共转换器；不保证 Placement 就是日本出口。",
+      "files": [],
+      "assertions": ["使用完整模块树或上游 build-worker.mjs 生成文件", "隧道 ID 与订阅 ID/UUID 含义正确", "无自控转换器时保留本地配置路线", "指定国家用公网 IP、CF trace 和实际业务核验"]
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 ---
-description: "GitHub 仓库、PR 与 Actions 操作"
+description: "GitHub 仓库、Issue 查看回复关闭与 Actions 操作"
 disable-model-invocation: true
 ---
 

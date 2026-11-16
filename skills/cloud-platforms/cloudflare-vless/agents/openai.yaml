@@ -1,0 +1,5 @@
+interface:
+  display_name: "Cloudflare 自建 VLESS 代理"
+  short_description: "新手逐步部署 Workers 隧道、接入 Clash，并验证与排错"
+policy:
+  allow_implicit_invocation: true

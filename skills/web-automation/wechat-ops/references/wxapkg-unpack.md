@@ -12,7 +12,7 @@
 
 ## 流程
 
-`S` 为 wechat-mp skill 目录下的 `scripts/wxapkg/wxapkg.sh`，`OUT` 为临时产物目录（不要放进项目源码目录）。
+`S` 为 wechat-ops skill 目录下的 `scripts/wxapkg/wxapkg.sh`，`OUT` 为临时产物目录（不要放进项目源码目录）。
 
 1. **在电脑版微信里打开目标小程序**，把目标页面都点一遍，让分包也缓存下来。
 2. **定位 wxid**。用页面上看得见的文字搜索，搜索时会自动解密包内容：
@@ -28,12 +28,12 @@
    也可以直接传版本目录或单个 `.wxapkg` 文件。加 `-no-beautify` 跳过 JS/HTML/JSON 美化。
 4. **还原 WXSS**：
    ```bash
-   node <wechat-mp>/scripts/wxapkg/extract-wxss.mjs "$OUT/<wxid>"
+   node <wechat-ops>/scripts/wxapkg/extract-wxss.mjs "$OUT/<wxid>"
    ```
    脚本会生成 `app.wxss`、`pages/**/x.wxss` 和 `components/**/index.wxss`。新版基础库把每页样式放在 `pages/**/x.html` 里，而不是 `page-frame.html`，脚本两处都扫。
 5. **拆分逻辑与导出数据**：
    ```bash
-   node <wechat-mp>/scripts/wxapkg/split-service.mjs "$OUT/<wxid>"
+   node <wechat-ops>/scripts/wxapkg/split-service.mjs "$OUT/<wxid>"
    ```
    `app-service.js` 按 `define()` 拆到 `_modules/<原路径>`；纯数据模块（城市表、话术、文章等 `module.exports = {...}`）导出到 `_data/<路径>.json`。移植数据时从 JSON 生成 TS，不要让 LLM 手抄，长段中文法条手抄必然漏字改字。
 

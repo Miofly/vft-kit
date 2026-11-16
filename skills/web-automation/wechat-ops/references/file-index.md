@@ -17,3 +17,20 @@
 - `scripts/wxapkg/wxapkg.sh` — wxapkg 扫描 / 解包 CLI（带 `selftest`）；`scripts/wxapkg/extract-wxss.mjs` — 还原 WXSS；`scripts/wxapkg/split-service.mjs` — 拆 `app-service.js` 并导出数据 JSON（带 `--selftest`）
 - `scripts/wxapkg/export-game.py` — 小游戏归档：原始 wxapkg、已解包发布代码、桌面 define 模块、已访问 Cocos 资源、可选远端 bundle 配置；SHA-256 清单，`--selftest`，不执行目标 JS、不改微信数据
 - `scripts/tiktok-minis/fetch.py` — TikTok Minis H5 前端产物抓取（minis_url 或 link 接口 JSON 输入，`--pretty` 格式化）
+
+## 桌面微信发送（原 wechat-bridge）
+
+- `scripts/wechat_bridge.py` — 零依赖 loopback HTTP 桥（`self-test` / `probe` / `serve` / `send`），后端 noop / exec / upstream
+- `references/capability-scope.md` — 上游能力清单、缺口与逐项验收状态
+- `references/upstream-notes.md` — wechat-use 上游机制、激活与 build 前置
+- `references/qt-native-send-derivation.md` — 从本机微信自算原生发送 profile 的端到端流程与坑
+- `references/handoff-2026-11-11.md` — 原生发送研究暂停时的状态交接（仅恢复研究用）
+- `scripts/derive_profile.py` — 一条命令从本机微信算出 `profile.json`（版本、切片 sha256、各类 metacall/vtable RVA）
+- `scripts/ghidra_macos_bootstrap.sh` — macOS arm64 装出含原生反编译器的 Ghidra
+- `scripts/macho_chained_fixups.py` — 解 Mach-O chained fixup
+- `scripts/ghidra/*.java` — Ghidra 侧扫元对象/方法表/继承链并吐 JSON
+- `scripts/native/wechat_probe.c` — 外部只读探测（核对镜像、vtable、成员归属、filehelper 字段）
+- `scripts/native/native_executor.py`、`scripts/native/lldb_runner.py` — 限定 build 的实验发送器（默认仅 filehelper，带 resolve/preflight 与防重发）
+- `scripts/native/wechat_send.c`、`scripts/native/build_dylib.sh` — 实验 dylib 底座与编译（发送永久拒绝，不覆盖已加载 dylib）
+- `scripts/native/make_clone.sh` — 只准备副本和签名，不自动启动或登录
+- `scripts/test_derive_profile.py`、`scripts/native/test_native_executor.py`、`scripts/native/test_native.py` — 离线回归，不附着微信、不发送

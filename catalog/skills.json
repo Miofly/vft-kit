@@ -13,7 +13,6 @@
    "cloudflare-ops",
    "ego-browser-ops",
    "email-ops",
-   "git-auto-push",
    "git-ops",
    "github-ops",
    "grill-me",
@@ -26,7 +25,6 @@
    "ollama-local",
    "openi",
    "qr-login",
-   "temp-mail",
    "vercel-ops",
    "web-scrape",
    "zh-humanizer"
@@ -52,6 +50,7 @@
    "skills": [
     "aistudio",
     "cloudflare-ops",
+    "cloudflare-vless",
     "huggingface-ops",
     "kaggle-ops",
     "modelscope-studio",
@@ -80,7 +79,6 @@
    "skills": [
     "diagnosing-bugs",
     "fe-quality-ops",
-    "git-auto-push",
     "git-ops",
     "github-ops",
     "grill-me",
@@ -97,10 +95,8 @@
     "ego-browser-ops",
     "keyboard-maestro",
     "qr-login",
-    "temp-mail",
     "web-scrape",
-    "wechat-bridge",
-    "wechat-mp"
+    "wechat-ops"
    ]
   },
   {

@@ -1,0 +1,4 @@
+interface:
+  display_name: "wechat-ops"
+  short_description: "微信桌面发送桥与公众号/小程序后台操作"
+  default_prompt: "Use $wechat-ops for WeChat desktop sending or WeChat MP / miniprogram operations."

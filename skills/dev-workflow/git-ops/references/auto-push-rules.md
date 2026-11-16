@@ -1,4 +1,4 @@
-# git-auto-push 规则与正反例
+# 绕过 hooks 提交（原 git-auto-push）规则与正反例
 
 ## 核心规则（最重要）
 
