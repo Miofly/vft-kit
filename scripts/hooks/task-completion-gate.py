@@ -144,9 +144,8 @@ def hook(payload):
                 state['status'] = 'stalled'
                 return {'systemMessage': 'TASK_STALLED：任务未完成，连续3次续跑无工具进展。请检查模型/额度；不是执行成功。'}
             return {'decision': 'block', 'reason': (
-                f"[TASK_GATE {state['stops']}/3] 本轮状态仍为 active，不能结束；不是按回复措辞判断。"
-                '继续执行剩余任务和验收；若已完成、纯问答、真实受阻或用户停止，按状态协议提交终态。'
-                + instructions(session, state['revision']))}
+                f"[TASK_GATE {state['stops']}/3] 本轮仍为 active：未完成就继续执行和验收；"
+                '可结束时按本轮协议提交回执。')}
     return None
 
 
