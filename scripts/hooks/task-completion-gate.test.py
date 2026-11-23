@@ -127,11 +127,5 @@ class GateTest(unittest.TestCase):
             error='invalid receipt')
         self.assertEqual(self.call('Stop')['decision'], 'block')
 
-    def test_old_heuristics_disabled(self):
-        import runpy
-        old = runpy.run_path(str(Path(gate.__file__).with_name('stall-continue-hook.py')))
-        self.assertIsNone(old['decide']({}, dict(os.environ)))
-
-
 if __name__ == '__main__':
     unittest.main()

@@ -1,7 +1,7 @@
 {
   "version": 2,
   "apply_mode": "warn",
-  "subagent_enforcement": "advisory",
+  "subagent_enforcement": "on",
   "classifier": {
     "cli_fallback": false
   },

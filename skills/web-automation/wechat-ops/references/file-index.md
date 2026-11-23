@@ -20,7 +20,10 @@
 
 ## 桌面微信发送（原 wechat-bridge）
 
-- `scripts/wechat_bridge.py` — 零依赖 loopback HTTP 桥（`self-test` / `probe` / `serve` / `send`），后端 noop / exec / upstream
+- `scripts/wechat_bridge.py` — 回环 HTTP 桥（`serve`、`send`、`receipt`）、本机只读 `desktop-mcp`、`desktop-tui`、官方组件接入与协议自检；后端 noop / exec / desktop / upstream
+- `scripts/verify_release.py` — 凭可信的发布包 SHA-256，在 macOS 离线核验八个官方组件的清单、哈希和签名；不执行包内程序、不安装
+- `scripts/verify_desktop.py` — 对照 CLI、HTTP、MCP、终端控制台的会话与文件助手查询；`--badge-only`、`--contacts-only`、`--moments-only` 分别对照总角标、通讯录和朋友圈可见标签；只报告验收状态和检查数量，不发消息
+- `scripts/message_archive.py` / `scripts/test_message_archive.py` — 显式 JSONL 导入、离线历史和搜索、基线与游标补读；不访问微信私库，跨进程回归只使用合成记录
 - `references/capability-scope.md` — 上游能力清单、缺口与逐项验收状态
 - `references/upstream-notes.md` — wechat-use 上游机制、激活与 build 前置
 - `references/qt-native-send-derivation.md` — 从本机微信自算原生发送 profile 的端到端流程与坑

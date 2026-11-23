@@ -10,10 +10,10 @@ REA 是一套「从已发布产物还原实现」的工具集（MCP server + CLI
 
 ## Claude Code 首轮执行
 
-1. **锁定目标与分支**：确认绝对产物路径/版本、授权范围和问题。点名 Craft Anything 或要完整复刻闭环时读 [Craft 路线](references/craft-anything/README.md)；点名 BLA 或审计加固自有发布物时读 [BLA 路线](references/bla/README.md)。其余逆向按下面 REA 路由；源码常规分析用 codegraph，资料研究直接读索引，不启动 provider。
-2. **确认当前可调用工具**：已有 REA 工具就直接按下表开始，不先跑 doctor/setup。宿主有延迟工具搜索才使用它；无 REA 工具时读 [Claude Code 接入与回退](references/claude-code.md)，不要把 Skill 加载成功当成 MCP 已连接。
-3. **按产物选第一工具**：工具名以当前 server 实际 schema 为准，先选匹配的官方参考，再从 REAP 路由选一个模板。现有工具不支持目标、需要案例或研究方法时，读 [Awesome-REA 离线目录](references/awesome-rea/README.md) 和 [资源选择与验收](references/resource-selection.md)，按目标筛至 2–3 个候选；不用遍历全部 pack 或安装全部工具。
-4. **只补未解问题**：保留首次 Evidence；大目标 summary-first，用 `inspect_analysis_view` 聚焦模块/符号。静态不足才申请最小运行时观察；结束交付证据链、覆盖范围和未知项。
+1. **锁定目标**：固定发布版本、架构、产物 SHA-256 和授权范围。先找能与产物版本对应的官方源码、source map、符号与构建信息；完整源码的常规分析走 codegraph。BLA 审计、提示词和资料检索按各自分支执行。
+2. **已发布软件分析默认双工具**：同时使用 REA 与 `craft-anything-cli`（或其对应 MCP）独立读取同一份、同哈希的目标。REA 按下表取证；Craft 按 [双工具交叉核验](references/craft-anything/README.md#双工具交叉核验) 选工具。一个已出证据，不免除另一工具的交叉核验；已有证据可复用，但版本、哈希和范围须一致。
+3. **确认实际运行**：优先现有 MCP 或本机 CLI，不先跑 setup。REA 缺入口见 [Claude Code 接入与回退](references/claude-code.md)；工具或 provider 不支持时写明缺哪一段及实际错误，继续可做部分，但不称双工具验证完成。只写工具名、读取 skill、运行 `--help` 或仅识别文件格式，不算完成核心逻辑分析。
+4. **对账后再重建**：对关键入口、调用、条件、状态与副作用逐项附 REA/Craft 证据和地址。相同底层反编译器不算两份独立结论。分歧用反汇编、匹配版本源码或获授权的最小行为观察裁决；未解标未知。交付分别标原始源码、恢复的伪代码、独立重建代码；不能保证从闭源二进制无损恢复原始源码。
 
 | 用户目标 | 首选 REA MCP 工具 | 官方参考 |
 | --- | --- | --- |

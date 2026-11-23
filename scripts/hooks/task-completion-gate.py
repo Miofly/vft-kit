@@ -190,7 +190,7 @@ def settings():
     cmd = f'python3 "{script}"'
     hooks = {event: [{'hooks': [{'type': 'command', 'command': cmd, 'timeout': 5}]}]
              for event in ('SessionStart', 'UserPromptSubmit', 'PostToolUse', 'PostToolUseFailure', 'Stop')}
-    return {'env': {'CCMAX_TASK_GATE': '1', 'CCMAX_AS_CONTINUE': '1'}, 'hooks': hooks}
+    return {'env': {'CCMAX_TASK_GATE': '1'}, 'hooks': hooks}
 
 
 def main():
