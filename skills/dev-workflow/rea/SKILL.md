@@ -111,7 +111,7 @@ npx -y rea-agents@latest --mcp       # 以 MCP stdio server 启动
    - 桌面 App 的 CLI 默认连常驻后台服务，环境变量对它无效；找 `--standalone` 之类的私有服务开关再抓。
    - 旧版客户端的请求头被拒、新版照样放行时，抓新版的头照抄，版本号从已安装的 App 读取，别写死。换客户端版本不会多出额度：opencode 1.19.5 免费额度用尽后，正式版 1.18.35 同一时刻在三个免费模型上都报 `Free usage limit reached`（2026-11-05 实测），额度不按版本分开计。换出口 IP 也不行：同日未登录（`opencode auth list` 0 credentials）状态下，把 `opencode.ai` 分别分流到美国、日本两个独立机房 IP，仍立即报同样的错，额度不按 IP 计，推测绑定本机设备标识。`opencode run` 遇到这个报错后不会退出，测试时要加超时。
    - 判断 429 是额度还是门槛：同一时间用官方客户端发一句对照，官方也被拒就是额度。
-7. 本机 Node 版本可能低于 rea-agents 要求的 `^22.23.4`（npm 只报 EBADENGINE 警告）。引擎相关命令出现异常时，先核对 `node -v`。
+7. 本机 Node 版本可能低于 rea-agents 要求（`22.x >=22.23.4`、`24.x >=24.22.1`、`26.12.1+`；npm 只报 EBADENGINE 警告）。遇到 `REA requires Node.js ... this process runs ...` 时不要停在报错：先 `volta install node@22.23.4`（或 `node@24.22.1`），再 `volta which node` 确认新版路径。若 `node -v` 仍是旧版，是 shell PATH 里显式版本目录排在 shim 前，用 `PATH="$HOME/.volta/tools/image/node/22.23.4/bin:$PATH" npx -y rea-agents@latest ...` 或直接绝对路径调用，不要改项目 pin。`rea doctor --json` 里 `node`/`host` 两项 healthy 即表示 Node 已够。
 
 ## 读哪篇 reference
 
